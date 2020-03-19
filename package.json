@@ -1,0 +1,40 @@
+{
+  "name": "pathfinder",
+  "siteName": "PINT",
+  "version": "1.7.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "node patches/jsdom-fetch-fix.js",
+    "build": "node scripts/build.js",
+    "dev": "NODE_ENV=development npm run build && node scripts/dev.js",
+    "dev:prod": "NODE_ENV=production npm run build && http-server ./dist -p $npm_package_config_devPort",
+    "reset": "rm -rf node_modules",
+    "reset:install": "npm run reset && npm install",
+    "update:check": "ncu",
+    "update:fix": "ncu -u"
+  },
+  "engines": {
+    "node": ">=12.7.0"
+  },
+  "config": {
+    "devPort": 3000
+  },
+  "dependencies": {
+    "browser-sync": "^2.26.7",
+    "canvas": "^2.6.1",
+    "chalk": "^3.0.0",
+    "clean-css": "^4.2.3",
+    "cli-cursor": "^3.1.0",
+    "cli-spinners": "^2.2.0",
+    "fs-extra": "^8.1.0",
+    "html-minifier": "^4.0.0",
+    "http-server": "^0.12.1",
+    "jsdom": "^16.1.0",
+    "lodash.clonedeep": "^4.5.0",
+    "lodash.merge": "^4.6.2",
+    "npm-check-updates": "^4.0.1",
+    "rimraf": "^3.0.1",
+    "uglify-es": "^3.3.9"
+  },
+  "devDependencies": {}
+}
