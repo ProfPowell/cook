@@ -1,6 +1,6 @@
 {
-  "name": "pathfinder",
-  "siteName": "PINT",
+  "name": "cook",
+  "siteName": "cook",
   "version": "1.7.0",
   "private": true,
   "scripts": {
