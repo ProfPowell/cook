@@ -7,7 +7,8 @@
 
 ## Getting Started
 
-This document assumes your project is using the starter repo pattern: [Pathfinder Starter](https://gitlab.pint.com/pathfinder/starter).<br>
+This document assumes your project is using the starter repo pattern [TBD]
+<br>
 If you have manually set your `/config/main.js` config file locations and/or your own `npm run xxxx` script calls, use those instead of the example versions below.
 
 ~~For a full walkthrough on changing the default config locations, view the tutorial. [TODO]~~
