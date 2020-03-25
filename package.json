@@ -26,14 +26,14 @@
     "clean-css": "^4.2.3",
     "cli-cursor": "^3.1.0",
     "cli-spinners": "^2.2.0",
-    "fs-extra": "^8.1.0",
+    "fs-extra": "^9.0.0",
     "html-minifier": "^4.0.0",
     "http-server": "^0.12.1",
-    "jsdom": "^16.1.0",
+    "jsdom": "^16.2.1",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
-    "npm-check-updates": "^4.0.1",
-    "rimraf": "^3.0.1",
+    "npm-check-updates": "^4.0.6",
+    "rimraf": "^3.0.2",
     "uglify-es": "^3.3.9"
   },
   "devDependencies": {}
