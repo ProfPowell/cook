@@ -43,11 +43,27 @@ class CopySrc {
     else {
       // Show terminal message: Start
       Logger.persist.header('\nCopy /src to /dist');
-      // Copy contents of `/src` to `/dist`
-      await fs.copy(srcPath, distPath).catch(err => Util.customError(err, 'CopySrc.init(): Full Build'));
+      // Copy contents of `/src` to `/dist` (exclude targets by extension - markdown)
+      await fs.copy(srcPath, distPath, { filter: this.excludeByExtension }).catch(err => Util.customError(err, 'CopySrc.init(): Full Build'));
       // Show terminal message
       Logger.persist.success(`Content from /${srcPath} copied to /${distPath}`);
     }
+  }
+
+  // HELPER METHODS
+  // -----------------------------
+
+  // Don't copy files with a certain file-extension (markdown)
+  excludeByExtension(src,dest) {
+    // Skip directories
+    if (fs.lstatSync(src).isDirectory()) return true;
+    // ---
+    // MARKDOWN
+    // Don't copy markdown files
+    const markdownPattern = /.*(?<!.md)$/;
+    const isNotMarkdown = markdownPattern.test(src);
+    // Copy the file if it passes the regex (not a .md file)
+    return isNotMarkdown;
   }
   
   

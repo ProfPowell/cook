@@ -653,9 +653,10 @@ function skipped(test, label = 'skipped') {
  */
 async function updatePage(file) {
   // Destructure object props
-  const {path,src} = file;
+  const {ext,path,src} = file;
   // CREATE NEW DIRECTORY IN /DIST (If it doesn't exist)
-  addDirectory(file);
+  // Note: Only for `.html` pages
+  if (ext === 'html') addDirectory(file);
   // UPDATE FILE
   await fs.writeFile(path, src);
 }
