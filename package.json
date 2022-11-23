@@ -20,7 +20,7 @@
     "devPort": 3000
   },
   "dependencies": {
-    "browser-sync": "^2.26.7",
+    "browser-sync": "^2.27.10",
     "canvas": "^2.6.1",
     "chalk": "^3.0.0",
     "clean-css": "^4.2.3",
