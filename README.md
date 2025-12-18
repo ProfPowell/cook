@@ -123,6 +123,7 @@ The build process performs the following steps:
    * Replaces ES6 template strings (`${}`) with data from config
    * Adds missing `http://` protocol to external links
    * Replaces include placeholders (`[data-include]`) with target source
+   * Replaces custom elements and `[data-component]` elements with templates
    * Replaces inline placeholders (`[data-inline]`) with external source (production only)
    * Sets `<a>` tags with matching `[href]` as active (`class="active"`)
    * Sets `<a>` tags with partial `[href]` match as active parent (`class="active-parent"`)
@@ -237,6 +238,53 @@ Bundle multiple files into one:
 ### Active Links
 
 Automatically adds `class="active"` to links matching the current page URL.
+
+### Components
+
+Replace custom elements or semantic HTML elements with reusable templates. Supports two patterns:
+
+**1. Custom Elements** (hyphenated tag names):
+```html
+<site-header title="Welcome" subtitle="Home Page"></site-header>
+<app-footer year="2024"></app-footer>
+```
+
+**2. Semantic HTML with `data-component`**:
+```html
+<header data-component="header" data-title="Welcome"></header>
+<nav data-component="nav" data-active="home"></nav>
+<footer data-component="footer" data-year="2024"></footer>
+```
+
+**Component Templates** (`/src/components/header.html`):
+```html
+<header class="site-header">
+  <h1>${title}</h1>
+  <p>${subtitle}</p>
+  ${slot}
+</header>
+```
+
+Template variables:
+- `${attributeName}` - Data from element attributes (converted to camelCase)
+- `${slot}` - Inner HTML content from the original element
+- `${tagName}` - Original element's tag name
+
+**Configuration** (`/config/main.js`):
+```javascript
+export default {
+  components: {
+    // Path to components directory (default: 'components')
+    path: 'components',
+    // Optional prefix for custom elements (e.g., 'site-' matches <site-header>)
+    prefix: 'site-',
+    // Explicit mapping of element names to template files
+    mapping: {
+      'app-nav': 'navigation.html',
+    },
+  },
+};
+```
 
 ---
 

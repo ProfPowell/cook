@@ -70,6 +70,21 @@ const defaultConfig = {
     distPath: 'assets/bundle',
   },
 
+  // Components: Replace custom elements and semantic HTML with templates
+  // Supports:
+  //   - Custom elements: <site-header title="Welcome"></site-header>
+  //   - Semantic HTML: <header data-component="header" data-title="Welcome"></header>
+  // Component templates use ${varName} for data and ${slot} for inner content
+  components: {
+    // Path to components directory (relative to srcPath/distPath)
+    path: 'components',
+    // Optional prefix for custom elements (e.g., 'site-' matches <site-header>)
+    prefix: null,
+    // Explicit mapping of element names to template files
+    // If not mapped, uses element name as filename (e.g., 'header' -> 'header.html')
+    mapping: {},
+  },
+
 
   // OPTIONAL
   // -----------------------------
@@ -157,6 +172,7 @@ export default config;
 export const {
   activeLink,
   bundle,
+  components,
   convertPageToDirectory,
   distPath,
   excludePaths,
