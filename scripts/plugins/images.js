@@ -3,21 +3,21 @@
  * @description Get images and update HTML markup
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 const cwd = process.cwd();
-const utils = require('../utils/util/util.js');
-const Logger = require('../utils/logger/logger.js');
+import utils from '../utils/util/util.js';
+import Logger from '../utils/logger/logger.js';
 
-const SVGO = require('svgo');
-const imagemin = require('imagemin');
-const imageminSvgo = require('imagemin-svgo');
-const imageminWebp = require('imagemin-webp');
-const imageminMozjpeg = require('imagemin-mozjpeg');
-const imageminPngquant = require('imagemin-pngquant');
+import SVGO from 'svgo';
+import imagemin from 'imagemin';
+import imageminSvgo from 'imagemin-svgo';
+import imageminWebp from 'imagemin-webp';
+import imageminMozjpeg from 'imagemin-mozjpeg';
+import imageminPngquant from 'imagemin-pngquant';
 
 // Config
-const {customImgDir, customImgTypes, distPath, svgOpts} = require('../utils/config/config.js');
+import { customImgDir, customImgTypes, distPath, svgOpts } from '../utils/config/config.js';
 
 // PLUGIN OPTIONS
 // -----------------------------
@@ -38,13 +38,13 @@ const svgo = new SVGO(svgoOpts);
 
 /**
  * @description Convert <img> tags to <picture> elements
- * 
+ *
  * @param {Array} images Images queried with jsdom
  * @param {String} file File object
  */
 function editMarkup(images, file) {
   images.forEach(el => {
-    if (el.getAttribute('data-optimize') !== 'disabled') { 
+    if (el.getAttribute('data-optimize') !== 'disabled') {
       const originalFileSource = el.getAttribute('src');
       if (validSource(originalFileSource)) {
         const webpFileSource = originalFileSource.replace(/\.[^/.]+$/, "");
@@ -56,7 +56,7 @@ function editMarkup(images, file) {
         for (let p in attrs) attributes += `${p}="${attrs[p]}"`;
 
         if (typesToConvert.includes(originalFiletype) && !el.parentNode !== 'picture') {
-          let markup = 
+          let markup =
             `<picture>
               <source srcset="${webpFileSource}.webp" type="image/webp">
               <source srcset="${originalFileSource}" type="image/${originalFiletype}">
@@ -72,7 +72,7 @@ function editMarkup(images, file) {
 
 /**
  * @description Compress SVGs with svgo
- * 
+ *
  * @param {Object} file File object
  * @param {String} [type] Type of file (image or html)
  */
@@ -82,7 +82,7 @@ function optimizeSVG(file, type) {
   // When SVG is an external call to a .svg file
   if (type === 'image') {
     compress(file, 'svg')
-  } 
+  }
   // When SVG is inline in the markup
   else {
     // Make source traversable with JSDOM
@@ -120,7 +120,7 @@ function replaceImgTags({file, allowType, allowType, disallowType}) {
   const images = dom.window.document.querySelectorAll(`img`);
 
   editMarkup(images, file);
-  
+
   file.src = utils.setSrc({dom});
   Logger.success(`Edited image markup in ${file.name}`);
 }
@@ -135,7 +135,7 @@ function replaceImgTags({file, allowType, allowType, disallowType}) {
  * @internal
  */
 function validSource(src) {
-  return ( 
+  return (
     !src.includes('android-chrome') &&
     !src.includes('-touch-') &&
     !src.includes('favicon-') &&
@@ -180,7 +180,7 @@ function compressAndNextGen(image) {
  * @internal
  */
 function compress(image, type) {
-  const output = image.replace(/\/[^/]+$/, "");  
+  const output = image.replace(/\/[^/]+$/, "");
 	// raster image? compress appropriately
 	if (type !== 'svg') {
 		imagemin([image], output, {
@@ -217,4 +217,4 @@ function convertToWebp(image) {
 
 // EXPORT
 // -----------------------------
-module.exports = {compressAndNextGen, replaceImgTags, optimizeSVG};
+export { compressAndNextGen, replaceImgTags, optimizeSVG };

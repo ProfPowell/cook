@@ -3,11 +3,12 @@
  * @description Create X dummy pages to test build speed
  */
 
-// REQUIRE
+// IMPORTS
 // -----------------------------
+import fs from 'fs-extra';
+import Logger from '../logger/logger.js';
+
 const cwd = process.cwd();
-const fs = require('fs-extra');
-const Logger = require('../logger/logger.js');
 
 
 // DEFINE
@@ -31,4 +32,4 @@ function generatePages(num) {
 
 // EXPORT
 // -----------------------------
-module.exports = {generatePages};
+export { generatePages };

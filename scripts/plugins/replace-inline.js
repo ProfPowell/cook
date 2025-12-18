@@ -3,16 +3,16 @@
  * @description Replace external `<link>` and `<script>` calls inline
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 // const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
+import chalk from 'chalk';
+import fs from 'fs-extra';
 // const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
+import Util from '../utils/util/util.js';
 
 // Config
-const {distPath} = require('../utils/config/config.js');
+import { distPath } from '../utils/config/config.js';
 
 // DEFINE
 // -----------------------------
@@ -181,15 +181,15 @@ class ReplaceInline {
     const pathSplit = path.split('https://localhost');
     return pathSplit[pathSplit.length - 1];
   }
-  
+
 
   // LOGGING
   // -----------------------------
   // Display additional terminal logging when `process.env.LOGGER` enabled
-  
+
   startLog() {
     // Early Exit: Logging not allowed
-    if (!process.env.LOGGER) return; 
+    if (!process.env.LOGGER) return;
     // Start Spinner
     this.loading.start(chalk.magenta('Replacing Inlines'));
     // Start timer
@@ -204,7 +204,7 @@ class ReplaceInline {
     // If no matches found, stop logger but don't show line in terminal
     else this.loading.kill();
   }
-    
+
 
   // EXPORT WRAPPER
   // -----------------------------
@@ -216,4 +216,4 @@ class ReplaceInline {
 
 // EXPORT
 // -----------------------------
-module.exports = ReplaceInline.export;
+export default ReplaceInline.export;

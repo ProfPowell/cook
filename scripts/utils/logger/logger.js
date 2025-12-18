@@ -1,7 +1,7 @@
-// REQUIRE
+// IMPORTS
 // ----------------------------------
-const chalk = require('chalk');
-const deepClone = require('lodash.clonedeep');
+import chalk from 'chalk';
+import cloneDeep from 'lodash.clonedeep';
 
 // DEFINE
 // ----------------------------------
@@ -18,7 +18,7 @@ let types = {
   warning: (message, indent=0) => console.log(`${setIndent(indent)}${ chalk.yellow('warn') }`, message),
 }
 // Clone types for persistance option
-const persist = deepClone(types);
+const persist = cloneDeep(types);
 
 // DISABLE OUTPUT IF ENV VARIABLE SET
 // ------------------------------------
@@ -44,4 +44,4 @@ function setIndent(indent) {
 
 // EXPORT
 // ----------------------------------
-module.exports = types;
+export default types;

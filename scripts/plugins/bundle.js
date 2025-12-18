@@ -6,24 +6,25 @@
  * The entry is cached, so subsequent pages with the same setup just use the already-cached bundle instead of building it again per page.
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import CleanCSS from 'clean-css';
+import * as terser from 'terser';
+import Logger from '../utils/logger/logger.js';
+import Util from '../utils/util/util.js';
+
 const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const minifyCss = require('clean-css');
-const minifyEs = require('uglify-es');
-const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
 
 // Config
-const {bundle,srcPath,distPath} = require('../utils/config/config.js');
+import { bundle, srcPath, distPath } from '../utils/config/config.js';
 
 
 // DEFINE
 // -----------------------------
 /**
- * @description Find and group `<link>` or `<script>` tags by adding their source to one bundle file 
+ * @description Find and group `<link>` or `<script>` tags by adding their source to one bundle file
  * and then removing the old, individual tags.
  * The new file is inserted into the page at the location of the last bundled tag to preserve execution order.
  * @param {Object} obj - Deconstructed options object
@@ -48,7 +49,7 @@ class Bundle {
 
     // Use user-defined paths or set defaults for where to create the bundled files
     this.bundleDistPath = bundle && bundle.distPath || `assets/bundle`;
-    
+
     // Init terminal logging
     Util.initLogging.call(this);
   }
@@ -59,8 +60,8 @@ class Bundle {
 
   /**
    * @description Find each `<link>` or `<script>` with `[data-bundle]` or `[bundle]` attribute,
-   * add their file path to a group array for bundling, add the new bundle `<link>` or `<script>` 
-   * above the last-group instance element, and then finally remove all the 'old' `<link>` or `<script>` 
+   * add their file path to a group array for bundling, add the new bundle `<link>` or `<script>`
+   * above the last-group instance element, and then finally remove all the 'old' `<link>` or `<script>`
    * elements now that we've added the bundled version instead.
    * ---
    * NOTE: This does not create the bundled `.css` or `.js` file. For that see the `build()` method.
@@ -82,12 +83,12 @@ class Bundle {
     // Make source traversable with JSDOM
     const dom = Util.jsdom.dom({src: file.src});
     const document = dom.window.document;
-    
+
     // Find `<link>` or `<script>` tags with the `[data-bundle]` or `[bundle]` attributes
     const links = document.querySelectorAll('link[data-bundle], link[bundle]');
     const scripts = document.querySelectorAll('script[data-bundle], script[bundle]');
     this.totalAdd = links.length + scripts.length;
-    
+
     // Early Exit: No targets found
     if (!this.totalAdd) return;
 
@@ -101,13 +102,13 @@ class Bundle {
 
     // Store updated file source
     file.src = Util.setSrc({dom});
-    
+
     // END LOGGING
     this.endAddLog();
   }
 
   /**
-   * @description From the bundled groups compiled in `add()`, 
+   * @description From the bundled groups compiled in `add()`,
    * create the bundled `.css` and `.js` files in the desired `/dist` location..
    */
   async build() {
@@ -118,7 +119,7 @@ class Bundle {
     const jsGroups = this.store.bundle.js;
     // Store # of files that will be created
     this.totalBuild = Object.keys(cssGroups).length + Object.keys(jsGroups).length;
-    
+
     // ADD TERMINAL SECTION HEADING
     if (this.totalBuild > 0) Logger.persist.header(`\nCreate Bundle Files`);
 
@@ -131,7 +132,7 @@ class Bundle {
     // Build bundle files
     await this.buildBundles(cssGroups, 'css');
     await this.buildBundles(jsGroups, 'js');
-    
+
     // END LOGGING
     this.endBuildLog();
   }
@@ -141,9 +142,9 @@ class Bundle {
   // -----------------------------
 
   /**
-   * @description Find all `<link>` or `<script>` tags that are bundled together. 
+   * @description Find all `<link>` or `<script>` tags that are bundled together.
    * Store the group name and the file paths, then remove the 'old' DOM element references.
-   * Finally, insert a new element that will reference the bundle. 
+   * Finally, insert a new element that will reference the bundle.
    * ---
    * NOTE: linked bundle file created further in the build process.
    * @param {Array} targets - Array of `<link>` or `<script>` tags to group and then remove.
@@ -156,7 +157,7 @@ class Bundle {
     const bundleType = this.store.bundle[type];
     const counters = {};
 
-    // Loop through each found target and add the source path 
+    // Loop through each found target and add the source path
     // to an appropriate group array.
     targets.forEach(target => {
       // Before storing, add a flag for whether we should minify the source or not
@@ -215,12 +216,12 @@ class Bundle {
     // Early Exit: No bundle groups found of the given type
     if (!groupKeys) return;
     // Fetch source from targeted group file and combine into one source string.
-    // We're effectively bundling the source code here, and then we'll write it 
+    // We're effectively bundling the source code here, and then we'll write it
     // to a new file next.
     // ---
     // Loop through each group
     await Promise.all(groupKeys.map(key => this.buildBundle({key, paths: targets[key], type})));
-  } 
+  }
     // Build individual bundle file
     async buildBundle({key, paths, type}) {
       // Init bundled string
@@ -235,8 +236,8 @@ class Bundle {
       // See: `this.bundleDistPath` defined in the constructor
       await fs.writeFile(`${distPath}/${this.bundleDistPath}/bundle-${key}.${type}`, bundledSrc, 'utf-8');
     }
-  
-  
+
+
   // HELPER METHODS
   // -----------------------------
 
@@ -264,7 +265,7 @@ class Bundle {
       // Get path starting from the 'src' directory. Example: `/src/assets/plugin/myplugin.js`
       let src = await fs.readFile(`${srcPath}/${pathFormatted}`, 'utf-8');
       // If the source is allowed to by minified, minify it
-      if (minify) src = type === 'js' ? this.minJs(src) : this.minCss(src);
+      if (minify) src = type === 'js' ? await this.minJs(src) : this.minCss(src);
       // Return the found source
       return src;
     }
@@ -273,26 +274,27 @@ class Bundle {
     }
   }
 
-  minJs(src) {
+  async minJs(src) {
     const config = {};
-    return minifyEs.minify(src, config).code;
+    const result = await terser.minify(src, config);
+    return result.code;
   }
 
   minCss(src) {
     const config = { inline: ['none'] };
     // Minify source
-    return new minifyCss(config).minify(src).styles;
+    return new CleanCSS(config).minify(src).styles;
   }
-  
+
 
   // LOGGING
   // -----------------------------
   // Display additional terminal logging when `process.env.LOGGER` enabled
-  
+
   startLog(label, isAdd) {
     // Early Exit: Logging not allowed for in-page bundle collecting (`add()`)
     // but is for the `build()` process
-    if (!process.env.LOGGER && isAdd) return; 
+    if (!process.env.LOGGER && isAdd) return;
     // Start Spinner
     this.loading.start(chalk.magenta(label));
     // Start timer
@@ -315,7 +317,7 @@ class Bundle {
     // If no matches found, stop logger but don't show line in terminal
     else this.loading.kill();
   }
-    
+
 
   // EXPORT WRAPPER
   // -----------------------------
@@ -331,7 +333,6 @@ class Bundle {
 
 // EXPORT
 // -----------------------------
-module.exports = {
-  bundleAdd: Bundle.add,
-  bundleBuild: Bundle.build,
-};
+const bundleAdd = Bundle.add;
+const bundleBuild = Bundle.build;
+export { bundleAdd, bundleBuild };

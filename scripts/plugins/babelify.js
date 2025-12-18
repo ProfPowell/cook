@@ -3,16 +3,16 @@
  * @description Babelify JS files and replace HTML script tags with type=module/nomodule
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 const cwd = process.cwd();
-const Logger = require('../utils/logger/logger.js');
-const utils = require('../utils/util/util.js');
-const babel = require('@babel/core');
-const fs = require('fs');
+import Logger from '../utils/logger/logger.js';
+import utils from '../utils/util/util.js';
+import babel from '@babel/core';
+import fs from 'node:fs';
 
 // Config
-const {babelOpts} = require('../utils/config/config.js');
+import { babelOpts } from '../utils/config/config.js';
 
 // Plugin options
 const opts = babelOpts || {
@@ -97,7 +97,7 @@ async function createEs5File(file) {
       fs.writeFile(es5Path, await babel.transformFileSync(file.path, opts).code, err => {
         if (err) throw err;
         Logger.success(`/${file.path} - Copied to ${es5Path} and 'babelified'`);
-      }); 
+      });
     }
   });
 }
@@ -112,18 +112,18 @@ async function createEs5File(file) {
  */
 function canCompileScript(script) {
   let source = script.getAttribute('src');
-  return (source 
+  return (source
   && !source.includes('//')
   && !source.includes('.min.')
   && !source.includes('www')
   && !source.includes('vendor/')
   && script.getAttribute('inline') !== ''
   && script.getAttribute('data-inline') !== ''
-  && script.getAttribute('data-build') !== 'disabled') 
+  && script.getAttribute('data-build') !== 'disabled')
   ? true : false;
 }
 
 
 // EXPORT
 // -----------------------------
-module.exports = babelify;
+export default babelify;

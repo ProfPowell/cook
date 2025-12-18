@@ -1,23 +1,25 @@
 /**
  * @file replace-external-link-protocol.js
- * @description For targeted `<a>` tags, add `http://` in front of the href value, 
+ * @description For targeted `<a>` tags, add `http://` in front of the href value,
  * if it starts with `www` and wasn't added with a protocol (`http://` or `https://`).
- * Without this, the build process interprets it as a local link 
+ * Without this, the build process interprets it as a local link
  * and will append the current window location origin.
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 const cwd = process.cwd();
-const chalk = require('chalk');
-const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
+import chalk from 'chalk';
+import Logger from '../utils/logger/logger.js';
+import Util from '../utils/util/util.js';
 
 // USER 'MAIN.JS' CONFIG
-const {
+import {
   distPath,
-  replaceExternalLinkProtocol = {enabled:true},
-} = require('../utils/config/config.js');
+  replaceExternalLinkProtocol as replaceExternalLinkProtocolConfig,
+} from '../utils/config/config.js';
+
+const replaceExternalLinkProtocol = replaceExternalLinkProtocolConfig || {enabled:true};
 
 
 // DEFINE
@@ -53,7 +55,7 @@ class ReplaceExternalLinkProtocol {
     // Early Exit: File type not allowed
     const allowed = Util.isAllowedType(this.opts);
     if (!allowed) return;
-    
+
     // START LOGGING
     this.startLog();
 
@@ -73,7 +75,7 @@ class ReplaceExternalLinkProtocol {
     if ($link) $link.forEach(el => this.replaceMissingProtocol({file, el}));
     if ($links) $links.forEach(el => this.replaceMissingProtocol({file, el}));
     if ($script) $script.forEach(el => this.replaceMissingProtocol({file, el}));
-    
+
     // Store updated file source
     this.file.src = Util.setSrc({dom});
 
@@ -130,15 +132,15 @@ class ReplaceExternalLinkProtocol {
     // Show terminal message
     // Logger.success(`/${file.path} - Added 'http://' to [href="${linkPathSplit[linkPathSplit.length-1]}"]: ${ chalk.green(el[type]) }`);
   }
-  
+
 
   // LOGGING
   // -----------------------------
   // Display additional terminal logging when `process.env.LOGGER` enabled
-  
+
   startLog() {
     // Early Exit: Logging not allowed
-    if (!process.env.LOGGER) return; 
+    if (!process.env.LOGGER) return;
     // Start Spinner
     this.loading.start(chalk.magenta('Replacing Missing Link Protocol'));
     // Start timer
@@ -154,7 +156,7 @@ class ReplaceExternalLinkProtocol {
     else this.loading.kill();
   }
 
-  
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -166,4 +168,4 @@ class ReplaceExternalLinkProtocol {
 
 // EXPORT
 // -----------------------------
-module.exports = ReplaceExternalLinkProtocol.export;
+export default ReplaceExternalLinkProtocol.export;

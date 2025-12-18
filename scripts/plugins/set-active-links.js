@@ -3,14 +3,14 @@
  * @description Add `[data-active]` state to `<a>` tags whose `[href]` value matches the current page
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 // const cwd = process.cwd();
-const chalk = require('chalk');
-const Util = require('../utils/util/util.js');
+import chalk from 'chalk';
+import Util from '../utils/util/util.js';
 
 // Config
-const {distPath, activeLink} = require('../utils/config/config.js');
+import { distPath, activeLink } from '../utils/config/config.js';
 
 
 // DEFINE
@@ -44,7 +44,7 @@ class SetActiveLinks {
     // Early Exit: File type not allowed
     const allowed = Util.isAllowedType(this.opts);
     if (!allowed) return;
-    
+
     // START LOGGING
     this.startLog();
 
@@ -54,7 +54,7 @@ class SetActiveLinks {
     // Make source traversable with JSDOM
     let dom = Util.jsdom.dom({src: file.src});
 
-    // Find <a> tags and add active state 
+    // Find <a> tags and add active state
     // if their [href] matches the current page url
     // Note: Using `a[href]` instead of just `a` as selector, since a user may omit the `[href]` attribute
     const $links = dom.window.document.querySelectorAll('a[href]');
@@ -134,15 +134,15 @@ class SetActiveLinks {
     const isHierarchyPage = pagePathParts.indexOf(linkPath) > -1;
     return !isActivePage && isHierarchyPage;
   }
-  
+
 
   // LOGGING
   // -----------------------------
   // Display additional terminal logging when `process.env.LOGGER` enabled
-  
+
   startLog() {
     // Early Exit: Logging not allowed
-    if (!process.env.LOGGER) return; 
+    if (!process.env.LOGGER) return;
     // Start Spinner
     this.loading.start(chalk.magenta('Adding Link Active States'));
     // Start timer
@@ -173,4 +173,4 @@ class SetActiveLinks {
 
 // EXPORT
 // -----------------------------
-module.exports = SetActiveLinks.export;
+export default SetActiveLinks.export;

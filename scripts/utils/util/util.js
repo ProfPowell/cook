@@ -1,24 +1,22 @@
-// REQUIRE
+// IMPORTS
 // ----------------------------------
-const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const cliCursor = require('cli-cursor');
-const cliSpinners = require('cli-spinners');
-const v8 = require('v8');
-const Logger = require('../logger/logger.js');
-const Spinner = require('../spinner/spinner.js');
-const Timer = require('../timer/timer.js');
-const {execSync} = require('child_process');
-const {lstatSync,readdirSync} = require('fs-extra');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import cliCursor from 'cli-cursor';
+import cliSpinners from 'cli-spinners';
+import v8 from 'node:v8';
+import { execSync } from 'node:child_process';
+import { lstatSync, readdirSync } from 'node:fs';
+import { JSDOM } from 'jsdom';
 
-// JSDOM
-const jsdomLib = require('jsdom');
-const {JSDOM} = jsdomLib;
+import Logger from '../logger/logger.js';
+import Spinner from '../spinner/spinner.js';
+import Timer from '../timer/timer.js';
 
 // BUILD CONFIG
-const {activeLink,convertPageToDirectory,includeAttr,inlineAttr} = require('../config/config.js');
+import { activeLink, convertPageToDirectory, includeAttr, inlineAttr } from '../config/config.js';
 
+const cwd = process.cwd();
 
 // JSDOM CONFIG
 // ----------------------------------
@@ -31,7 +29,7 @@ const jsdom = {
 
 // STATIC CONFIG
 // ----------------------------------
-// Attribute values 
+// Attribute values
 const attr = {
   active: convertToKebab(activeLink && activeLink.activeState, 'space') || 'active',
   activeParent: convertToKebab(activeLink && activeLink.parentState, 'space') || 'active-parent',
@@ -46,7 +44,42 @@ const replaceExternalLinkProtocolDefaults = ['cdn', 'www'];
 
 // EXPORT
 // ----------------------------------
-module.exports = {
+export {
+  addDirectory,
+  addDynamicPage,
+  attr,
+  convertExternalLinks,
+  convertToCamel,
+  convertToCapSpaces,
+  convertToKebab,
+  createDirectory,
+  customError,
+  customKill,
+  deepClone,
+  encodeTag,
+  escapeUrlString,
+  fakePromise,
+  getFileName,
+  getFileParts,
+  getFilePath,
+  getPaths,
+  getSelector,
+  initLogging,
+  hasExtension,
+  isAllowedType,
+  isExtension,
+  jsdom,
+  promiseAll,
+  replaceExternalLinkProtocolDefaults,
+  runFileLoop,
+  setSrc,
+  skipped,
+  updatePage,
+  validatePageChange,
+};
+
+// Default export for backward compatibility
+export default {
   addDirectory,
   addDynamicPage,
   attr,
@@ -87,7 +120,7 @@ module.exports = {
 /**
  * @description Create directories in a path string if they don't already exist.
  * Used before `fs.writeFile` to make sure destination exists.
- * @param {Object} file 
+ * @param {Object} file
  * @property {String} file.ext - The file's extension
  * @property {String} file.name - The file's name
  * @property {String} file.nameIfIndex - The file's name excluding `/index.html`
@@ -111,11 +144,11 @@ function addDirectory(file) {
 }
 
 /**
- * @description For dynamically-generated pages (other Github repo, Wordpress, Drupal, etc.), 
+ * @description For dynamically-generated pages (other Github repo, Wordpress, Drupal, etc.),
  * instead of first creating the .html page with the converted source and then running the main file loop,
  * we store the new page's path and source in memory. Then, during the main file loop, we read entries
  * from our dynamic page-store instead of `fs.readFile` the page. This saves a duplication step, where
- * we only need to `fs.writeFile` once for dynamic pages (file loop) instead of twice 
+ * we only need to `fs.writeFile` once for dynamic pages (file loop) instead of twice
  * (before the file loop when the content was fetched and converted, and the file loop)
  * @param {String} path - The path the dynamic .htnml page will be created at
  * @param {String} src - The page's DOM source we'll use to populate the page
@@ -134,12 +167,12 @@ function addDynamicPage(path,src,store) {
 }
 
 /**
- * @description Find all href="www.xxxx.com" links and add http:// protocol. 
+ * @description Find all href="www.xxxx.com" links and add http:// protocol.
  * By using the <base> tag, www links w/o a protocol are treated as internal (relative) links and will 404
- * @param {*} source 
+ * @param {*} source
  * @returns {String}
  * @private
- */ 
+ */
 function convertExternalLinks(source) {
   return source.replace(/href="www/gi, 'href="http://www');
 }
@@ -157,7 +190,7 @@ function convertToCamel(str, type) {
     case 'space': return spacedWords();
     default: return str;
   }
-  
+
   function kebab() {
     const splitOnDash = str.split('-');
     // Return formatted string
@@ -204,7 +237,7 @@ function convertToCapSpaces(str, type) {
     // Join the words with spaces
     return splitOnCaps.join(' ');
   }
-  
+
   function kebab() {
     const splitOnDash = str.split('-');
     // Capitalize each word
@@ -227,7 +260,7 @@ function convertToKebab(str, type) {
     case 'space': return spacedWords();
     default: return str;
   }
-  
+
   function camel() {
     // Split string into array on each found capitalized word
     const splitOnCaps = str.match(/([A-Z]?[^A-Z]*)/g).slice(0,-1);
@@ -270,7 +303,7 @@ async function createDirectory(path) {
  * @param {Object} e - The error event
  * @param {String} [label] - The console section label
  * @private
- */ 
+ */
 function customError(e, label = 'Error') {
   // Display custom message
   console.log(chalk.bold.red(`\n${label}`));
@@ -284,12 +317,12 @@ function customError(e, label = 'Error') {
 /**
  * @description Custom terminal `kill -9 node` when you need to stop
  * all terminal activity on exception/error.
- * For example, a page needs to show fetched content. You don't want a deploy to occur 
- * if the source returned a rate limit, or didn't return anything and you don't want to 
+ * For example, a page needs to show fetched content. You don't want a deploy to occur
+ * if the source returned a rate limit, or didn't return anything and you don't want to
  * show `N/A` or equivalent on screen.
  * @param {String} msg - The console message before terminating
  * @private
- */ 
+ */
 function customKill(msg) {
   // Display terminal message and kill process
   console.log(`\n${chalk.red(msg)}`);
@@ -302,7 +335,7 @@ function customKill(msg) {
  * @param {String} obj - The object to clone
  * @returns {Object}
  * @private
- */ 
+ */
 function deepClone(obj) {
   return v8.deserialize(v8.serialize(obj));
 }
@@ -335,7 +368,7 @@ function escapeUrlString(url) {
  * @param {Boolean} throwError - Fake a rejected promise
  * @returns {Object}
  * @private
- */ 
+ */
 function fakePromise(ms, throwError) {
   if (!throwError) return new Promise(resolve => setTimeout(resolve, ms));
   else return Promise.reject('Could not resolve this')
@@ -347,7 +380,7 @@ function fakePromise(ms, throwError) {
  * @param {String} distPath - The path to the /dist directory
  * @returns {String}
  * @private
- */ 
+ */
 function getFileName(path, distPath) {
   let splitOnSlash = path.split('/');
   splitOnSlash = splitOnSlash.filter(s => s !== '');
@@ -363,7 +396,7 @@ function getFileName(path, distPath) {
  * @param {path} - The file path (/path/to/file.ext)
  * @returns {Object}
  * @private
- */ 
+ */
 function getFileParts(path) {
   if (!path) return;
   const fileSplit = path.split('/');
@@ -380,7 +413,7 @@ function getFileParts(path) {
  * @param {path} - The file path (/path/to/file.ext)
  * @returns {String}
  * @private
- */ 
+ */
 function getFilePath(path) {
   const pathSplit = path.split('/');
   const filename = pathSplit.splice(pathSplit.length - 1, 1);
@@ -426,12 +459,12 @@ function getPaths(originalPath, path, ignorePattern, paths = []) {
       }
     });
     return paths;
-  } 
+  }
   catch (err) { customError(err, `getPaths`); }
 }
 
 /**
- * @description Return the correct selector for query select. Can either be a string, 
+ * @description Return the correct selector for query select. Can either be a string,
  * or an array of strings for multi-selector.
  * @param {String|Array} attrs - The multiple selectors to query select off of
  * @param {String} [el] - Optional element to add in front of attribute selector (Ex: `link[attr]` instead of `[attr]`)
@@ -586,7 +619,7 @@ async function runFileLoop(files, method) {
     if (!log) loading.updateAsPercentage(fileName, index, loading.total, true);
     if (index < loading.total) await recurseFiles(index);
   }
-  
+
   // End timer
   if (log) console.log(chalk.gray('\n-----'));
   loading.stop(`Files Modified (${loading.total}) ${timer.end()}`);
@@ -594,7 +627,7 @@ async function runFileLoop(files, method) {
 
 /**
  * @description Get the correct DOM nodes as a string
- * @param {*} param0 
+ * @param {*} param0
  */
 function setSrc({dom, path}) {
   // Dom Fragment
@@ -616,12 +649,12 @@ function setSrc({dom, path}) {
     const document = dom.window.document;
     // Is the src a full HTML doc?
     const isFullDoc = !!document.doctype;
-    
+
     // If already a full DOM .html page w/ doctype, <html>, etc. Just return the whole source
     if (isFullDoc) return dom.serialize();
     // Otherwise, it is a fragment .html include file. However, depending on the # and position of markup elements within,
     // it may return all content in just the `<head>` tag, the `<body>`, or a mixture.
-    // So we don't want to return the default `<html><head>...</head><body>...</body></html>`, 
+    // So we don't want to return the default `<html><head>...</head><body>...</body></html>`,
     // since it won't have the site's meta info, like `lang="en"`, char type, etc.
     // ---
     // Instead, we'll cherry-pick the content from those two elments and return them as one code block,
@@ -643,7 +676,7 @@ function skipped(test, label = 'skipped') {
 /**
  * @description Return whether dev live reload change event was an individual page change,
  * AND if the file wasn't an include
- * @param {Object} file 
+ * @param {Object} file
  * @property {String} file.ext - The file's extension
  * @property {String} file.name - The file's name
  * @property {String} file.nameIfIndex - The file's name excluding `/index.html`

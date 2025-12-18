@@ -1,14 +1,17 @@
-// REQUIRE
+// IMPORTS
 // -----------------------------
-const cwd = process.cwd();
-const browserSync = require('browser-sync').create('Dev Server');
-const chalk = require('chalk');
+import browserSyncLib from 'browser-sync';
+import chalk from 'chalk';
+import { execSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 const packageJSON = require('../package.json');
-// const Logger = require('./utils/logger/logger.js');
-const { execSync } = require('child_process');
+
+const browserSync = browserSyncLib.create('Dev Server');
 
 // CONFIG
-const {distPath,srcPath,startPath,watch,watchDefaults,watchReplace} = require('./utils/config/config.js');
+import { distPath, srcPath, startPath, watch, watchDefaults, watchReplace } from './utils/config/config.js';
 
 // FILES TO WATCH
 // The default file paths to watch

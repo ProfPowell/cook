@@ -3,25 +3,32 @@
  * @description Get allowed source files for modification
  */
 
-// REQUIRE
+// IMPORTS
 // -----------------------------
-const cwd = process.cwd();
-// const chalk = require('chalk');
-const fs = require('fs').promises;
-const Logger = require('../logger/logger.js');
-const Util = require('../util/util.js');
+import fs from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+import { existsSync } from 'node:fs';
+import Logger from '../logger/logger.js';
+import Util from '../util/util.js';
 
 // CONFIG
-const {includePaths,excludePaths,distPath,srcPath} = require('../config/config.js');
+import { includePaths, excludePaths, distPath, srcPath } from '../config/config.js';
+
+const cwd = process.cwd();
 
 // DATA STORE
-const data = require(`${cwd}/config/data.js`);
-
+const userDataPath = `${cwd}/config/data.js`;
+const userDataPathExists = existsSync(userDataPath);
+let data = {};
+if (userDataPathExists) {
+  const dataModule = await import(pathToFileURL(userDataPath));
+  data = dataModule.default || dataModule;
+}
 
 
 // EXPORT
 // -----------------------------
-module.exports = {
+export {
   getDynamicFiles,
   getSrcConfig,
   getSrcFiles,
@@ -51,7 +58,7 @@ function getDynamicFiles(files) {
 /**
  * @description - Store information for use in build plugins based on the current file
  * @param {Object} Opts - Argument object
- * @property {String} fileName - The filename of the targeted file 
+ * @property {String} fileName - The filename of the targeted file
  * @property {String} [excludeSrc] - Complie file meta without opening the file if you don't need the source
  * @returns {Object}
  * @private
@@ -79,7 +86,7 @@ async function getSrcConfig({fileName, excludeSrc = false }) {
     fileName = `${path}/index.html`;
   }
 
-  
+
   // Store filename parts
   let {ext,name,nameIfIndex} = Util.getFileParts(fileName);
   file.ext = ext;
@@ -90,14 +97,14 @@ async function getSrcConfig({fileName, excludeSrc = false }) {
 
   // Early Exit: Return the file meta details but skip the source
   if (excludeSrc) return file;
-  
+
   // STORE FILE SOURCE
   // If a dynamic page, just use the source in memory
   if (isDynamic) file.src = dynamicSrc;
   // Otherwise, it's a static .html page
   // Get and read the file to store its page source
   else file.src = await fs.readFile(fileName, 'utf-8');
-  
+
   // REMOVE COMMENTS
   // Sanitize comments that have non-closing html elements in them. JSDOM will try to close it in the DOM
   // but since there is no starting tag (it's in the comment) it will break the dom
@@ -120,7 +127,7 @@ async function getSrcFiles() {
 
   // FILE CHANGE
   // If only a single page was updated, just run build process on it
-  // Note: If the page was an include, we need to rebuild all pages. 
+  // Note: If the page was an include, we need to rebuild all pages.
   // Other pages may have had the include, but has since been replaced w/ static content
   const isValidPageChange = Util.validatePageChange();
   if (isValidPageChange) {
@@ -143,7 +150,7 @@ async function getSrcFiles() {
     files = Util.getPaths(distPath, distPath, excludedPaths);
     // Get only the allowed files by extension (.css, .html)
     files = files.filter(fileName => manualAllow(fileName, userAllowedPaths) || Util.isExtension(fileName, allowedExt));
-    // Move known include files to the front of the array, so they are ideally built first 
+    // Move known include files to the front of the array, so they are ideally built first
     // before being replaced in other page files.
     files = files.sort((a,b) => {
       if (a.includes('/includes')) return -1;
@@ -162,7 +169,7 @@ async function getSrcFiles() {
 async function getSrcImages(cb) {
   // Show terminal message: Start
   Logger.header('\nImage Tasks');
-  
+
   // Disallowed page types
   // /dist/assets/scripts/vendor - Skip 3rd-party vendor images
   const defaultExcludedPaths = [new RegExp(`${distPath}\/assets\/scripts\/vendor`)];
@@ -188,7 +195,7 @@ async function getSrcImages(cb) {
  */
 function removeCommentTags(src) {
   const commentsRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm;
-  const matches = src.match(commentsRegex); 
+  const matches = src.match(commentsRegex);
   if (!matches) return src;
   let replaces;
   matches.forEach(m => {

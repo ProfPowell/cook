@@ -1,16 +1,21 @@
-// REQUIRE
+// IMPORTS
 // ----------------------------------
-const cwd = process.cwd();
-const fs = require('fs');
-const merge = require('lodash.merge');
+import fs from 'node:fs';
+import merge from 'lodash.merge';
+import { pathToFileURL } from 'node:url';
 
+const cwd = process.cwd();
 
 // GET USER'S CONFIG
 // -----------------------------
-// Store user's config, or set default if user omitted 
+// Store user's config, or set default if user omitted
 const userConfigPath = `${cwd}/config/main.js`;
 const userConfigPathExists = fs.existsSync(userConfigPath);
-const userConfig = userConfigPathExists ? require(userConfigPath) : {};
+let userConfig = {};
+if (userConfigPathExists) {
+  const userConfigModule = await import(pathToFileURL(userConfigPath));
+  userConfig = userConfigModule.default || userConfigModule;
+}
 
 
 // DEFINE DEFAULT CONFIG
@@ -42,7 +47,7 @@ const defaultConfig = {
     // excludePaths: [/\/assets/, /\/includes/, /^\/404.html/],
   },
 
-  
+
   // REQUIRED (SITE-SPECIFIC CONFIG)
   // ---------------------------------
   // Add config items here for your own custom build plugins
@@ -58,7 +63,7 @@ const defaultConfig = {
   pluginPath: 'plugins',
 
   // CSS and JS Bundling
-  // NOTE: User can set `bundle: false` or `bundle: { enabled: false }` 
+  // NOTE: User can set `bundle: false` or `bundle: { enabled: false }`
   // to disable bundling for production, even if bundle attributes are found.
   bundle: {
     // Path in 'dist' directory where the bundled files will be created
@@ -71,7 +76,7 @@ const defaultConfig = {
 
   // Add regex patterns to include or exclude files from being modified once copied to the /dist directory
   // For example, /dist\/manifest.json/ will include the manifest.json file, so template strings can be
-  // For example, /dist\/vendor/ will exclude files in /dist/vendor 
+  // For example, /dist\/vendor/ will exclude files in /dist/vendor
   // Can be single regexes: /dist\/path/ or new RegExp(/dist\path/)
   // Or regexes in an array: [/dist\/path1/, new RegExp(/dist\path2/)]
   // --
@@ -82,9 +87,9 @@ const defaultConfig = {
   ],
   // -- Example: Exclude docs templates directory (/dist/assets/docs/)
   excludePaths: [
-    /dist\/assets\/vendor/, 
+    /dist\/assets\/vendor/,
   ],
-  
+
   // Define the 'active' state for both links whose `[href]` value matches the current page,
   // as well as links who have part of the current page's url in them (parent-active state)
   // By default, a `[class]` is added, with default values. The below config is not necessary,
@@ -97,13 +102,13 @@ const defaultConfig = {
   //   // Default: active-parent
   //   parentState: 'active-parent',
   // },
-  
+
   // Change the default [attribute] for includes and inline link/scripts
   //includeAttr: 'include',
   //inlineAttr: 'inline',
-  
+
   // Live reload dev browser when these files change
-  // Note: These are the default paths. Paths added by the user in their `/config/main.js` file as the `watch: []` property are added *in addition* to these. 
+  // Note: These are the default paths. Paths added by the user in their `/config/main.js` file as the `watch: []` property are added *in addition* to these.
   // However, they may set the `watchReplace` option listed below, which will only watch their specified options and not the defaults.
   watchDefaults: [
     '/assets/css/*.css',
@@ -146,4 +151,26 @@ const config = merge({}, defaultConfig, userConfig);
 
 // EXPORT
 // -----------------------------
-module.exports = config;
+export default config;
+
+// Named exports for destructuring imports
+export const {
+  activeLink,
+  bundle,
+  convertPageToDirectory,
+  distPath,
+  excludePaths,
+  includeAttr,
+  includePaths,
+  inlineAttr,
+  minifyHtmlConfigCustom,
+  plugins,
+  pluginPath,
+  replaceExternalLinkProtocol,
+  sitemap,
+  srcPath,
+  startPath,
+  watch,
+  watchDefaults,
+  watchReplace,
+} = config;

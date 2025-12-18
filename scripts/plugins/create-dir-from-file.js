@@ -4,22 +4,22 @@
  * don't need to show extensions in the url
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
+import chalk from 'chalk';
+import fs from 'fs-extra';
 // const rimraf = require('rimraf');
-const utils = require('../utils/util/util.js');
-const Logger = require('../utils/logger/logger.js');
-const Spinner = require('../utils/spinner/spinner.js');
-const Timer = require('../utils/timer/timer.js');
+import utils from '../utils/util/util.js';
+import Logger from '../utils/logger/logger.js';
+import Spinner from '../utils/spinner/spinner.js';
+import Timer from '../utils/timer/timer.js';
 
 // USER 'MAIN.JS' CONFIG
-const {convertPageToDirectory,distPath} = require('../utils/config/config.js');
+import { convertPageToDirectory, distPath } from '../utils/config/config.js';
 
 // GET SOURCE
-const {getSrcConfig} = require('../utils/get-src/get-src');
+import { getSrcConfig } from '../utils/get-src/get-src.js';
 
 
 // DEFINE
@@ -63,10 +63,10 @@ class CreateDirFromFile {
     const loading = new Spinner();
     loading.start(`Create Directory from File`);
     loading.count = 0;
-    
+
     // CONVERT EACH ALLOWED .HTML PAGE TO DIRECTORY
     await utils.promiseAll(
-      files, 
+      files,
       f => (this.createDirectory)(f, loading, this.opts),
       progress => {
         // Remove manual, static .html pages in `/docs` so they don't appear in the total # display
@@ -77,7 +77,7 @@ class CreateDirFromFile {
         else loading.total -= 1;
       }
     );
-    
+
     // End: Loading terminal message
     loading.stop(`Directories Created (${loading.count}) ${timer.end()}`);
   }
@@ -88,24 +88,24 @@ class CreateDirFromFile {
 
   /**
    * @description TODO
-   * @param {*} fileName 
-   * @param {*} filesArr 
-   * @param {*} allowType 
-   * @param {*} disallowType 
-   * @param {*} excludePaths 
-   * @param {*} loading 
+   * @param {*} fileName
+   * @param {*} filesArr
+   * @param {*} allowType
+   * @param {*} disallowType
+   * @param {*} excludePaths
+   * @param {*} loading
    */
   async createDirectory(fileName, loading, { files, allowType, disallowType, excludePaths }) {
     // Get file's meta info (ext,name,path)
     const file = await getSrcConfig({fileName, excludeSrc: true });
-    
+
     // Early Exit: File type not allowed
     const allowed = utils.isAllowedType({file, allowType, disallowType});
     if (!allowed) return;
-    
+
     // Early Exit: Do not create directory if current file is an index.html page
     if (file.name === 'index') return;
-    
+
     // Early Exit: Path includes excluded pattern
     // For example, we don't want to convert the site index file (homepage)
     // ---
@@ -134,7 +134,7 @@ class CreateDirFromFile {
     // Loading message: Update
     loading.label = `/${filePath}.html - Converted to [directory]: ${ chalk.green(`${filePath}/index.html`) }`;
   }
-  
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -145,4 +145,4 @@ class CreateDirFromFile {
 
 // EXPORT
 // -----------------------------
-module.exports = CreateDirFromFile.export;
+export default CreateDirFromFile.export;

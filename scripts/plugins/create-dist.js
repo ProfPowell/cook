@@ -3,17 +3,18 @@
  * @description Remove `/dist` and recreate it
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import { rimraf } from 'rimraf';
+import Logger from '../utils/logger/logger.js';
+import Util from '../utils/util/util.js';
+
 const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const rimraf = require('rimraf');
-const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
 
 // Config
-const {distPath} = require('../utils/config/config.js');
+import { distPath } from '../utils/config/config.js';
 
 // DEFINE
 // -----------------------------
@@ -38,7 +39,7 @@ class CreateDist {
     // Show terminal message: Done
     Logger.persist.success (`/${distPath} created`);
   }
-  
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -51,4 +52,4 @@ class CreateDist {
 // EXPORT
 // -----------------------------
 // module.exports = CreateDist.export;
-module.exports = CreateDist.export;
+export default CreateDist.export;

@@ -3,13 +3,13 @@
  * @description Custom terminal spinner message
  */
 
-// REQUIRE
+// IMPORTS
 // ----------------------------------
-const chalk = require('chalk');
-const cliCursor = require('cli-cursor');
-const cliSpinners = require('cli-spinners');
-const readline = require('readline');
-const Logger = require('../logger/logger.js');
+import chalk from 'chalk';
+import cliCursor from 'cli-cursor';
+import cliSpinners from 'cli-spinners';
+import readline from 'node:readline';
+import Logger from '../logger/logger.js';
 
 
 // DEFINE
@@ -24,7 +24,7 @@ class Spinner {
     this.spinCurr = 0;
     this.spinMax = cliSpinners.dots.frames.length;
   }
-  
+
   setDisplay() {
     this.clearLine();
     // Add new line if Logging is enabled
@@ -47,7 +47,7 @@ class Spinner {
       this.spinCurr = this.spinCurr === this.spinMax - 1 ? 0 : this.spinCurr += 1;
     }, this.delay);
   }
-  
+
   stop(label, isError) {
     this.clearLine();
     if (isError) Logger.persist.error(label);
@@ -82,7 +82,7 @@ class Spinner {
     const percentageLabel = `[${count}/${total}] (${chalk[currentColor](percentage.toFixed(2) + '%')})`;
     const userLabel = chalk.magenta(label);
     let outputLabel = `${userLabel} ${percentageLabel}`;
-    // Format label 
+    // Format label
     // Note: by default it is user label then percentages but if `reverse` is TRUE, reverse the output order
     if (reverse) outputLabel = `${percentageLabel} ${userLabel}`;
     // Set flag if build process is in 'logging enabled' mode (LOGGER=true)
@@ -109,4 +109,4 @@ class Spinner {
 
 // EXPORT
 // -----------------------------
-module.exports = Spinner;
+export default Spinner;

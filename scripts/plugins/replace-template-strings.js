@@ -3,10 +3,10 @@
  * @description Compiles ES6 template strings in HTML/CSS files
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 // const cwd = process.cwd();
-const utils = require('../utils/util/util.js');
+import utils from '../utils/util/util.js';
 // const Logger = require('../utils/logger/logger.js');
 
 
@@ -56,25 +56,25 @@ class ReplaceTemplateStrings {
     // So when you do a look up to the data object, no matched value will be returned.
     // Therefore, we need to add that missing character back.
     // Fortunately, the `.replace()` method provides the index offset where the match occurred, and the full source string.
-    // So we find the missing character by adjusting the offset by 2 (`offset+2`) 
+    // So we find the missing character by adjusting the offset by 2 (`offset+2`)
     // and then applying it back to `g` to get the correct variable lookup (why 2? Because we need to go past the starting `${`)
     // ---
     this.file.src = this.replaceTemplateVars(this.file.src, this.data);
   }
-  
+
   // HELPER METHODS
   // -----------------------------
-  
+
   /**
    * @description TODO
-   * @param {*} str 
-   * @param {*} obj 
+   * @param {*} str
+   * @param {*} obj
    */
   replaceTemplateVars(str, obj) {
     return str.replace(/\${[^{](.*?)}/g, (match,g,offset,src) => obj[`${src[offset+2]}${g}`] || match);
   }
-    
-  
+
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -85,4 +85,4 @@ class ReplaceTemplateStrings {
 
 // EXPORT
 // -----------------------------
-module.exports = ReplaceTemplateStrings.export;
+export default ReplaceTemplateStrings.export;

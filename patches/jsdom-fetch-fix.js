@@ -1,9 +1,10 @@
 // See github issue fix: https://github.com/jsdom/jsdom/pull/2510
 
-// REQUIRE
+// IMPORTS
 // -----------------------------
+import fs from 'fs-extra';
+
 const cwd = process.cwd();
-const fs = require('fs-extra');
 
 // Path to target file
 const filePath = `${cwd}/../jsdom/lib/jsdom/browser/resources/per-document-resource-loader.js`;
