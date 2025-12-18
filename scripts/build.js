@@ -18,6 +18,7 @@ import customPlugins from './plugins/custom-plugins.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
 import minifySrc from './plugins/minify-src.js';
 import processMarkdown from './plugins/process-markdown.js';
+import repeatCollection from './plugins/repeat-collection.js';
 import replaceComponents from './plugins/replace-components.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
@@ -107,6 +108,9 @@ class Build {
 
       // PLUGIN: Render all ES6 template strings
       replaceTemplateStrings({file, data, allowType: ['.html', '.json', '.webmanifest']});
+
+      // PLUGIN: Repeat elements for each item in a collection
+      await repeatCollection({file, data, store, allowType: ['.html']});
 
       // PLUGIN: Add missing `http://` to user-added external link `[href]` values (`[href="www.xxxx.com"]`)
       await replaceMissingExternalLinkProtocol({file, allowType: ['.html']});
