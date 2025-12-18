@@ -17,6 +17,7 @@ import createDirFromFile from './plugins/create-dir-from-file.js';
 import customPlugins from './plugins/custom-plugins.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
 import minifySrc from './plugins/minify-src.js';
+import processMarkdown from './plugins/process-markdown.js';
 import replaceComponents from './plugins/replace-components.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
@@ -75,6 +76,9 @@ class Build {
 
     // PLUGIN: Copy `/src` to `/dist`
     await copySrc();
+
+    // PLUGIN: Process markdown files (.md -> .html)
+    await processMarkdown({store, data});
 
     // CUSTOM PLUGINS: Run custom user plugins before file loop
     await customPlugins({store, data, plugins: plugins.before, log: 'Before' });

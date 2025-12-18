@@ -116,9 +116,10 @@ if (process.env.NODE_ENV === 'development') {
 The build process performs the following steps:
 
 1. **Creates `/dist`** - Removes existing dist folder and recreates it
-2. **Copies `/src` to `/dist`** - All source files are copied
-3. **Runs custom-user `before` plugins** - Runs once before file processing
-4. **Loops through each allowed file**, modifying contents per environment rules:
+2. **Copies `/src` to `/dist`** - All source files are copied (excludes `.md` files)
+3. **Processes Markdown** - Converts `.md` files to `.html` with front matter support
+4. **Runs custom-user `before` plugins** - Runs once before file processing
+5. **Loops through each allowed file**, modifying contents per environment rules:
    * Runs any custom-user `default` plugins (all plugins run per file)
    * Replaces ES6 template strings (`${}`) with data from config
    * Adds missing `http://` protocol to external links
@@ -129,9 +130,9 @@ The build process performs the following steps:
    * Sets `<a>` tags with partial `[href]` match as active parent (`class="active-parent"`)
    * Stores link/script files marked for bundling (`[bundle]`)
    * Minifies HTML, CSS, and JS source (production only)
-5. **Creates `sitemap.xml`** - Auto-generated in `/dist`
-6. **Creates bundled files** - `.css` and `.js` bundles are written
-7. **Runs custom-user `after` plugins** - Runs once after file processing
+6. **Creates `sitemap.xml`** - Auto-generated in `/dist`
+7. **Creates bundled files** - `.css` and `.js` bundles are written
+8. **Runs custom-user `after` plugins** - Runs once after file processing
 
 Many build settings can be customized in your project's `/config/main.js`.
 
@@ -144,6 +145,7 @@ Many build settings can be customized in your project's `/config/main.js`.
 | `npm run dev` | Development mode with BrowserSync live reload |
 | `npm run dev:prod` | Production build + http-server for local preview |
 | `npm run build` | Build only (uses NODE_ENV if set, defaults to development) |
+| `npm test` | Run test suite |
 | `npm run update:check` | Check for dependency updates |
 | `npm run update:fix` | Update dependencies to latest versions |
 
@@ -238,6 +240,92 @@ Bundle multiple files into one:
 ### Active Links
 
 Automatically adds `class="active"` to links matching the current page URL.
+
+### Markdown
+
+Convert `.md` files to HTML with front matter support. Markdown files in `/src` are processed and output as HTML to `/dist`.
+
+**Basic Usage** (`/src/blog/my-post.md`):
+```markdown
+---
+title: My Blog Post
+date: 2024-03-15
+description: A great article about something
+layout: blog
+tags:
+  - javascript
+  - tutorial
+---
+
+# Welcome
+
+This is my blog post content with **bold** and *italic* text.
+
+## Code Example
+
+\`\`\`javascript
+console.log('Hello, World!');
+\`\`\`
+```
+
+**Front Matter Variables:**
+- `title` - Page title (auto-generated from filename if omitted)
+- `date` - Publication date (used for sorting collections)
+- `description` - Page description
+- `layout` - Layout template to wrap content (optional)
+- Any custom fields you need
+
+**Output:** `/src/blog/my-post.md` → `/dist/blog/my-post/index.html`
+
+**Layout Templates** (`/src/layouts/blog.html`):
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <meta name="description" content="${description}">
+</head>
+<body>
+  <article>
+    ${content}
+  </article>
+  <time>${date}</time>
+</body>
+</html>
+```
+
+**Collections:**
+Markdown files are automatically grouped into collections by directory:
+- `/src/blog/*.md` → `collections.blog`
+- `/src/docs/*.md` → `collections.docs`
+
+Access collections in templates:
+```html
+<ul>
+${collections.blog.map(post => `
+  <li><a href="${post.url}">${post.title}</a></li>
+`).join('')}
+</ul>
+```
+
+**Configuration** (`/config/main.js`):
+```javascript
+export default {
+  markdown: {
+    // Default layout template (null = basic HTML wrapper)
+    layout: null,
+    // Directory for layout templates
+    layoutPath: 'layouts',
+    // Enable collections
+    collections: true,
+    // marked parser options
+    markedOptions: {
+      gfm: true,      // GitHub Flavored Markdown
+      breaks: false,  // Convert \n to <br>
+    },
+  },
+};
+```
 
 ### Components
 
