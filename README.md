@@ -122,6 +122,7 @@ The build process performs the following steps:
 5. **Loops through each allowed file**, modifying contents per environment rules:
    * Runs any custom-user `default` plugins (all plugins run per file)
    * Replaces ES6 template strings (`${}`) with data from config
+   * Repeats elements for each item in collections (`[data-repeat]`)
    * Adds missing `http://` protocol to external links
    * Replaces include placeholders (`[data-include]`) with target source
    * Replaces custom elements and `[data-component]` elements with templates
@@ -323,6 +324,69 @@ export default {
       gfm: true,      // GitHub Flavored Markdown
       breaks: false,  // Convert \n to <br>
     },
+  },
+};
+```
+
+### Repeat / Collections
+
+Generate repeated elements from arrays or collections. Perfect for blog listings, navigation menus, and any list-based content.
+
+**Basic Usage:**
+```html
+<ul>
+  <li data-repeat="items as item">
+    <a href="${item.url}">${item.title}</a>
+  </li>
+</ul>
+```
+
+**With Markdown Collections:**
+```html
+<!-- List all blog posts -->
+<article data-repeat="collections.blog as post">
+  <h2><a href="${post.url}">${post.title}</a></h2>
+  <p>${post.description}</p>
+  <time>${post.date}</time>
+</article>
+```
+
+**With Index Variable:**
+```html
+<ol>
+  <li data-repeat="items as item, index">
+    ${index}: ${item.name}
+  </li>
+</ol>
+```
+
+**Limit and Offset:**
+```html
+<!-- Show only first 5 posts -->
+<article data-repeat="collections.blog | limit:5 as post">
+  <h2>${post.title}</h2>
+</article>
+
+<!-- Skip first 2, show next 5 -->
+<article data-repeat="collections.blog | offset:2 | limit:5 as post">
+  <h2>${post.title}</h2>
+</article>
+```
+
+**Data Sources:**
+- `collections.blog` - From markdown files in `/src/blog/`
+- `collections.docs` - From markdown files in `/src/docs/`
+- `items` - From `/config/data.js`
+- Any array in your data configuration
+
+**Configuration** (`/config/main.js`):
+```javascript
+export default {
+  repeat: {
+    // Attribute name (default: 'data-repeat')
+    attribute: 'data-repeat',
+    // Remove attribute from output (default: true)
+    removeAttribute: true,
   },
 };
 ```

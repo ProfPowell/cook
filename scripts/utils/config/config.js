@@ -102,6 +102,16 @@ const defaultConfig = {
     },
   },
 
+  // Repeat: Generate repeated elements from collections/arrays
+  // Usage: <article data-repeat="collections.blog as post">...</article>
+  // Supports limit and offset: "collections.blog | limit:5 | offset:2 as post"
+  repeat: {
+    // Attribute name for repeat directive
+    attribute: 'data-repeat',
+    // Remove the data-repeat attribute from output
+    removeAttribute: true,
+  },
+
 
   // OPTIONAL
   // -----------------------------
@@ -200,6 +210,7 @@ export const {
   minifyHtmlConfigCustom,
   plugins,
   pluginPath,
+  repeat,
   replaceExternalLinkProtocol,
   sitemap,
   srcPath,
