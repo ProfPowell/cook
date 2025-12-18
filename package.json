@@ -9,6 +9,8 @@
     "build": "node scripts/build.js",
     "dev": "NODE_ENV=development npm run build && node scripts/dev.js",
     "dev:prod": "NODE_ENV=production npm run build && http-server ./dist -p $npm_package_config_devPort",
+    "test": "node --test test/*.test.js",
+    "test:watch": "node --test --watch test/*.test.js",
     "reset": "rm -rf node_modules",
     "reset:install": "npm run reset && npm install",
     "update:check": "ncu",
@@ -27,14 +29,15 @@
     "cli-cursor": "^5.0.0",
     "cli-spinners": "^3.3.0",
     "fs-extra": "^11.3.2",
+    "gray-matter": "^4.0.3",
     "html-minifier-terser": "^7.2.0",
     "http-server": "^14.1.1",
     "jsdom": "^27.3.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
+    "marked": "^17.0.1",
     "npm-check-updates": "^19.2.0",
     "rimraf": "^6.1.2",
     "terser": "^5.44.1"
-  },
-  "devDependencies": {}
+  }
 }

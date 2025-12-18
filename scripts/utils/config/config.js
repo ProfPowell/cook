@@ -85,6 +85,23 @@ const defaultConfig = {
     mapping: {},
   },
 
+  // Markdown: Convert .md files to HTML with front matter support
+  // Markdown files in /src are converted to HTML in /dist
+  // Front matter (YAML between ---) becomes template variables
+  markdown: {
+    // Default layout template to wrap content (null = basic HTML wrapper)
+    layout: null,
+    // Directory for layout templates (relative to srcPath)
+    layoutPath: 'layouts',
+    // Enable collections (group pages by directory)
+    collections: true,
+    // marked parser options
+    markedOptions: {
+      gfm: true,      // GitHub Flavored Markdown
+      breaks: false,  // Convert \n to <br>
+    },
+  },
+
 
   // OPTIONAL
   // -----------------------------
@@ -179,6 +196,7 @@ export const {
   includeAttr,
   includePaths,
   inlineAttr,
+  markdown,
   minifyHtmlConfigCustom,
   plugins,
   pluginPath,
