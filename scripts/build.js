@@ -17,6 +17,7 @@ import createDirFromFile from './plugins/create-dir-from-file.js';
 import customPlugins from './plugins/custom-plugins.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
 import minifySrc from './plugins/minify-src.js';
+import replaceComponents from './plugins/replace-components.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
@@ -108,6 +109,9 @@ class Build {
 
       // PLUGIN: Replace `[data-include]` in files
       await replaceInclude({file, store, allowType: ['.html']});
+
+      // PLUGIN: Replace custom elements and data-component elements with templates
+      await replaceComponents({file, store, data, allowType: ['.html']});
 
       // PLUGIN: Replace `[data-inline]` with external `<link>` and `<script>` tags
       await replaceInline({file, store, allowType: ['.html']});
