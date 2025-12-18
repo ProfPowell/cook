@@ -5,13 +5,11 @@
 
 // IMPORT
 // -----------------------------
-const cwd = process.cwd();
-// const chalk = require('chalk');
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
-
-// Config
 import { pluginPath } from '../utils/config/config.js';
+
+const cwd = process.cwd();
 
 // DEFINE
 // -----------------------------

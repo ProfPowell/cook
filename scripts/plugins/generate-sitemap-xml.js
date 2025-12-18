@@ -2,7 +2,6 @@
 
 // IMPORT
 // -----------------------------
-// const cwd = process.cwd();
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import Logger from '../utils/logger/logger.js';

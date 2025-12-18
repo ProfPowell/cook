@@ -5,10 +5,8 @@
 
 // IMPORT
 // -----------------------------
-// const cwd = process.cwd();
 import chalk from 'chalk';
 import fs from 'fs-extra';
-// const Logger = require('../utils/logger/logger.js');
 import Util from '../utils/util/util.js';
 
 // Config

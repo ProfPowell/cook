@@ -1,26 +1,40 @@
 # Cook Build System
 
-[Getting Started](#user-content-getting-started) | [View/Run the site code](#user-content-viewrun-the-site-code) | [Environment Flags](#environment-flags) | 
-[Build Process](#user-content-build-process) | [Deploying to Stage](#user-content-deploying-to-stage) | [Deploying to Live](#user-content-deploying-to-live) | [NPM Run Scripts](#npm-run-scripts)
+A static site build system with templating, bundling, and optimization features.
+
+**Version:** 2.0.0
+**License:** MIT
+**Node.js:** >=18.0.0
+
+[Getting Started](#getting-started) | [View/Run the site code](#viewrun-the-site-code) | [Environment Flags](#environment-flags) | [Build Process](#build-process) | [NPM Run Scripts](#npm-run-scripts)
 
 ---
 
 ## Getting Started
 
-This document assumes your project is using the starter repo pattern [TBD]
-<br>
-If you have manually set your `/config/main.js` config file locations and/or your own `npm run xxxx` script calls, use those instead of the example versions below.
-
-~~For a full walkthrough on changing the default config locations, view the tutorial. [TODO]~~
-
 Run this in the terminal from your project's root:
 
-```
+```bash
 npm install
 npm run dev
 ```
 
 This builds the site locally and runs it at `localhost:3000`, using BrowserSync for live reloading.
+
+### Project Structure
+
+Your project should have the following structure:
+
+```
+your-project/
+├── config/
+│   ├── main.js      # Build configuration overrides
+│   └── data.js      # Data for template string replacement
+├── src/             # Source files
+│   ├── index.html
+│   └── ...
+└── package.json
+```
 
 ---
 
@@ -33,16 +47,16 @@ There are different modes of viewing the site while working locally.
 
   To view your codebase locally, run `npm run dev`.
 
-  1. This first runs `/node_modules/pathfinder/scripts/build.js`, which copies the `/src` files to `/dist`, and then modifies them per each the active build plugins.
-  2. After the `/dist` folder files are built, `/node_modules/pathfinder/scripts/dev.js` runs, which starts the BrowserSync live-reload server.
+  1. This first runs `scripts/build.js`, which copies the `/src` files to `/dist`, and then modifies them per each active build plugin.
+  2. After the `/dist` folder files are built, `scripts/dev.js` runs, which starts the BrowserSync live-reload server.
 
-  _[Note]:_ By default, files are not minified and link/script elements marked `[data-inline]` are not inlined (retain external file call).  
+  _[Note]:_ By default, files are not minified and link/script elements marked `[data-inline]` are not inlined (retain external file call).
   This way, when using dev tools to inspect in `localhost`, you see the correct line numbers, etc.
 
   _[Note]:_ Some functionality may be enabled or disabled only in this environment. In `package.json`, we specify a node environment variable to designate development-mode: `NODE_ENV=development npm run build && node scripts/dev.js`.
   In the various build-plugin files, you'll then see some code affected via:<br>
-  `if (process.env.NODE_ENV === 'development')`<br> 
-  or<br> 
+  `if (process.env.NODE_ENV === 'development')`<br>
+  or<br>
   `if (process.env.NODE_ENV !== 'development')`.
 </details>
 
@@ -59,70 +73,173 @@ There are different modes of viewing the site while working locally.
 ---
 
 <details>
-  <summary>Running <strong>firebase serve</strong> mode locally</summary><br>
-
-  To test firebase functionality locally, namely testing redirects in `firebase.json`, run the command `npm run dev:fb`. 
-
-  This runs `firebase serve` against the `/dist` folder.
-</details>
-
----
-
-<details>
   <summary><strong>Production</strong> build only (no browser action)</summary><br>
 
-  If you just need to build the `/dist` directory, run `npm run build:prod`.
+  If you just need to build the `/dist` directory with production optimizations (minification, inlining), run:
 
-  _[Note]:_ The above NPM run script is equivalent to: `NODE_ENV=production npm run build`.
+  ```bash
+  NODE_ENV=production npm run build
+  ```
 </details>
 
-For both development modes, `dev` (BrowserSync - live reload) and `dev:prod` (http-server), the localhost port should be the same. Check the current port value,
-but by default it should be 3000: `localhost:3000`
-
-&nbsp;
+For both development modes, `dev` (BrowserSync - live reload) and `dev:prod` (http-server), the localhost port should be the same. Check the current port value in `package.json` under `config.devPort`, but by default it should be 3000: `localhost:3000`
 
 ---
 
 ## Environment Flags
 
 Some site processes do not need to run every time locally, or they only need to run during deployment, etc. To accommodate this, some features are gated behind Node environment variables.
-Some are already added in the various `package.json`-style `npm run xxxx` script calls. Others you may need to manually add to the command line before running your desired Node command.
 
 ### Deployment Environments
 
-We currently specify 2 environments via environment variables, `development` and `production`. We use these to enable or disable parts of the build process, either from the core build code or custom, user plugins.
+We specify 2 environments via environment variables: `development` and `production`. We use these to enable or disable parts of the build process, either from the core build code or custom, user plugins.
 
-In the terminal, most `npm run xxxx` scripts already set which environment to use. You may also manually set them if necessary, for example: `NODE_ENV=development npm run build`
+In the terminal, most `npm run xxxx` scripts already set which environment to use. You may also manually set them if necessary:
 
-In a custom build plugin, you may use them in conditionals: `if (process.env.NODE_ENV === 'development') ...`
+```bash
+NODE_ENV=development npm run build
+NODE_ENV=production npm run build
+```
 
-_[Note]:_ There is a third env. value, `NODE_ENV=stage`, that has its own run script, `npm run build:stage`, in case you want to add/remove features when deployed to a Firebase stage project. 
-Out-of-the-box, no internal build processes use this, but you are welcome to use it in your own custom-user build plugins.
+In a custom build plugin, you may use them in conditionals:
 
-&nbsp;
+```javascript
+if (process.env.NODE_ENV === 'development') {
+  // development-only code
+}
+```
 
 ---
 
 ## Build Process
 
-* Builds `/dist`
-* Copies `/src` to `/dist`
-* Runs any custom-user `before` plugins (runs once)
-* Loops through each allowed file, modifying file contents per environment rules and plugin actions:
-  * Runs any custom-user `default` plugins (all plugins run per file)
-  * Replaces any found es6 template strings with their matching data from the data config reference source
-  * Adds missing `http://` protocol to external links to avoid them being treated as internal, relative links
-  * Replace include placeholders (`[data-include]`) with their target source
-  * Replace inline placeholders (`[data-inline]`) with their target external source
-  * Set <a> tags whose `[href]` matches the current-page url as 'active' (`class="active"`)
-  * Set <a> tags whose `[href]` includes part of the current-page url as 'active' (`class="active-parent"`)
-  * Store link/script files marked for bundling (`[bundle]`), and replace their 'old' DOM elements with the new bundled-file call
-  * Minify the page source (production environments only)
-  * ~~Optimizes images~~ (Todo)
-  * ~~Optimizes SVG~~ (Todo)
-  * ~~Uses Babel to convert ES6 to ES5~~ (Todo)
-* Creates `sitemap.xml` file in `/dist`
-* Create the bundled `.css` and `.js` files specified in the file loop.
-* Runs any custom-user `after` plugins (runs once)
+The build process performs the following steps:
 
-Many build settings can be set in the project's `/config/main.js` instead of trying to find them in the various build-plugin files.
+1. **Creates `/dist`** - Removes existing dist folder and recreates it
+2. **Copies `/src` to `/dist`** - All source files are copied
+3. **Runs custom-user `before` plugins** - Runs once before file processing
+4. **Loops through each allowed file**, modifying contents per environment rules:
+   * Runs any custom-user `default` plugins (all plugins run per file)
+   * Replaces ES6 template strings (`${}`) with data from config
+   * Adds missing `http://` protocol to external links
+   * Replaces include placeholders (`[data-include]`) with target source
+   * Replaces inline placeholders (`[data-inline]`) with external source (production only)
+   * Sets `<a>` tags with matching `[href]` as active (`class="active"`)
+   * Sets `<a>` tags with partial `[href]` match as active parent (`class="active-parent"`)
+   * Stores link/script files marked for bundling (`[bundle]`)
+   * Minifies HTML, CSS, and JS source (production only)
+5. **Creates `sitemap.xml`** - Auto-generated in `/dist`
+6. **Creates bundled files** - `.css` and `.js` bundles are written
+7. **Runs custom-user `after` plugins** - Runs once after file processing
+
+Many build settings can be customized in your project's `/config/main.js`.
+
+---
+
+## NPM Run Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Development mode with BrowserSync live reload |
+| `npm run dev:prod` | Production build + http-server for local preview |
+| `npm run build` | Build only (uses NODE_ENV if set, defaults to development) |
+| `npm run update:check` | Check for dependency updates |
+| `npm run update:fix` | Update dependencies to latest versions |
+
+---
+
+## Configuration
+
+### `/config/main.js`
+
+Override default build settings:
+
+```javascript
+export default {
+  // Output directory (default: 'dist')
+  distPath: 'dist',
+
+  // Source directory (default: 'src')
+  srcPath: 'src',
+
+  // Sitemap configuration
+  sitemap: {
+    url: 'https://www.yoursite.com',
+  },
+
+  // Custom plugins
+  plugins: {
+    before: [],   // Run before file loop
+    default: [],  // Run for each file
+    after: [],    // Run after file loop
+  },
+
+  // Files to watch for live reload
+  watch: [
+    '/assets/css/*.css',
+    '/**/*.html',
+  ],
+};
+```
+
+### `/config/data.js`
+
+Provide data for template string replacement:
+
+```javascript
+export default {
+  siteTitle: 'My Website',
+  siteDescription: 'A great website',
+  // Use in HTML: ${siteTitle}
+};
+```
+
+---
+
+## Features
+
+### Template Strings
+
+Use ES6 template syntax in HTML files:
+
+```html
+<title>${siteTitle}</title>
+<meta name="description" content="${siteDescription}">
+```
+
+### Includes
+
+Include partial HTML files:
+
+```html
+<div data-include="/includes/header.html"></div>
+```
+
+### Inline Assets
+
+Inline external CSS/JS in production:
+
+```html
+<link rel="stylesheet" href="/assets/css/styles.css" data-inline>
+<script src="/assets/js/app.js" data-inline></script>
+```
+
+### Bundling
+
+Bundle multiple files into one:
+
+```html
+<link rel="stylesheet" href="/assets/css/reset.css" data-bundle="main">
+<link rel="stylesheet" href="/assets/css/styles.css" data-bundle="main">
+<!-- Outputs: /assets/bundle/main.css -->
+```
+
+### Active Links
+
+Automatically adds `class="active"` to links matching the current page URL.
+
+---
+
+## License
+
+MIT © 2020 Prof Thomas Powell

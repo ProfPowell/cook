@@ -5,7 +5,6 @@
 
 // IMPORT
 // -----------------------------
-// const cwd = process.cwd();
 import chalk from 'chalk';
 import Util from '../utils/util/util.js';
 

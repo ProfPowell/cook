@@ -5,7 +5,6 @@ import fs from 'fs-extra';
 import cliCursor from 'cli-cursor';
 import cliSpinners from 'cli-spinners';
 import v8 from 'node:v8';
-import { execSync } from 'node:child_process';
 import { lstatSync, readdirSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
@@ -324,10 +323,9 @@ function customError(e, label = 'Error') {
  * @private
  */
 function customKill(msg) {
-  // Display terminal message and kill process
+  // Display terminal message and exit process
   console.log(`\n${chalk.red(msg)}`);
-  // execSync(`echo '' && echo ${chalk.red(formatMsg)}`, {stdio: 'inherit'});
-  execSync(`killall -9 node`, {stdio: 'inherit'});
+  process.exit(1);
 }
 
 /**
