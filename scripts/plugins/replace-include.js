@@ -3,17 +3,17 @@
  * @description Replace include markers with corresponding code
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 // const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs').promises;
-const path = require('path');
+import chalk from 'chalk';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 // const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
+import Util from '../utils/util/util.js';
 
 // Config
-const {convertPageToDirectory,distPath,srcPath} = require('../utils/config/config.js');
+import { convertPageToDirectory, distPath, srcPath } from '../utils/config/config.js';
 
 
 // DEFINE
@@ -52,9 +52,9 @@ class ReplaceInclude {
     // Early Exit: File type not allowed
     const allowed = Util.isAllowedType(this.opts);
     if (!allowed) return;
-    
+
     // Store string source as traversable DOM
-    let dom = Util.jsdom.dom({src: this.file.src});  
+    let dom = Util.jsdom.dom({src: this.file.src});
     // Allow `[include]` or `[data-include]` by default
     const includeSelector = Util.getSelector(Util.attr.include);
     const includeItems = dom.window.document.querySelectorAll(includeSelector);
@@ -62,7 +62,7 @@ class ReplaceInclude {
 
     // Early Exit: No includes
     if (!includeItems) return;
-    
+
     // START LOGGING
     this.startLog();
 
@@ -70,11 +70,11 @@ class ReplaceInclude {
     for (let item of includeItems) {
       await this.replaceInclude(item);
     }
-    
+
     // Store updated file source
     this.file.src = Util.setSrc({dom});
 
-    // TODO: For now, includes cannot include other includes. 
+    // TODO: For now, includes cannot include other includes.
     // This was causing an infinite loop
     // ---
     // Query again for includes. If sub-includes found, run again
@@ -230,15 +230,15 @@ class ReplaceInclude {
     // Return boolean
     return tmpArr[0] || false;
   }
-  
+
 
   // LOGGING
   // -----------------------------
   // Display additional terminal logging when `process.env.LOGGER` enabled
-  
+
   startLog() {
     // Early Exit: Logging not allowed
-    if (!process.env.LOGGER) return; 
+    if (!process.env.LOGGER) return;
     // Start Spinner
     this.loading.start(chalk.magenta('Replacing Includes'));
     // Start timer
@@ -253,8 +253,8 @@ class ReplaceInclude {
     // If no matches found, stop logger but don't show line in terminal
     else this.loading.kill();
   }
-  
-  
+
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -266,4 +266,4 @@ class ReplaceInclude {
 
 // EXPORT
 // -----------------------------
-module.exports = ReplaceInclude.export;
+export default ReplaceInclude.export;

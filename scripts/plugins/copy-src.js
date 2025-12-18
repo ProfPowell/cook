@@ -3,16 +3,16 @@
  * @description Copy contents of `/src` to `/dist`
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import Logger from '../utils/logger/logger.js';
+import Util from '../utils/util/util.js';
 
 // Config
-const {distPath,srcPath} = require('../utils/config/config.js');
+import { distPath, srcPath } from '../utils/config/config.js';
 
 // DEFINE
 // -----------------------------
@@ -65,8 +65,8 @@ class CopySrc {
     // Copy the file if it passes the regex (not a .md file)
     return isNotMarkdown;
   }
-  
-  
+
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -78,4 +78,4 @@ class CopySrc {
 
 // EXPORT
 // -----------------------------
-module.exports = CopySrc.export;
+export default CopySrc.export;

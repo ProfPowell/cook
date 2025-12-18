@@ -1,15 +1,11 @@
 /**
- * @file spinner.js
- * @description Custom terminal spinner message
+ * @file timer.js
+ * @description Custom terminal timer for tracking operation duration
  */
 
-// REQUIRE
+// IMPORTS
 // ----------------------------------
-const chalk = require('chalk');
-const cliCursor = require('cli-cursor');
-const cliSpinners = require('cli-spinners');
-const Logger = require('../logger/logger.js');
-
+import chalk from 'chalk';
 
 // DEFINE
 // ----------------------------------
@@ -41,4 +37,4 @@ class Timer {
 
 // EXPORT
 // -----------------------------
-module.exports = Timer;
+export default Timer;

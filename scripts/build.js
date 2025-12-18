@@ -1,41 +1,38 @@
-// REQUIRE
+// IMPORTS
 // -----------------------------
-const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
-// const Logger = require('./utils/logger/logger.js');
-// const Spinner = require('./utils/spinner/spinner.js');
-// const {generatePages} = require('./utils/performance/performance');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import { existsSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 // UTILS
-const utils = require('./utils/util/util.js');
-const {runFileLoop,updatePage} = utils;
-
+import Util, { runFileLoop, updatePage } from './utils/util/util.js';
 
 // PLUGINS
 // -----------------------------
-// const babelify = require('./plugins/babelify');
-const {bundleAdd, bundleBuild} = require('./plugins/bundle');
-const copySrc = require('./plugins/copy-src');
-const createDist = require('./plugins/create-dist');
-const createDirFromFile = require('./plugins/create-dir-from-file');
-const customPlugins = require('./plugins/custom-plugins');
-const generateSitemap = require('./plugins/generate-sitemap-xml');
-// const {compressAndNextGen, optimizeSVG, replaceImgTags} = require('./plugins/images.js');
-const minifySrc = require('./plugins/minify-src');
-const replaceInclude = require('./plugins/replace-include.js');
-const replaceInline = require('./plugins/replace-inline.js');
-const replaceMissingExternalLinkProtocol = require('./plugins/replace-external-link-protocol.js');
-const replaceTemplateStrings = require('./plugins/replace-template-strings.js');
-const setActiveLinks = require('./plugins/set-active-links.js');
+// import babelify from './plugins/babelify.js';
+import { bundleAdd, bundleBuild } from './plugins/bundle.js';
+import copySrc from './plugins/copy-src.js';
+import createDist from './plugins/create-dist.js';
+import createDirFromFile from './plugins/create-dir-from-file.js';
+import customPlugins from './plugins/custom-plugins.js';
+import generateSitemap from './plugins/generate-sitemap-xml.js';
+// import { compressAndNextGen, optimizeSVG, replaceImgTags } from './plugins/images.js';
+import minifySrc from './plugins/minify-src.js';
+import replaceInclude from './plugins/replace-include.js';
+import replaceInline from './plugins/replace-inline.js';
+import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
+import replaceTemplateStrings from './plugins/replace-template-strings.js';
+import setActiveLinks from './plugins/set-active-links.js';
 
 // GET SOURCE
-const {getDynamicFiles, getSrcConfig, getSrcFiles, getSrcImages} = require('./utils/get-src/get-src.js');
+import { getDynamicFiles, getSrcConfig, getSrcFiles, getSrcImages } from './utils/get-src/get-src.js';
 
 // CONFIG
 // Combined user overrides on top of internal defaults
-const config = require('./utils/config/config.js');
-const {plugins} = config;
+import config, { plugins } from './utils/config/config.js';
+
+const cwd = process.cwd();
 
 // INTERNAL BUILD DATA-STORE
 const store = {
@@ -44,23 +41,26 @@ const store = {
   // This will serve as a running cache so we don't bundle already-bundled files
   // in subsequent pages in the file loop.
   bundle: { css: {}, js: {}, },
-  // Cache custom plugins after first lookup (require)
+  // Cache custom plugins after first lookup (import)
   plugins: {},
 };
 
 // USER'S DATA-STORE
-// Get user's data config object. We pass it into plugins (when necessary) 
-// so that additional data can be added to it from plugins instead of needing 
+// Get user's data config object. We pass it into plugins (when necessary)
+// so that additional data can be added to it from plugins instead of needing
 // to manually define everything from the start in `/config/data.js`
 // Note: We init as empty object if user didn't create a `data.js` config file
 const userDataPath = `${cwd}/config/data.js`;
-const userDataPathExists = fs.existsSync(userDataPath);
-const data = userDataPathExists ? require(userDataPath) : {};
+const userDataPathExists = existsSync(userDataPath);
+let data = {};
+if (userDataPathExists) {
+  const dataModule = await import(pathToFileURL(userDataPath));
+  data = dataModule.default || dataModule;
+}
 
 
 // BUILD
 // -----------------------------
-// async function build() {
 
 class Build {
 
@@ -90,9 +90,9 @@ class Build {
     //   });
     // });
 
-    // GET THE ALLOWED FILES 
+    // GET THE ALLOWED FILES
     let files = await getSrcFiles();
-    
+
     // ADD ANY DYNAMICALLY-GENERATED PAGES
     // If pages were added in `this.data.dynamicPages` array, add them.
     // NOTE: Runs after `createDirFromFile()` since .html pages not created yet.
@@ -111,13 +111,13 @@ class Build {
 
       // CUSTOM PLUGINS: Run custom user plugins during file loop
       await customPlugins({file, store, data, plugins: plugins.default});
-      
-      // PLUGIN: Render all ES6 template strings 
+
+      // PLUGIN: Render all ES6 template strings
       replaceTemplateStrings({file, data, allowType: ['.html', '.json', '.webmanifest']});
 
       // PLUGIN: Add missing `http://` to user-added external link `[href]` values (`[href="www.xxxx.com"]`)
       await replaceMissingExternalLinkProtocol({file, allowType: ['.html']});
-      
+
       // PLUGIN: Replace `[data-include]` in files
       await replaceInclude({file, store, allowType: ['.html']});
 
@@ -132,7 +132,7 @@ class Build {
 
       // PLUGIN: Babelify standalone JS files
       // babelify({file, allowType: ['.js','.html']});
-      
+
       // PLUGIN: Find `<a>` tags whose [href] value matches the current page (link active state)
       setActiveLinks({file, allowType: ['.html']});
 
@@ -140,8 +140,8 @@ class Build {
       bundleAdd({file, store, allowType: ['.html']});
 
       // PLUGIN: Minify Source
-      minifySrc({file, disallowType: ['.json', '.webmanifest']});
-      
+      await minifySrc({file, disallowType: ['.json', '.webmanifest']});
+
       // Write new, modified source back to the file
       await updatePage(file);
 
@@ -158,7 +158,7 @@ class Build {
     await customPlugins({store, data, plugins: plugins.after, log: 'After' });
   }
 
-};
+}
 
 // Run build
 (async () => await new Build().init())();

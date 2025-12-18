@@ -1,21 +1,21 @@
 // Generate `sitemap.xml` file
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 // const cwd = process.cwd();
-const chalk = require('chalk');
-const fs = require('fs-extra');
-const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
+import chalk from 'chalk';
+import fs from 'fs-extra';
+import Logger from '../utils/logger/logger.js';
+import Util from '../utils/util/util.js';
 
 // CONFIG
-const {distPath,sitemap,srcPath} = require('../utils/config/config.js');
+import { distPath, sitemap, srcPath } from '../utils/config/config.js';
 
 
 // DEFINE
 // -----------------------------
 /**
- * @description Generate `sitemap.xml` for search engines from the finished site tree. 
+ * @description Generate `sitemap.xml` for search engines from the finished site tree.
  * Is one of the last build processes since we want to get all new, dynamically-generated pages and their final path locations.
  */
 class GenerateSitemap {
@@ -33,7 +33,7 @@ class GenerateSitemap {
   async init() {
     // Early Exit: No user-defined site domain in `/config/main.js`
     if (!sitemap || !sitemap.url || !sitemap.url.length) return;
-    
+
     // ADD TERMINAL SECTION HEADING
     Logger.persist.header(`\nCreate /sitemap.xml`);
 
@@ -57,7 +57,7 @@ class GenerateSitemap {
       Util.customError(e, 'Generate sitemap.xml');
       Logger.error(`Requires /${distPath} directory - please run the build process first`);
     }
-    
+
     // END LOGGING
     this.endLog();
   }
@@ -183,11 +183,11 @@ class GenerateSitemap {
     if (last !== 'index.html') filePathSplit[filePathSplit.length] = last;
     return filePathSplit.join('/');
   }
-  
+
 
   // LOGGING
   // -----------------------------
-  
+
   startLog() {
     // Start Spinner
     this.loading.start(`Building ${chalk.magenta('sitemap.xml')}`);
@@ -201,8 +201,8 @@ class GenerateSitemap {
     // If no matches found, stop logger but don't show line in terminal
     else this.loading.kill();
   }
-  
-  
+
+
   // EXPORT WRAPPER
   // -----------------------------
   // Export function wrapper instead of class for `build.js` simplicity
@@ -214,4 +214,4 @@ class GenerateSitemap {
 
 // EXPORT
 // -----------------------------
-module.exports = GenerateSitemap.export;
+export default GenerateSitemap.export;

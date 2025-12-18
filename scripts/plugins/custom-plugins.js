@@ -3,15 +3,15 @@
  * @description Runs custom plugins defined outside of the build repo
  */
 
-// REQUIRE
+// IMPORT
 // -----------------------------
 const cwd = process.cwd();
 // const chalk = require('chalk');
-const Logger = require('../utils/logger/logger.js');
-const Util = require('../utils/util/util.js');
+import Logger from '../utils/logger/logger.js';
+import Util from '../utils/util/util.js';
 
 // Config
-const {pluginPath} = require('../utils/config/config.js');
+import { pluginPath } from '../utils/config/config.js';
 
 // DEFINE
 // -----------------------------
@@ -33,7 +33,7 @@ class CustomPlugins {
     this.data = data;
     this.log = log;
     this.plugins = plugins;
-    
+
     // Store # of plugins
     this.total = plugins && plugins.length || 0;
   }
@@ -44,22 +44,22 @@ class CustomPlugins {
   async init() {
     // Early Exit: No Plugins
     if (!this.plugins) return;
-    
+
     // Show terminal message: Start
     // Note: only shown for 'Before' and 'After' cases, not inside the file loop
     if (this.log && this.total) Logger.persist.header(`\nCustom User Plugins: ${this.log} (${this.total})`);
 
     // Execute each user plugin
     // NOTE: Using recursion instead of `util.promiseAll` since we want
-    // each plugin to run schronously. Their internal plugin code can 
+    // each plugin to run schronously. Their internal plugin code can
     // await async code, though.
-    await this.recursePlugins(0); 
+    await this.recursePlugins(0);
 
     // Add spacing in terminal
     if (process.env.NODE_ENV !== 'development' && this.log === 'After') console.log('\n');
   }
 
-  
+
   // HELPER METHODS
   // -----------------------------
 
@@ -72,9 +72,9 @@ class CustomPlugins {
 
     // Get destructured parts
     const {file, data} = this;
-    
+
     // GET PLUGIN FILE'S SOURCE
-    // If the first request, fetch it via `require()` and cache it. Use cache for all subsequent requests
+    // If the first request, fetch it via `import()` and cache it. Use cache for all subsequent requests
     // ---
     // USE CACHED PLUGIN CODE, IF FOUND
     let plugin;
@@ -86,11 +86,11 @@ class CustomPlugins {
     // OTHERWISE, FETCH THE PLUGIN FILE'S SOURCE AND CACHE IT
     else {
       // Get plugin source
-      plugin = require(`${cwd}/${pluginPath}/${this.plugins[index]}.js`);
+      plugin = await import(`${cwd}/${pluginPath}/${this.plugins[index]}.js`);
       // Add it to lookup cache
       this.store.plugins[pathToPluginFile] = plugin;
     }
-    
+
     // RUN PLUGIN
     // Run plugin's `init()` method (since it might be async - constructors can't be async)
     // Note: Using try..catch instead of `.init().catch()`, since the init method may not be set as async from the user.
@@ -104,7 +104,7 @@ class CustomPlugins {
     // GO TO NEXT PLUGIN
     await this.recursePlugins(index+=1);
   };
-    
+
 
   // EXPORT WRAPPER
   // -----------------------------
@@ -117,4 +117,4 @@ class CustomPlugins {
 
 // EXPORT
 // -----------------------------
-module.exports = CustomPlugins.export;
+export default CustomPlugins.export;
