@@ -5,11 +5,9 @@
 
 // IMPORT
 // -----------------------------
-// const cwd = process.cwd();
 import chalk from 'chalk';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-// const Logger = require('../utils/logger/logger.js');
 import Util from '../utils/util/util.js';
 
 // Config

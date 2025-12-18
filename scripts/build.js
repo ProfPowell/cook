@@ -10,14 +10,12 @@ import Util, { runFileLoop, updatePage } from './utils/util/util.js';
 
 // PLUGINS
 // -----------------------------
-// import babelify from './plugins/babelify.js';
 import { bundleAdd, bundleBuild } from './plugins/bundle.js';
 import copySrc from './plugins/copy-src.js';
 import createDist from './plugins/create-dist.js';
 import createDirFromFile from './plugins/create-dir-from-file.js';
 import customPlugins from './plugins/custom-plugins.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
-// import { compressAndNextGen, optimizeSVG, replaceImgTags } from './plugins/images.js';
 import minifySrc from './plugins/minify-src.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
@@ -26,7 +24,7 @@ import replaceTemplateStrings from './plugins/replace-template-strings.js';
 import setActiveLinks from './plugins/set-active-links.js';
 
 // GET SOURCE
-import { getDynamicFiles, getSrcConfig, getSrcFiles, getSrcImages } from './utils/get-src/get-src.js';
+import { getDynamicFiles, getSrcConfig, getSrcFiles } from './utils/get-src/get-src.js';
 
 // CONFIG
 // Combined user overrides on top of internal defaults
@@ -80,16 +78,6 @@ class Build {
     // CUSTOM PLUGINS: Run custom user plugins before file loop
     await customPlugins({store, data, plugins: plugins.before, log: 'Before' });
 
-    // THE IMAGES LOOP
-    // getSrcImages(images => {
-    //   images.forEach(image => {
-    //     // PLUGIN: Optimize .svg files with SVGO
-    //     if (optimizeSVGs) optimizeSVG(image, 'image');
-    //     // PLUGIN: Optimize raster images (jpg, jpeg, png) and convert to webp
-    //     if (optimizeImages) compressAndNextGen(image);
-    //   });
-    // });
-
     // GET THE ALLOWED FILES
     let files = await getSrcFiles();
 
@@ -123,15 +111,6 @@ class Build {
 
       // PLUGIN: Replace `[data-inline]` with external `<link>` and `<script>` tags
       await replaceInline({file, store, allowType: ['.html']});
-
-      // PLUGIN: Replace <img> tags with <picture> elements
-      // if (optimizeImages) replaceImgTags({file, allowType: ['.html']});
-
-      // PLUGIN: Optimize inline <svg>'s with SVGO
-      // if (optimizeSVGs) optimizeSVG(file, 'inline');
-
-      // PLUGIN: Babelify standalone JS files
-      // babelify({file, allowType: ['.js','.html']});
 
       // PLUGIN: Find `<a>` tags whose [href] value matches the current page (link active state)
       setActiveLinks({file, allowType: ['.html']});

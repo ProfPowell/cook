@@ -6,20 +6,16 @@
 
 // IMPORT
 // -----------------------------
-const cwd = process.cwd();
 import chalk from 'chalk';
 import fs from 'fs-extra';
-// const rimraf = require('rimraf');
 import utils from '../utils/util/util.js';
 import Logger from '../utils/logger/logger.js';
 import Spinner from '../utils/spinner/spinner.js';
 import Timer from '../utils/timer/timer.js';
-
-// USER 'MAIN.JS' CONFIG
 import { convertPageToDirectory, distPath } from '../utils/config/config.js';
-
-// GET SOURCE
 import { getSrcConfig } from '../utils/get-src/get-src.js';
+
+const cwd = process.cwd();
 
 
 // DEFINE
