@@ -10,16 +10,21 @@ import Util, { runFileLoop, updatePage } from './utils/util/util.js';
 
 // PLUGINS
 // -----------------------------
+import autoComponents from './plugins/auto-components.js';
 import { bundleAdd, bundleBuild } from './plugins/bundle.js';
 import copySrc from './plugins/copy-src.js';
 import createDist from './plugins/create-dist.js';
 import createDirFromFile from './plugins/create-dir-from-file.js';
 import customPlugins from './plugins/custom-plugins.js';
+import declarativeShadowDom from './plugins/declarative-shadow-dom.js';
+import generateFormats from './plugins/generate-formats.js';
+import generateFragments from './plugins/generate-fragments.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
 import minifySrc from './plugins/minify-src.js';
 import processMarkdown from './plugins/process-markdown.js';
 import repeatCollection from './plugins/repeat-collection.js';
 import replaceComponents from './plugins/replace-components.js';
+import applyTemplate from './plugins/apply-template.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
@@ -56,7 +61,8 @@ const userDataPathExists = existsSync(userDataPath);
 let data = {};
 if (userDataPathExists) {
   const dataModule = await import(pathToFileURL(userDataPath));
-  data = dataModule.default || dataModule;
+  const exported = dataModule.default || dataModule;
+  data = typeof exported === 'function' ? await exported() : exported;
 }
 
 
@@ -106,20 +112,35 @@ class Build {
       // CUSTOM PLUGINS: Run custom user plugins during file loop
       await customPlugins({file, store, data, plugins: plugins.default});
 
-      // PLUGIN: Render all ES6 template strings
-      replaceTemplateStrings({file, data, allowType: ['.html', '.json', '.webmanifest']});
+      // PLUGIN: Apply layout template from [data-template] attribute
+      // Runs before includes: wraps page content in a template shell
+      await applyTemplate({file, store, allowType: ['.html']});
+
+      // PLUGIN: Replace `[data-include]` in files
+      // Runs after template: includes inside the template get resolved
+      await replaceInclude({file, store, allowType: ['.html']});
 
       // PLUGIN: Repeat elements for each item in a collection
+      // Runs second: repeat generates DOM from data, resolving collection variables in attributes
+      // Must run before components so repeated custom elements get expanded individually
       await repeatCollection({file, data, store, allowType: ['.html']});
+
+      // PLUGIN: Replace custom elements and data-component elements with templates
+      // Runs third: components expand templates with attribute values (their own ${var} replacement)
+      await replaceComponents({file, store, data, allowType: ['.html']});
+
+      // PLUGIN: Render all ES6 template strings
+      // Runs last: resolves ${var} across the fully assembled page (includes + components + repeats)
+      replaceTemplateStrings({file, data, allowType: ['.html', '.json', '.webmanifest']});
+
+      // PLUGIN: Auto-detect custom elements and manage VB JS loading
+      await autoComponents({file, store, allowType: ['.html']});
+
+      // PLUGIN: Pre-render Declarative Shadow DOM for web components
+      await declarativeShadowDom({file, store, allowType: ['.html']});
 
       // PLUGIN: Add missing `http://` to user-added external link `[href]` values (`[href="www.xxxx.com"]`)
       await replaceMissingExternalLinkProtocol({file, allowType: ['.html']});
-
-      // PLUGIN: Replace `[data-include]` in files
-      await replaceInclude({file, store, allowType: ['.html']});
-
-      // PLUGIN: Replace custom elements and data-component elements with templates
-      await replaceComponents({file, store, data, allowType: ['.html']});
 
       // PLUGIN: Replace `[data-inline]` with external `<link>` and `<script>` tags
       await replaceInline({file, store, allowType: ['.html']});
@@ -138,6 +159,12 @@ class Build {
 
       return fileName;
     }
+
+    // PLUGIN: Generate content-only fragments for SPA navigation
+    await generateFragments();
+
+    // PLUGIN: Generate multi-format output (markdown, JSON, feed, llms.txt)
+    await generateFormats({store, data});
 
     // PLUGIN: Create `sitemap.xml` in the created `/dist` folder
     await generateSitemap();

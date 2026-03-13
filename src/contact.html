@@ -1,0 +1,98 @@
+<html data-template="default">
+<head>
+  <title>Contact Us — ${siteTitle}</title>
+  <meta name="description" content="Get in touch with ${siteTitle}. Questions about products, orders, warranties, or partnerships — we're here to help.">
+</head>
+<body>
+<main>
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Home</a></li>
+        <li aria-current="page">Contact</li>
+      </ol>
+    </nav>
+
+    <hgroup>
+      <h1>Get in Touch</h1>
+      <p>Whether you have a question about our gear, need help with an order, or want to explore a partnership, we'd love to hear from you.</p>
+    </hgroup>
+
+    <!-- Two-column layout: form + sidebar -->
+    <layout-sidebar data-layout-side="right" data-layout-min="55%">
+
+      <!-- Contact Form -->
+      <form class="stacked" action="#" method="post">
+
+        <div>
+          <label for="full-name">Full Name</label>
+          <input id="full-name" type="text" name="full_name" required autocomplete="name">
+        </div>
+
+        <div>
+          <label for="email">Email</label>
+          <input id="email" type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+        </div>
+
+        <div>
+          <label for="subject">Subject</label>
+          <select id="subject" name="subject" required>
+            <option value="">Choose a topic</option>
+            <option value="general">General Inquiry</option>
+            <option value="product">Product Question</option>
+            <option value="order">Order Support</option>
+            <option value="warranty">Warranty Claim</option>
+            <option value="partnership">Partnership</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="6" required placeholder="Tell us how we can help..."></textarea>
+        </div>
+
+        <!-- Honeypot -->
+        <div aria-hidden="true" style="display:none">
+          <label for="website">Website</label>
+          <input id="website" type="text" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <footer class="actions">
+          <button type="reset" class="secondary">Reset</button>
+          <button type="submit">Send Message</button>
+        </footer>
+
+      </form>
+
+      <!-- Contact Details -->
+      <aside>
+        <h2>Contact Details</h2>
+
+        <address>
+          <strong>${companyName} HQ</strong><br>
+          742 Summit Ridge Drive<br>
+          Boulder, CO 80302
+        </address>
+
+        <dl>
+          <dt>Phone</dt>
+          <dd><a href="tel:+13035550142">(303) 555-0142</a></dd>
+
+          <dt>Email</dt>
+          <dd><a href="mailto:hello@alpenglowgear.example">hello@alpenglowgear.example</a></dd>
+
+          <dt>Hours</dt>
+          <dd>
+            Monday&ndash;Friday: 8 am&ndash;6 pm MT<br>
+            Saturday: 9 am&ndash;4 pm MT<br>
+            Sunday: Closed
+          </dd>
+        </dl>
+      </aside>
+
+    </layout-sidebar>
+
+</main>
+</body>
+</html>
