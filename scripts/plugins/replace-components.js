@@ -9,6 +9,13 @@
  * Component templates can use:
  * - ${attributeName} for data from element attributes
  * - ${slot} for inner HTML content
+ *
+ * Component templates may contain <style> blocks. These are:
+ * - Extracted before rendering (not duplicated per instance)
+ * - Deduplicated per component name
+ * - Template variables resolved with global data
+ * - Consolidated into a single <style> in <head>
+ * Authors can use native @scope and @layer for CSS scoping.
  */
 
 // IMPORTS
@@ -45,6 +52,9 @@ class ReplaceComponents {
       ...componentsConfig
     };
 
+    // Collected component styles (keyed by componentName for deduplication)
+    this.collectedStyles = {};
+
     // Cache for component templates
     if (!this.store.cachedComponents) this.store.cachedComponents = {};
 
@@ -77,6 +87,9 @@ class ReplaceComponents {
     for (const component of components) {
       await this.replaceComponent(component);
     }
+
+    // Inject collected component styles into <head>
+    this.injectCollectedStyles(document);
 
     // Store updated file source
     this.file.src = Util.setSrc({ dom });
@@ -168,6 +181,13 @@ class ReplaceComponents {
         return;
       }
 
+      // Extract <style> blocks from template (deduplicate per component)
+      const { html: htmlTemplate, css } = this.extractStyles(template);
+      if (css && !this.collectedStyles[componentName]) {
+        // Resolve template variables in CSS with global data only
+        this.collectedStyles[componentName] = this.renderTemplate(css, this.data);
+      }
+
       // Extract data from element attributes
       const componentData = this.extractComponentData(element, type);
 
@@ -177,8 +197,8 @@ class ReplaceComponents {
       // Merge with global data (component data takes precedence)
       const mergedData = { ...this.data, ...componentData };
 
-      // Replace template variables with data
-      const renderedContent = this.renderTemplate(template, mergedData);
+      // Replace template variables with data (style-free HTML only)
+      const renderedContent = this.renderTemplate(htmlTemplate, mergedData);
 
       // Insert rendered content and remove original element
       element.insertAdjacentHTML('afterend', renderedContent);
@@ -309,6 +329,48 @@ class ReplaceComponents {
     for (const [name, html] of Object.entries(namedSlots)) {
       componentData[`slot:${name}`] = html;
     }
+  }
+
+  /**
+   * Extract <style> blocks from a component template string.
+   * Returns the HTML without styles and the collected CSS text.
+   * @param {string} template - Raw template string
+   * @returns {{ html: string, css: string }}
+   */
+  extractStyles(template) {
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    const cssBlocks = [];
+    let match;
+
+    while ((match = styleRegex.exec(template)) !== null) {
+      const block = match[1].trim();
+      if (block) cssBlocks.push(block);
+    }
+
+    const html = template.replace(styleRegex, '').trim();
+    const css = cssBlocks.join('\n');
+
+    return { html, css };
+  }
+
+  /**
+   * Inject all collected component styles into <head> as a single <style>.
+   * @param {Document} document - The JSDOM document
+   */
+  injectCollectedStyles(document) {
+    const entries = Object.entries(this.collectedStyles);
+    if (entries.length === 0) return;
+
+    const cssText = entries
+      .map(([name, css]) => `/* ${name} */\n${css}`)
+      .join('\n\n');
+
+    const head = document.head || document.querySelector('head');
+    if (!head) return;
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = cssText;
+    head.appendChild(styleEl);
   }
 
   /**
