@@ -199,8 +199,15 @@ class ProcessMarkdown {
       sourcePath: filePath,
       // Default title from filename if not in front matter
       title: frontMatter.title || Util.convertToCapSpaces(fileName, 'kebab'),
-      // Parse date if string
-      date: frontMatter.date ? new Date(frontMatter.date) : null,
+      // Keep date as timezone-safe string for templates
+      // gray-matter auto-parses YAML dates to Date objects, so extract YYYY-MM-DD
+      date: frontMatter.date
+        ? (frontMatter.date instanceof Date
+          ? frontMatter.date.toISOString().split('T')[0]
+          : String(frontMatter.date))
+        : null,
+      // Parsed Date for sorting
+      _dateSort: frontMatter.date ? new Date(frontMatter.date) : null,
     };
   }
 
@@ -356,10 +363,10 @@ ${pageData.content}
     // Sort collections by date (newest first)
     for (const collectionName of Object.keys(this.store.collections)) {
       this.store.collections[collectionName].sort((a, b) => {
-        if (!a.date && !b.date) return 0;
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return b.date - a.date;
+        if (!a._dateSort && !b._dateSort) return 0;
+        if (!a._dateSort) return 1;
+        if (!b._dateSort) return -1;
+        return b._dateSort - a._dateSort;
       });
     }
   }

@@ -22,7 +22,8 @@ const userDataPathExists = existsSync(userDataPath);
 let data = {};
 if (userDataPathExists) {
   const dataModule = await import(pathToFileURL(userDataPath));
-  data = dataModule.default || dataModule;
+  const exported = dataModule.default || dataModule;
+  data = typeof exported === 'function' ? await exported() : exported;
 }
 
 
