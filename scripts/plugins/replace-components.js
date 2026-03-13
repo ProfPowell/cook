@@ -171,8 +171,8 @@ class ReplaceComponents {
       // Extract data from element attributes
       const componentData = this.extractComponentData(element, type);
 
-      // Get slot content (inner HTML)
-      componentData.slot = element.innerHTML.trim();
+      // Extract named and default slot content from children
+      this.extractSlots(element, componentData);
 
       // Merge with global data (component data takes precedence)
       const mergedData = { ...this.data, ...componentData };
@@ -207,9 +207,8 @@ class ReplaceComponents {
     }
 
     // Build path to component template
-    // Check both direct file path and directory/index.html path
-    // (createDirFromFile converts foo.html to foo/index.html)
-    const basePath = `${distPath}/${this.config.path}`;
+    // Read from srcPath since build-only dirs (components/) may not be in dist
+    const basePath = `${srcPath}/${this.config.path}`;
     const directPath = path.resolve(`${basePath}/${componentName}`);
     const dirPath = path.resolve(`${basePath}/${componentName.replace('.html', '/index.html')}`);
 
@@ -271,23 +270,76 @@ class ReplaceComponents {
   }
 
   /**
+   * Extract named and default slot content from element children.
+   * Children with a slot="name" attribute provide named slot content.
+   * Remaining children (and text nodes) form the default ${slot}.
+   * Results are stored on the componentData object as:
+   *   - componentData.slot       (default slot — all non-named content)
+   *   - componentData['slot:name'] (named slots)
+   * @param {Element} element - The component element
+   * @param {Object} componentData - Data object to populate
+   */
+  extractSlots(element, componentData) {
+    const namedSlots = {};
+    const defaultParts = [];
+
+    for (const child of Array.from(element.childNodes)) {
+      // Element nodes may carry a slot attribute
+      if (child.nodeType === 1 /* ELEMENT_NODE */) {
+        const slotName = child.getAttribute && child.getAttribute('slot');
+        if (slotName) {
+          // Remove the slot attribute from the content before injecting
+          child.removeAttribute('slot');
+          // If the same slot name appears more than once, concatenate
+          namedSlots[slotName] = (namedSlots[slotName] || '') + child.outerHTML;
+        } else {
+          defaultParts.push(child.outerHTML);
+        }
+      }
+      // Text nodes (and others) go to the default slot
+      else if (child.textContent.trim()) {
+        defaultParts.push(child.textContent);
+      }
+    }
+
+    // Default slot — everything that wasn't assigned to a named slot
+    componentData.slot = defaultParts.join('').trim();
+
+    // Named slots — keyed as "slot:name"
+    for (const [name, html] of Object.entries(namedSlots)) {
+      componentData[`slot:${name}`] = html;
+    }
+  }
+
+  /**
    * Render template by replacing variables with data
    * @param {string} template - Template string
    * @param {Object} data - Data object
    * @returns {string} Rendered template
    */
   renderTemplate(template, data) {
-    // Replace ${varName} with data values
+    // Replace ${slot:name} named slots (and ${slot} default)
+    // Also replace ${varName} with data values
     // Supports nested: ${user.name}
     return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
       const trimmedKey = key.trim();
 
-      // Handle nested properties (e.g., user.name)
-      const value = this.getNestedValue(data, trimmedKey);
+      // Check data directly (handles "slot", "slot:name", and regular vars)
+      if (data[trimmedKey] !== undefined && data[trimmedKey] !== null) {
+        return data[trimmedKey];
+      }
 
-      // Return value if found, empty string if explicitly null/undefined, or keep original if not in data
-      if (value !== undefined && value !== null) {
-        return value;
+      // Handle nested properties (e.g., user.name) — but not slot:name (already checked)
+      if (trimmedKey.includes('.')) {
+        const value = this.getNestedValue(data, trimmedKey);
+        if (value !== undefined && value !== null) {
+          return value;
+        }
+      }
+
+      // Named slot not provided — remove the placeholder (empty string)
+      if (trimmedKey.startsWith('slot:')) {
+        return '';
       }
 
       // Keep the original ${var} if not found (allows for later processing)
