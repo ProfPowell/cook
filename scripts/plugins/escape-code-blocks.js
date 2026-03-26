@@ -7,6 +7,10 @@
  * `data-escape` attribute and HTML-encodes their innerHTML so the raw
  * markup is visible to the reader.
  *
+ * IMPORTANT: Uses regex instead of JSDOM because JSDOM would parse the raw
+ * HTML/JS content inside <code-block> as real DOM nodes, corrupting it.
+ * This plugin must operate at the string level before DOM parsing.
+ *
  * Usage in a page:
  *   <code-block language="html" data-escape>
  *     <button type="button">Click me</button>
@@ -41,25 +45,19 @@ class EscapeCodeBlocks {
     // Early Exit: No code-block elements with data-escape
     if (!this.file.src.includes('data-escape')) return;
 
-    // Parse with JSDOM
-    const dom = Util.jsdom.dom({ src: this.file.src });
-    const doc = dom.window.document;
-    const codeBlocks = doc.querySelectorAll('code-block[data-escape]');
+    // Use regex to find <code-block ... data-escape ...>content</code-block>
+    // and escape the inner content at the string level (before JSDOM parsing).
+    // Match the full opening tag containing data-escape, then capture content up to </code-block>.
+    const pattern = /(<code-block\b[^>]*\bdata-escape\b[^>]*>)([\s\S]*?)(<\/code-block>)/gi;
 
-    if (!codeBlocks.length) return;
-
-    for (const block of codeBlocks) {
-      // Get the raw innerHTML and escape it
-      const raw = block.innerHTML;
+    this.file.src = this.file.src.replace(pattern, (match, openTag, content, closeTag) => {
+      // Remove data-escape from the opening tag
+      const cleanedTag = openTag.replace(/\s*\bdata-escape\b/, '');
       // Trim leading/trailing whitespace from the content but preserve internal formatting
-      const trimmed = raw.replace(/^\n+/, '').replace(/\n+$/, '');
-      block.innerHTML = this.escapeHtml(trimmed);
-      // Remove the data-escape attribute from the output
-      block.removeAttribute('data-escape');
-    }
-
-    // Store updated source
-    this.file.src = Util.setSrc({ dom });
+      const trimmed = content.replace(/^\n+/, '').replace(/\n+$/, '');
+      const escaped = this.escapeHtml(trimmed);
+      return `${cleanedTag}${escaped}${closeTag}`;
+    });
   }
 
   /**

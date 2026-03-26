@@ -119,6 +119,11 @@ class Build {
       // Strips front matter from source, stores on file.frontMatter
       await processHtmlFrontmatter({file, allowType: ['.html']});
 
+      // PLUGIN: HTML-escape <code-block data-escape> content for display
+      // Must run BEFORE any JSDOM-based plugin (applyTemplate, replaceInclude, etc.)
+      // because JSDOM would parse raw HTML/JS inside code-blocks as real DOM nodes
+      await escapeCodeBlocks({file, allowType: ['.html']});
+
       // CUSTOM PLUGINS: Run custom user plugins during file loop
       await customPlugins({file, store, data, plugins: plugins.default});
 
@@ -138,10 +143,6 @@ class Build {
       // PLUGIN: Replace custom elements and data-component elements with templates
       // Runs third: components expand templates with attribute values (their own ${var} replacement)
       await replaceComponents({file, store, data, allowType: ['.html']});
-
-      // PLUGIN: HTML-escape <code-block data-escape> content for display
-      // Runs before template strings so ${var} inside code examples aren't replaced
-      await escapeCodeBlocks({file, allowType: ['.html']});
 
       // PLUGIN: Render all ES6 template strings
       // Runs last: resolves ${var} across the fully assembled page (includes + components + repeats)
