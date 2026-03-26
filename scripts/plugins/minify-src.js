@@ -39,7 +39,8 @@ class MinifySrc {
     };
 
     // Minfiy HTML
-    this.minifyHtmlConfig = minifyHtmlConfigCustom || {
+    // Default config with user overrides merged on top
+    const defaultHtmlConfig = {
       collapseWhitespace: true,
       removeAttributeQuotes: true,
       removeComments: true,
@@ -47,7 +48,16 @@ class MinifySrc {
       removeScriptTypeAttributes: true,
       removeStyleLinkTypeAttributes: true,
       useShortDoctype: true,
-    }
+      // Skip <code-block> elements — their escaped HTML/JS/CSS content
+      // confuses the parser. Also skip any user-provided patterns.
+      ignoreCustomFragments: [
+        /<code-block[\s\S]*?<\/code-block>/gi,
+        ...(minifyHtmlConfigCustom?.ignoreCustomFragments || []),
+      ],
+    };
+    this.minifyHtmlConfig = minifyHtmlConfigCustom
+      ? { ...defaultHtmlConfig, ...minifyHtmlConfigCustom, ignoreCustomFragments: defaultHtmlConfig.ignoreCustomFragments }
+      : defaultHtmlConfig;
 
     // Minfiy JS
     this.minifyJsConfig = {};
