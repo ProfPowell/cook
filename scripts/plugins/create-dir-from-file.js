@@ -125,7 +125,7 @@ class CreateDirFromFile {
     // In order to update the pages' new location, instead of the old,
     // we need to update the /dist path to reflect the new, directory location
     const index = files.indexOf(fileName);
-    files[index] = files[index].replace('.html', '/index.html').replace('index/index.html','index.html')
+    files[index] = files[index].replace(/\.html$/, '/index.html').replace(/\/index\/index\.html$/, '/index.html')
 
     // Loading message: Update
     loading.label = `/${filePath}.html - Converted to [directory]: ${ chalk.green(`${filePath}/index.html`) }`;
