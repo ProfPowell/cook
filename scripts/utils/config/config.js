@@ -102,6 +102,44 @@ const defaultConfig = {
     },
   },
 
+  // Auto-Components: Scan pages for custom elements and manage JS loading
+  // Pages using only CSS-only elements get zero VB JS.
+  // When a manifest is available, generates import maps for per-component loading.
+  autoComponents: {
+    enabled: false,
+    manifest: null,
+    cssOnly: [],
+    bundlePattern: /vanilla-breeze[^"']*\.js/,
+  },
+
+  // Declarative Shadow DOM: Pre-render shadow DOM content for web components
+  // Requires a DSD manifest (JSON mapping tag → shadow DOM HTML)
+  // and VB components with: if (!this.shadowRoot) this.attachShadow({ mode: 'open' })
+  dsd: {
+    enabled: false,
+    manifest: null,
+  },
+
+  // Build-only paths: directories in src/ that are used during build but should
+  // NOT be copied to dist/ (includes, components, layouts, etc.)
+  buildOnlyPaths: [],
+
+  // Formats: Generate multi-format output (markdown, JSON, Atom feed, llms.txt)
+  formats: {
+    markdown: true,
+    json: true,
+    feed: null,
+    llmsTxt: true,
+  },
+
+  // Fragments: Generate content-only HTML fragments for SPA navigation
+  // Each page gets a sibling _fragment.html containing the inner HTML of the selector
+  fragments: {
+    enabled: true,
+    selector: 'main',
+    filename: '_fragment.html',
+  },
+
   // Repeat: Generate repeated elements from collections/arrays
   // Usage: <article data-repeat="collections.blog as post">...</article>
   // Supports limit and offset: "collections.blog | limit:5 | offset:2 as post"
@@ -110,6 +148,18 @@ const defaultConfig = {
     attribute: 'data-repeat',
     // Remove the data-repeat attribute from output
     removeAttribute: true,
+  },
+
+  // Images: Automatic responsive image optimization
+  // Generates AVIF/WebP derivatives at multiple widths, rewrites <img> to <picture>
+  images: {
+    enabled: true,
+    widths: [320, 640, 960, 1280, 1920],
+    formats: ['avif', 'webp'],
+    quality: { avif: 60, webp: 75, jpeg: 80, png: 80 },
+    sizes: '(min-width: 60rem) 960px, 100vw',
+    loading: 'lazy',
+    cache: '.cache/images',
   },
 
 
@@ -198,11 +248,17 @@ export default config;
 // Named exports for destructuring imports
 export const {
   activeLink,
+  autoComponents,
+  buildOnlyPaths,
   bundle,
   components,
   convertPageToDirectory,
   distPath,
+  dsd,
   excludePaths,
+  formats,
+  fragments,
+  images,
   includeAttr,
   includePaths,
   inlineAttr,

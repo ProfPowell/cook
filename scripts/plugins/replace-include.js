@@ -25,13 +25,17 @@ import { convertPageToDirectory, distPath, srcPath } from '../utils/config/confi
  * @property {Array} [obj.disallowType] - Disallowed file types (Opt-out)
  */
 class ReplaceInclude {
-  constructor({file, store, allowType, disallowType, excludePaths = []}) {
+  constructor({file, store, allowType, disallowType, excludePaths = [], _depth = 0}) {
     this.opts = {file, allowType, disallowType, excludePaths};
     this.file = file;
     this.store = store;
     this.allowType = allowType;
     this.disallowType = disallowType;
     this.excludePaths = excludePaths;
+    this._depth = _depth;
+
+    // Maximum nesting depth to prevent infinite recursion
+    this.MAX_DEPTH = 5;
 
     // Store holder for total # of includes
     this.total = 0;
@@ -72,14 +76,23 @@ class ReplaceInclude {
     // Store updated file source
     this.file.src = Util.setSrc({dom});
 
-    // TODO: For now, includes cannot include other includes.
-    // This was causing an infinite loop
-    // ---
-    // Query again for includes. If sub-includes found, run again
-    // dom = Util.jsdom.dom({src: file.src});
-    // const newIncludeSelector = Util.getSelector(Util.attr.include);
-    // const newSubIncludes = dom.window.document.querySelectorAll(newIncludeSelector);
-    // if (newSubIncludes.length) ReplaceInclude({file, allowType, disallowType});
+    // Nested includes: if the injected content contains further includes,
+    // resolve them recursively up to MAX_DEPTH to prevent infinite loops.
+    if (this._depth < this.MAX_DEPTH) {
+      const checkDom = Util.jsdom.dom({src: this.file.src});
+      const nestedSelector = Util.getSelector(Util.attr.include);
+      const nestedIncludes = checkDom.window.document.querySelectorAll(nestedSelector);
+      if (nestedIncludes.length) {
+        await new ReplaceInclude({
+          file: this.file,
+          store: this.store,
+          allowType: this.allowType,
+          disallowType: this.disallowType,
+          excludePaths: this.excludePaths,
+          _depth: this._depth + 1,
+        }).init();
+      }
+    }
 
     // END LOGGING
     this.endLog();
@@ -103,7 +116,8 @@ class ReplaceInclude {
         let content;
 
         // Get full system path to the include file
-        const includePath = path.resolve(`${distPath}/${hasInclude.path}`);
+        // Read from srcPath since build-only dirs (includes/) may not be in dist
+        const includePath = path.resolve(`${srcPath}/${hasInclude.path}`);
 
         // CHECK IF CACHED VERSION
         // If this path was already looked up previously, use the stored-in-memory source instead of fetching and reading the file again.
@@ -146,17 +160,9 @@ class ReplaceInclude {
     let formattedIncludePath = path;
     // Format the path before doing a file lookup, in case the user added a malformed path
     const hasExtension = !!path.match(/.html/g);
-    // Case: User added `.html` and `convertPageToDirectory` is DISABLED in `config/main.js`
-    // --> Do nothing
-    // Case: User omitted `.html` and `convertPageToDirectory` is DISABLED in `config/main.js`
-    // --> convert `/footer` to `/footer.html`)
-    if (convertPageToDirectory.disabled && !hasExtension) formattedIncludePath = `${path}.html`;
-    // Case: User added `.html` and `convertPageToDirectory` is ENABLED in `config/main.js`
-    // --> convert `/footer.html` to `/footer/index.html`)
-    if (!convertPageToDirectory.disabled && hasExtension) formattedIncludePath = path.replace('.html', '/index.html');
-    // Case: User omitted `.html` and `convertPageToDirectory` is ENABLED in `config/main.js`
-    // --> convert `/footer` to `/footer/index.html`)
-    if (!convertPageToDirectory.disabled && !hasExtension) formattedIncludePath = `${path}/index.html`;
+    // Include files are read from src/ where they are in their original form
+    // (not directory-converted), so just add .html if missing
+    if (!hasExtension) formattedIncludePath = `${path}.html`;
     // Get and return content of target include file
     try {
       // Get source from file

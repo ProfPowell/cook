@@ -48,8 +48,11 @@ class ApplyTemplate {
     const allowed = Util.isAllowedType(this.opts);
     if (!allowed) return;
 
-    // Check for data-template attribute on <html> or <body>
-    const templateName = this.findTemplateName();
+    // Check for data-template attribute on <html> or <body>,
+    // falling back to file.frontMatter.layout if present
+    const templateName = this.findTemplateName()
+      || (this.file.frontMatter && this.file.frontMatter.layout)
+      || null;
     if (!templateName) return;
 
     // Load the template
@@ -120,7 +123,12 @@ class ApplyTemplate {
   extractPageData() {
     const data = {};
 
-    // Extract <title> content
+    // Start with front matter data if available (from process-html-frontmatter plugin)
+    if (this.file.frontMatter) {
+      Object.assign(data, this.file.frontMatter);
+    }
+
+    // Extract <title> content (overrides front matter title if both present)
     const titleMatch = this.file.src.match(/<title>([^<]*)<\/title>/i);
     if (titleMatch) data.title = titleMatch[1];
 
@@ -142,16 +150,35 @@ class ApplyTemplate {
       }
     }
 
-    // Extract <body> inner content (the page content to inject)
-    // If <main> exists, use its innerHTML; otherwise use the full <body> innerHTML
-    const mainMatch = this.file.src.match(/<main[^>]*>([\s\S]*)<\/main>/i);
-    if (mainMatch) {
-      data.content = mainMatch[1].trim();
+    // For pages with front matter (no <body> wrapper), the entire file.src IS the content
+    let rawContent;
+    if (this.file.frontMatter && !this.file.src.match(/<body[\s>]/i)) {
+      rawContent = this.file.src.trim();
     } else {
-      const bodyMatch = this.file.src.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      if (bodyMatch) {
-        data.content = bodyMatch[1].trim();
+      // Extract <body> inner content (the page content to inject)
+      // If <main> exists, use its innerHTML; otherwise use the full <body> innerHTML
+      const mainMatch = this.file.src.match(/<main[^>]*>([\s\S]*)<\/main>/i);
+      if (mainMatch) {
+        rawContent = mainMatch[1].trim();
+      } else {
+        const bodyMatch = this.file.src.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+        if (bodyMatch) {
+          rawContent = bodyMatch[1].trim();
+        }
       }
+    }
+
+    // Extract named slots from <template slot="name"> elements.
+    // These provide content for ${slot:name} placeholders in layouts.
+    // Remaining content (after slot extraction) becomes ${content}.
+    if (rawContent) {
+      const slotPattern = /<template\s+slot="([^"]+)">([\s\S]*?)<\/template>/gi;
+      let slotMatch;
+      while ((slotMatch = slotPattern.exec(rawContent)) !== null) {
+        data[`slot:${slotMatch[1]}`] = slotMatch[2].trim();
+      }
+      // Remove <template slot="..."> elements from content
+      data.content = rawContent.replace(slotPattern, '').trim();
     }
 
     return data;
@@ -172,10 +199,13 @@ class ApplyTemplate {
 
     // Replace other ${var} placeholders with page data
     // Leave unmatched ones for later processing (e.g., ${siteTitle} resolved by replaceTemplateStrings)
+    // Exception: unmatched ${slot:...} placeholders are removed (no content provided for that slot)
     html = html.replace(/\$\{([^}]+)\}/g, (match, key) => {
       const trimmedKey = key.trim();
       if (trimmedKey === 'content') return match; // Already replaced
       if (pageData[trimmedKey] !== undefined) return pageData[trimmedKey];
+      // Remove unfilled slot placeholders rather than leaving them in output
+      if (trimmedKey.startsWith('slot:')) return '';
       return match;
     });
 

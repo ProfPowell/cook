@@ -12,7 +12,7 @@ import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 
 // Config
-import { distPath, srcPath } from '../utils/config/config.js';
+import { buildOnlyPaths, distPath, srcPath } from '../utils/config/config.js';
 
 // DEFINE
 // -----------------------------
@@ -53,9 +53,17 @@ class CopySrc {
   // HELPER METHODS
   // -----------------------------
 
-  // Don't copy files with a certain file-extension (markdown)
+  // Filter out files/directories that shouldn't be copied to dist
   excludeByExtension(src,dest) {
-    // Skip directories
+    // Skip build-only directories (includes, components, layouts, etc.)
+    if (buildOnlyPaths && buildOnlyPaths.length) {
+      for (const buildOnlyDir of buildOnlyPaths) {
+        // Match src/dirname or src/dirname/... paths
+        const pattern = new RegExp(`(^|/)${srcPath}/${buildOnlyDir}(/|$)`);
+        if (pattern.test(src)) return false;
+      }
+    }
+    // Skip directories (allow them to be traversed, filtering happens on files/subdirs)
     if (fs.lstatSync(src).isDirectory()) return true;
     // ---
     // MARKDOWN

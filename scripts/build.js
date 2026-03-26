@@ -21,10 +21,13 @@ import generateFormats from './plugins/generate-formats.js';
 import generateFragments from './plugins/generate-fragments.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
 import minifySrc from './plugins/minify-src.js';
+import { optimizeImagesGenerate, optimizeImagesRewrite } from './plugins/optimize-images.js';
 import processMarkdown from './plugins/process-markdown.js';
 import repeatCollection from './plugins/repeat-collection.js';
 import replaceComponents from './plugins/replace-components.js';
 import applyTemplate from './plugins/apply-template.js';
+import escapeCodeBlocks from './plugins/escape-code-blocks.js';
+import processHtmlFrontmatter from './plugins/process-html-frontmatter.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
@@ -87,6 +90,9 @@ class Build {
     // PLUGIN: Process markdown files (.md -> .html)
     await processMarkdown({store, data});
 
+    // PLUGIN: Generate responsive image derivatives (AVIF/WebP at multiple widths)
+    await optimizeImagesGenerate({store});
+
     // CUSTOM PLUGINS: Run custom user plugins before file loop
     await customPlugins({store, data, plugins: plugins.before, log: 'Before' });
 
@@ -109,11 +115,15 @@ class Build {
       // then write back the updated/modified source to the file at the end
       let file = await getSrcConfig({fileName});
 
+      // PLUGIN: Parse YAML front matter from HTML files
+      // Strips front matter from source, stores on file.frontMatter
+      await processHtmlFrontmatter({file, allowType: ['.html']});
+
       // CUSTOM PLUGINS: Run custom user plugins during file loop
       await customPlugins({file, store, data, plugins: plugins.default});
 
       // PLUGIN: Apply layout template from [data-template] attribute
-      // Runs before includes: wraps page content in a template shell
+      // Also checks file.frontMatter.layout as a fallback
       await applyTemplate({file, store, allowType: ['.html']});
 
       // PLUGIN: Replace `[data-include]` in files
@@ -129,9 +139,18 @@ class Build {
       // Runs third: components expand templates with attribute values (their own ${var} replacement)
       await replaceComponents({file, store, data, allowType: ['.html']});
 
+      // PLUGIN: HTML-escape <code-block data-escape> content for display
+      // Runs before template strings so ${var} inside code examples aren't replaced
+      await escapeCodeBlocks({file, allowType: ['.html']});
+
       // PLUGIN: Render all ES6 template strings
       // Runs last: resolves ${var} across the fully assembled page (includes + components + repeats)
-      replaceTemplateStrings({file, data, allowType: ['.html', '.json', '.webmanifest']});
+      // Merge front matter data so page-level variables resolve alongside global data
+      const templateData = file.frontMatter ? { ...data, ...file.frontMatter } : data;
+      replaceTemplateStrings({file, data: templateData, allowType: ['.html', '.json', '.webmanifest']});
+
+      // PLUGIN: Rewrite <img> to <picture> with responsive srcset
+      await optimizeImagesRewrite({file, store, allowType: ['.html']});
 
       // PLUGIN: Auto-detect custom elements and manage VB JS loading
       await autoComponents({file, store, allowType: ['.html']});

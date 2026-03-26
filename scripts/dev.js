@@ -3,7 +3,9 @@
 import browserSyncLib from 'browser-sync';
 import chalk from 'chalk';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const packageJSON = require('../package.json');
@@ -11,7 +13,7 @@ const packageJSON = require('../package.json');
 const browserSync = browserSyncLib.create('Dev Server');
 
 // CONFIG
-import { distPath, srcPath, startPath, watch, watchDefaults, watchReplace } from './utils/config/config.js';
+import { distPath, srcPath, startPath, fragments, watch, watchDefaults, watchReplace } from './utils/config/config.js';
 
 // FILES TO WATCH
 // The default file paths to watch
@@ -22,6 +24,54 @@ const userAddedWatch = watch && watch.length;
 if (watchReplace && userAddedWatch) watchFiles = watch;
 // Otherwise, add their paths in addition to the defaults
 else if (userAddedWatch) watchFiles = [...watchFiles, ...watch];
+
+
+// CONTENT NEGOTIATION MIDDLEWARE
+// -----------------------------
+// Mirrors the Cloudflare Worker routing logic for local development.
+// Serves fragments, markdown, and JSON based on request headers.
+function contentNegotiationMiddleware(req, res, next) {
+  const accept = req.headers['accept'] || '';
+  const requestedWith = req.headers['x-requested-with'] || '';
+  const url = req.url;
+
+  // Fragment request (html-star navigation)
+  if (requestedWith.toLowerCase() === 'htmlstar') {
+    const fragmentFilename = (fragments && fragments.filename) || '_fragment.html';
+    const basePath = url.replace(/\/$/, '') || '';
+    const fragmentPath = `${basePath}/${fragmentFilename}`;
+    const fullPath = path.resolve(`${distPath}${fragmentPath}`);
+    if (existsSync(fullPath)) {
+      req.url = fragmentPath;
+      return next();
+    }
+  }
+
+  // Markdown request
+  if (accept.includes('text/markdown')) {
+    const basePath = url.replace(/\/$/, '') || '';
+    const mdPath = `/md${basePath}/index.md`;
+    const fullPath = path.resolve(`${distPath}${mdPath}`);
+    if (existsSync(fullPath)) {
+      req.url = mdPath;
+      return next();
+    }
+  }
+
+  // JSON request (explicit, not browser default)
+  if (accept.includes('application/json') && !accept.includes('text/html')) {
+    const basePath = url.replace(/\/$/, '') || '';
+    const jsonPath = `/api${basePath || '/index'}.json`;
+    const fullPath = path.resolve(`${distPath}${jsonPath}`);
+    if (existsSync(fullPath)) {
+      req.url = jsonPath;
+      return next();
+    }
+  }
+
+  next();
+}
+
 
 // INIT BROWSER-SYNC SERVER
 // -----------------------------
@@ -36,6 +86,8 @@ browserSync.init({
   server: {
     baseDir: distPath,
     index: startPath,
+    // Content negotiation middleware for fragment/markdown/JSON routing
+    middleware: [contentNegotiationMiddleware],
   },
   // Automatically reload on `.css`, `.html`, and `.js` file changes
   //watch: true,
