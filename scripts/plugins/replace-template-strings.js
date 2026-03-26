@@ -74,7 +74,7 @@ class ReplaceTemplateStrings {
       const key = `${src[offset + 2]}${g}`;
 
       // 1. Flat lookup (most common, fast path)
-      if (obj[key] !== undefined) return String(obj[key]);
+      if (obj[key] != null) return String(obj[key]);
 
       // 2. Dot notation lookup (e.g., "site.css" → obj.site.css)
       if (key.includes('.')) {
@@ -84,7 +84,7 @@ class ReplaceTemplateStrings {
           if (value == null || typeof value !== 'object') { value = undefined; break; }
           value = value[part];
         }
-        if (value !== undefined) return String(value);
+        if (value != null) return String(value);
       }
 
       // 3. No match — leave the template string as-is
