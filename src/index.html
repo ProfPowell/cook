@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${siteTitle} — Outdoor Equipment for Every Summit</title>
+  <meta name="description" content="${siteDescription}">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+
+    <!-- Hero -->
+    <layout-cover data-layout-min="70vh" class="hero-centered">
+      <hgroup data-layout-principal>
+        <h1>Gear That Goes the Distance</h1>
+        <p>From alpine ridgelines to forest trails — equipment engineered for real adventures.</p>
+      </hgroup>
+      <layout-cluster data-layout-justify="center" data-layout-gap="m">
+        <a href="/products/" class="button">Shop All Gear</a>
+        <a href="/about/" class="button secondary">Our Story</a>
+      </layout-cluster>
+    </layout-cover>
+
+    <!-- Features Strip -->
+    <layout-center>
+      <section>
+        <h2>Why ${siteTitle}?</h2>
+        <layout-grid data-layout-min="15rem">
+          <article>
+            <h3>Trail-Tested Durability</h3>
+            <p>Every product survives 500+ miles of field testing before it earns our name.</p>
+          </article>
+          <article>
+            <h3>Ultralight Engineering</h3>
+            <p>Shave ounces without sacrificing strength. Our designs use aerospace-grade materials.</p>
+          </article>
+          <article>
+            <h3>Lifetime Repair Promise</h3>
+            <p>If it breaks, we fix it. Free repairs for the life of every ${siteTitle} product.</p>
+          </article>
+        </layout-grid>
+      </section>
+    </layout-center>
+
+    <!-- Featured Products (data-repeat) -->
+    <layout-center>
+      <section>
+        <h2>Featured Gear</h2>
+        <layout-grid data-layout-min="18rem">
+          <product-card data-repeat="products as product"
+            data-name="${product.name}"
+            data-price="${product.price}"
+            data-price-display="${product.priceDisplay}"
+            data-description="${product.description}"
+            data-features="${product.features}"
+            data-url="${product.url}">
+          </product-card>
+        </layout-grid>
+      </section>
+    </layout-center>
+
+    <!-- Quote -->
+    <layout-center>
+      <section>
+        <blockquote>
+          <p>"The mountains don't care about your gear list. They care about your preparation. Every ${siteTitle} product is designed for the moment when preparation meets opportunity."</p>
+          <footer>— <cite>Jamie Chen, ${siteTitle} Founder</cite></footer>
+        </blockquote>
+      </section>
+    </layout-center>
+
+    <!-- Testimonials (data-repeat) -->
+    <layout-center>
+      <section>
+        <h2>What Our Customers Say</h2>
+        <layout-grid data-layout-min="18rem">
+          <layout-card data-repeat="testimonials as testimonial">
+            <article>
+              <blockquote>
+                <p>"${testimonial.quote}"</p>
+                <footer>— <cite>${testimonial.author}</cite></footer>
+              </blockquote>
+            </article>
+          </layout-card>
+        </layout-grid>
+      </section>
+    </layout-center>
+
+    <!-- Newsletter CTA -->
+    <layout-center>
+      <section>
+        <h2>Stay on the Trail</h2>
+        <p>Sign up for gear reviews, trail reports, and early access to new products.</p>
+        <form class="inline" action="#" method="post">
+          <label for="newsletter-email">Email address</label>
+          <input id="newsletter-email" type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+          <button type="submit">Subscribe</button>
+        </form>
+      </section>
+    </layout-center>
+
+    <!-- Recent Blog Posts (data-repeat from markdown collections) -->
+    <layout-center>
+      <section>
+        <h2>From the Blog</h2>
+        <layout-grid data-layout-min="18rem">
+          <layout-card data-repeat="collections.blog | limit:3 as post">
+            <article>
+              <h3><a href="${post.url}">${post.title}</a></h3>
+              <p>${post.description}</p>
+              <footer>
+                <p><time>${post.date}</time></p>
+              </footer>
+            </article>
+          </layout-card>
+        </layout-grid>
+      </section>
+    </layout-center>
+
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — Alpenglow Gear</title>
+  <meta name="description" content="${description}">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Home</a></li>
+        <li><a href="/blog/">Blog</a></li>
+        <li aria-current="page">${title}</li>
+      </ol>
+    </nav>
+
+    <layout-center>
+      <article>
+        <header>
+          <hgroup>
+            <h1>${title}</h1>
+            <p>By ${author} &middot; <time datetime="${date}">${date}</time></p>
+          </hgroup>
+        </header>
+
+        ${content}
+
+      </article>
+    </layout-center>
+
+    <layout-center>
+      <footer>
+        <a href="/blog/">&larr; Back to all posts</a>
+      </footer>
+    </layout-center>
+
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>

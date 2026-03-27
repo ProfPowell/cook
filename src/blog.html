@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blog — ${siteTitle}</title>
+  <meta name="description" content="Gear reviews, trail reports, and adventure stories from the ${siteTitle} community.">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Home</a></li>
+        <li aria-current="page">Blog</li>
+      </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <layout-center>
+      <section>
+        <hgroup>
+          <h1>Trail Notes</h1>
+          <p>Gear reviews, trail reports, and adventure stories from the ${siteTitle} community.</p>
+        </hgroup>
+      </section>
+    </layout-center>
+
+    <!-- Blog Posts (data-repeat from markdown collections) -->
+    <layout-center>
+      <layout-sidebar data-layout-side="right" data-layout-side-width="16rem" data-layout-content-min="60%">
+
+        <!-- Post Grid -->
+        <section>
+          <h2>All Posts</h2>
+          <layout-grid data-layout-min="18rem">
+            <layout-card data-repeat="collections.blog as post">
+              <article>
+                <header>
+                  <h3><a href="${post.url}">${post.title}</a></h3>
+                </header>
+                <p>${post.description}</p>
+                <footer>
+                  <p>By ${post.author} &middot; <time datetime="${post.date}">${post.date}</time></p>
+                </footer>
+              </article>
+            </layout-card>
+          </layout-grid>
+        </section>
+
+        <!-- Sidebar -->
+        <aside>
+          <section>
+            <h3>Categories</h3>
+            <nav aria-label="Blog categories">
+              <ul>
+                <li><a href="/blog/">All</a></li>
+                <li><a href="/blog/?cat=gear-care">Gear Care</a></li>
+                <li><a href="/blog/?cat=skills">Skills</a></li>
+                <li><a href="/blog/?cat=guide">Guides</a></li>
+              </ul>
+            </nav>
+          </section>
+
+          <section>
+            <h3>Popular Tags</h3>
+            <layout-cluster data-layout-gap="s">
+              <a href="/blog/?tag=hiking">hiking</a>
+              <a href="/blog/?tag=backpacking">backpacking</a>
+              <a href="/blog/?tag=gear-care">gear-care</a>
+              <a href="/blog/?tag=trail-running">trail-running</a>
+              <a href="/blog/?tag=camping">camping</a>
+              <a href="/blog/?tag=winter">winter</a>
+            </layout-cluster>
+          </section>
+        </aside>
+
+      </layout-sidebar>
+    </layout-center>
+
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>

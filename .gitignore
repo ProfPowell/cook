@@ -2,5 +2,12 @@
 node_modules
 .cache/
 
-# Testing (tap)
+# Build output
+dist/
+
+# IDE
+.idea/
+
+# Testing
 .nyc_output
+.playwright-mcp/

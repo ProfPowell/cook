@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Component Test — ${siteTitle}</title>
+  <meta name="description" content="Test page exercising Vanilla Breeze web components with Declarative Shadow DOM.">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+
+    <layout-center>
+      <h1>Vanilla Breeze Component Test</h1>
+      <p>This page exercises a wide range of Vanilla Breeze web components to verify Declarative Shadow DOM pre-rendering, auto-component JS detection, and the full Cook build pipeline.</p>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- SECTION 1: Shadow DOM Components (DSD targets) -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Shadow DOM Components (DSD Pre-Rendered)</h2>
+        <p>These components use Shadow DOM. Cook injects <code>&lt;template shadowrootmode="open"&gt;</code> at build time so they render before JS loads.</p>
+
+        <!-- icon-wc: Multiple sizes and instances -->
+        <h3>Icons (icon-wc)</h3>
+        <p>
+          Default: <icon-wc name="mountain" set="lucide"></icon-wc>
+          Small: <icon-wc name="sun" set="lucide" size="s"></icon-wc>
+          Large: <icon-wc name="compass" set="lucide" size="l"></icon-wc>
+          XL: <icon-wc name="map-pin" set="lucide" size="xl"></icon-wc>
+        </p>
+        <p>Inline with text: Navigate <icon-wc name="arrow-right" set="lucide"></icon-wc> to the next section, or <icon-wc name="arrow-left" set="lucide"></icon-wc> go back.</p>
+        <p>
+          <icon-wc name="check-circle" set="lucide"></icon-wc> Completed
+          <icon-wc name="alert-triangle" set="lucide"></icon-wc> Warning
+          <icon-wc name="x-circle" set="lucide"></icon-wc> Error
+          <icon-wc name="info" set="lucide"></icon-wc> Info
+        </p>
+
+        <!-- audio-player -->
+        <h3>Audio Player (audio-player)</h3>
+        <audio-player>
+          <audio preload="none">
+            <source src="/assets/media/sample-audio.mp3" type="audio/mpeg">
+            Your browser does not support the audio element.
+          </audio>
+        </audio-player>
+
+        <!-- video-player -->
+        <h3>Video Player (video-player)</h3>
+        <video-player>
+          <video preload="none" poster="/assets/media/video-poster.jpg">
+            <source src="/assets/media/sample-video.mp4" type="video/mp4">
+            Your browser does not support the video element.
+          </video>
+        </video-player>
+
+        <!-- geo-map -->
+        <h3>Map (geo-map)</h3>
+        <geo-map lat="40.015" lng="-105.2705" zoom="13" caption="Boulder, Colorado — Alpenglow Gear HQ"></geo-map>
+
+        <!-- audio-visualizer (linked to audio-player) -->
+        <h3>Audio Visualizer (audio-visualizer)</h3>
+        <audio-visualizer for="test-audio" data-mode="bars" data-fft-size="256"></audio-visualizer>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- SECTION 2: Light DOM Components (JS-required) -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Light DOM Components (Progressive Enhancement)</h2>
+        <p>These components work without JS using native HTML fallbacks. JS adds transitions, keyboard nav, and ARIA management.</p>
+
+        <!-- heading-links -->
+        <heading-links>
+          <h3>Auto-Linked Heading</h3>
+          <p>The heading above gets an auto-generated anchor link from the <code>heading-links</code> component. Hover to see the link icon.</p>
+        </heading-links>
+
+        <!-- page-toc -->
+        <h3>Table of Contents (page-toc)</h3>
+        <page-toc data-levels="2,3" data-title="On This Page"></page-toc>
+
+        <!-- share-wc -->
+        <h3>Share Buttons (share-wc)</h3>
+        <share-wc data-title="Component Test Page" data-text="Test page for Vanilla Breeze components" data-platforms="clipboard,email,twitter,linkedin"></share-wc>
+
+        <!-- print-page -->
+        <h3>Print Button (print-page)</h3>
+        <print-page data-label="Print This Page"></print-page>
+
+        <!-- youtube-player -->
+        <h3>YouTube Player (youtube-player)</h3>
+        <youtube-player data-id="dQw4w9WgXcQ" data-title="Sample YouTube Embed"></youtube-player>
+
+        <!-- qr-code -->
+        <h3>QR Code (qr-code)</h3>
+        <qr-code data-value="https://www.alpenglowgear.example/components-test/" data-size="150"></qr-code>
+
+        <!-- slide-accept -->
+        <h3>Slide to Accept (slide-accept)</h3>
+        <slide-accept data-label="Slide to confirm" data-activated-label="Confirmed"></slide-accept>
+
+        <!-- consent-banner -->
+        <h3>Consent Banner (consent-banner)</h3>
+        <consent-banner data-position="bottom" data-persist="false">
+          <p>This site uses cookies for a better experience.</p>
+        </consent-banner>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- SECTION 3: Data Components -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Data Components</h2>
+
+        <!-- data-table -->
+        <h3>Data Table (data-table)</h3>
+        <data-table data-filterable data-paginate="5">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Trail Runner Pack 32L</td><td>Packs</td><td>$189</td><td>680g</td></tr>
+              <tr><td>Summit Shelter 3P</td><td>Shelter</td><td>$449</td><td>3.2kg</td></tr>
+              <tr><td>Beacon Pro Headlamp</td><td>Lighting</td><td>$89</td><td>95g</td></tr>
+              <tr><td>Ridge Line Trekking Poles</td><td>Accessories</td><td>$129</td><td>380g</td></tr>
+              <tr><td>Alpine Down Sleeping Bag</td><td>Sleep</td><td>$349</td><td>850g</td></tr>
+              <tr><td>Basecamp Cookset</td><td>Kitchen</td><td>$69</td><td>290g</td></tr>
+              <tr><td>Storm Shield Rain Jacket</td><td>Apparel</td><td>$229</td><td>310g</td></tr>
+            </tbody>
+          </table>
+        </data-table>
+
+        <!-- color-palette -->
+        <h3>Color Palette (color-palette)</h3>
+        <color-palette
+          colors="#2563eb,#16a34a,#dc2626,#ca8a04,#9333ea,#0891b2"
+          names="Summit Blue,Forest Green,Signal Red,Trail Gold,Alpine Purple,Glacier Teal"
+          show-values="true"
+          show-names="true">
+        </color-palette>
+
+        <!-- type-specimen -->
+        <h3>Type Specimen (type-specimen)</h3>
+        <type-specimen font-family="system-ui" label="System UI" show-scale="true" show-weights="true"></type-specimen>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- SECTION 4: Layout Components (CSS-Only) -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Layout Components (CSS-Only, Zero JS)</h2>
+        <p>These custom element names are pure CSS selectors. They load no JavaScript.</p>
+
+        <h3>layout-grid</h3>
+        <layout-grid data-layout-min="12rem">
+          <layout-card><article><h4>Card One</h4><p>Grid item in a responsive grid.</p></article></layout-card>
+          <layout-card><article><h4>Card Two</h4><p>Auto-fills based on minimum width.</p></article></layout-card>
+          <layout-card><article><h4>Card Three</h4><p>No media queries needed.</p></article></layout-card>
+          <layout-card><article><h4>Card Four</h4><p>Intrinsic web design in action.</p></article></layout-card>
+        </layout-grid>
+
+        <h3>layout-stack</h3>
+        <layout-stack>
+          <p>First stacked item.</p>
+          <p>Second stacked item — consistent vertical spacing.</p>
+          <p>Third stacked item.</p>
+        </layout-stack>
+
+        <h3>layout-cluster</h3>
+        <layout-cluster data-layout-justify="start" data-layout-gap="m">
+          <span class="badge">Ultralight</span>
+          <span class="badge">Waterproof</span>
+          <span class="badge">4-Season</span>
+          <span class="badge">Recycled Materials</span>
+          <span class="badge">Lifetime Warranty</span>
+        </layout-cluster>
+
+        <h3>layout-sidebar</h3>
+        <layout-sidebar>
+          <div>
+            <h4>Sidebar Content</h4>
+            <p>Navigation or filters go here.</p>
+          </div>
+          <div>
+            <h4>Main Content</h4>
+            <p>The main content area takes up the remaining space. When the viewport is too narrow, the sidebar stacks above.</p>
+          </div>
+        </layout-sidebar>
+
+        <h3>layout-cover</h3>
+        <layout-cover data-layout-min="30vh">
+          <p data-layout-principal>Vertically centered principal element in a cover layout.</p>
+        </layout-cover>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- SECTION 5: Interactive Components -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Interactive Components</h2>
+
+        <!-- brand-mark -->
+        <h3>Brand Mark (brand-mark)</h3>
+        <brand-mark wordmark="Alpenglow Gear" height="40"></brand-mark>
+
+        <!-- image-map -->
+        <h3>Image Map (image-map)</h3>
+        <image-map src="/assets/images/trail-map.jpg" alt="Trail map of Boulder area" aria-label="Interactive trail map">
+          <map-area shape="circle" coords="150,120,30" label="Trailhead" tooltip="Main trailhead parking"></map-area>
+          <map-area shape="circle" coords="300,80,25" label="Summit" tooltip="Peak elevation: 8,459 ft"></map-area>
+          <map-area shape="circle" coords="450,200,28" label="Campsite" tooltip="Backcountry campsite — permit required"></map-area>
+        </image-map>
+
+        <!-- emoji-picker -->
+        <h3>Emoji Picker (emoji-picker)</h3>
+        <label for="emoji-input">Add a reaction:</label>
+        <input id="emoji-input" type="text" placeholder="Click the emoji picker...">
+        <emoji-picker for="emoji-input"></emoji-picker>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- SECTION 6: Repeat + Components (Integration) -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Data-Driven Components (Repeat Integration)</h2>
+        <p>Components generated from data using <code>data-repeat</code>.</p>
+
+        <layout-grid data-layout-min="18rem">
+          <product-card data-repeat="products as product"
+            data-name="${product.name}"
+            data-price="${product.price}"
+            data-price-display="${product.priceDisplay}"
+            data-description="${product.description}"
+            data-features="${product.features}"
+            data-url="${product.url}">
+          </product-card>
+        </layout-grid>
+      </section>
+    </layout-center>
+
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>

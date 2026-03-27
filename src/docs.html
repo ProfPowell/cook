@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Developer Guide — Cook SSG</title>
+  <meta name="description" content="Developer documentation for Cook, a platform-native static site generator built on ES6 template literals, custom elements, and file-based routing.">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+
+    <!-- Hero -->
+    <layout-center>
+      <section>
+        <hgroup>
+          <h1>Cook Developer Guide</h1>
+          <p>A platform-native static site generator. ES6 template literals for templating, custom elements for components, file-based routing by default.</p>
+        </hgroup>
+      </section>
+    </layout-center>
+
+    <!-- Table of Contents -->
+    <layout-center>
+      <nav aria-label="Table of contents">
+        <h2>Contents</h2>
+        <ol>
+          <li><a href="#quick-start">Quick Start</a></li>
+          <li><a href="#project-structure">Project Structure</a></li>
+          <li><a href="#configuration">Configuration</a></li>
+          <li><a href="#data">Data</a></li>
+          <li><a href="#template-strings">Template Strings</a></li>
+          <li><a href="#includes">Includes</a></li>
+          <li><a href="#components">Components</a></li>
+          <li><a href="#repeat">Data-Driven Repeat</a></li>
+          <li><a href="#markdown">Markdown &amp; Collections</a></li>
+          <li><a href="#auto-components">Auto-Component Islands</a></li>
+          <li><a href="#dsd">Declarative Shadow DOM</a></li>
+          <li><a href="#fragments">Fragment Generation</a></li>
+          <li><a href="#formats">Multi-Format Output</a></li>
+          <li><a href="#dev-server">Dev Server</a></li>
+          <li><a href="#deployment">Deployment</a></li>
+        </ol>
+      </nav>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- QUICK START -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="quick-start">
+        <h2>Quick Start</h2>
+        <p>Cook requires Node.js 18+. Clone the repo, install dependencies, and build.</p>
+
+        <code-block language="bash" label="Install &amp; Build">npm install
+npm run build</code-block>
+
+        <p>For local development with live reload:</p>
+
+        <code-block language="bash" label="Dev Server">npm run dev</code-block>
+
+        <p>Cook reads HTML from <code>src/</code>, processes it through a plugin pipeline, and writes static output to <code>dist/</code>. Every <code>.html</code> file in <code>src/</code> becomes a clean-URL directory in <code>dist/</code>.</p>
+
+        <browser-window url="localhost:3000" title="Dev Server Output">
+          <layout-stack>
+            <p><strong>src/about.html</strong> &rarr; <strong>dist/about/index.html</strong></p>
+            <p><strong>src/blog/my-post.html</strong> &rarr; <strong>dist/blog/my-post/index.html</strong></p>
+            <p><strong>src/index.html</strong> &rarr; <strong>dist/index.html</strong></p>
+          </layout-stack>
+        </browser-window>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- PROJECT STRUCTURE -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="project-structure">
+        <h2>Project Structure</h2>
+
+        <code-block language="text" label="Directory Layout">my-site/
+├── config/
+│   ├── main.js          # Site configuration
+│   └── data.js          # Global data (optional)
+├── src/
+│   ├── index.html       # Homepage
+│   ├── about.html       # Pages become /about/
+│   ├── blog/
+│   │   └── my-post.md   # Markdown content
+│   ├── assets/
+│   │   ├── css/
+│   │   └── images/
+│   ├── components/      # Reusable HTML components
+│   ├── includes/        # Shared partials (header, footer)
+│   └── layouts/         # Markdown page layouts
+├── dist/                # Build output (git-ignored)
+├── scripts/             # Cook build system
+└── package.json</code-block>
+
+        <h3>Build-Only Directories</h3>
+        <p>Directories listed in <code>buildOnlyPaths</code> are used at build time but never copied to <code>dist/</code>. This prevents stale template files from being served as pages.</p>
+
+        <code-block language="javascript" label="config/main.js" highlight-lines="4">export default {
+  srcPath: 'src',
+  distPath: 'dist',
+  buildOnlyPaths: ['components', 'includes', 'layouts'],
+};</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- CONFIGURATION -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="configuration">
+        <h2>Configuration</h2>
+        <p>All configuration lives in <code>config/main.js</code>. It exports a plain object with sensible defaults &mdash; you only need to set what you want to change.</p>
+
+        <code-block language="javascript" label="config/main.js — Full Example">export default {
+  distPath: 'dist',
+  srcPath: 'src',
+  startPath: 'index.html',
+
+  // Directories used only at build time
+  buildOnlyPaths: ['components', 'includes', 'layouts'],
+
+  // Sitemap generation
+  sitemap: {
+    url: 'https://www.example.com',
+    excludePaths: [/\/assets/, /^\/404.html/],
+  },
+
+  // Auto-detect which components need JS
+  autoComponents: {
+    enabled: true,
+    cssOnly: [
+      'layout-center', 'layout-grid', 'layout-card',
+      'layout-cover', 'layout-stack', 'layout-cluster',
+      'layout-sidebar', 'brand-mark',
+    ],
+  },
+
+  // Pre-render Shadow DOM at build time
+  dsd: {
+    enabled: true,
+    manifest: 'assets/vendor/vanilla-breeze/dsd-manifest.json',
+  },
+
+  // Component template location
+  components: {
+    path: 'components',
+  },
+
+  // Multi-format output
+  formats: {
+    markdown: true,
+    json: true,
+    feed: { title: 'My Blog', collection: 'blog', limit: 20 },
+    llmsTxt: true,
+  },
+
+  // Markdown processing
+  markdown: {
+    layout: 'post',
+    layoutPath: 'layouts',
+    collections: true,
+    markedOptions: { gfm: true },
+  },
+
+  // Paths to exclude from processing
+  excludePaths: [/dist\/assets\/vendor/],
+};</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- DATA -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="data">
+        <h2>Data</h2>
+        <p>Global data lives in <code>config/data.js</code>. Export an object or an async function. Every key becomes available as a template variable in your HTML.</p>
+
+        <h3>Static Data</h3>
+        <code-block language="javascript" label="config/data.js — Static">export default {
+  siteName: 'My Site',
+  currentYear: '2026',
+  navItems: [
+    { url: '/', label: 'Home' },
+    { url: '/about/', label: 'About' },
+    { url: '/blog/', label: 'Blog' },
+  ],
+  products: [
+    { name: 'Widget', price: '$29', url: '/products/widget/' },
+    { name: 'Gadget', price: '$49', url: '/products/gadget/' },
+  ],
+};</code-block>
+
+        <h3>Async Data</h3>
+        <p>Export a function for data that needs to be fetched at build time &mdash; from a database, API, or file system.</p>
+
+        <code-block language="javascript" label="config/data.js — Async">import Database from 'better-sqlite3';
+
+export default async function() {
+  const db = new Database('./content.db');
+
+  const posts = db.prepare(`
+    SELECT title, slug, description, date
+    FROM posts WHERE status = 'published'
+    ORDER BY date DESC
+  `).all();
+
+  return {
+    siteName: 'My Site',
+    collections: { blog: posts },
+  };
+}</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- TEMPLATE STRINGS -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="template-strings">
+        <h2>Template Strings</h2>
+        <p>Cook uses ES6 template literal syntax (<code>${...}</code>) for variable interpolation. Any key from <code>data.js</code> is available in your HTML.</p>
+
+        <code-block language="html" label="Using Template Variables">&lt;title&gt;${siteName} — My Page&lt;/title&gt;
+&lt;p&gt;&amp;copy; ${currentYear} ${siteName}. All rights reserved.&lt;/p&gt;
+&lt;footer&gt;Built with Cook.&lt;/footer&gt;</code-block>
+
+        <p>Template strings resolve <strong>last</strong> in Cook's pipeline. This means variables work inside includes, components, and repeated elements.</p>
+
+        <h3>Plugin Order</h3>
+        <p>Understanding the pipeline order matters when debugging. Cook processes each page in this sequence:</p>
+
+        <code-block language="text" label="Build Pipeline Order">1. Includes        — data-include partials inserted
+2. Repeat          — data-repeat elements cloned from data
+3. Components      — custom element templates expanded
+4. Template Strings — ${var} resolved across the full page
+5. Auto-Components — JS imports optimized per page
+6. DSD             — Shadow DOM pre-rendered
+7. Minify          — HTML/CSS/JS minified</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- INCLUDES -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="includes">
+        <h2>Includes</h2>
+        <p>Shared partials (headers, footers, navigation) use the <code>data-include</code> attribute. The value is a path relative to <code>src/</code>.</p>
+
+        <code-block language="html" label="Using Includes">&lt;!-- Include a shared header --&gt;
+&lt;div data-include="/includes/header.html"&gt;&lt;/div&gt;
+
+&lt;main&gt;
+  &lt;h1&gt;Page Content&lt;/h1&gt;
+&lt;/main&gt;
+
+&lt;!-- Include a shared footer --&gt;
+&lt;div data-include="/includes/footer.html"&gt;&lt;/div&gt;</code-block>
+
+        <p>The include file is plain HTML:</p>
+
+        <code-block language="html" label="src/includes/header.html">&lt;header class="site"&gt;
+  &lt;a href="/"&gt;
+    &lt;strong&gt;${siteName}&lt;/strong&gt;
+  &lt;/a&gt;
+  &lt;nav aria-label="Main"&gt;
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href="/"&gt;Home&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="/about/"&gt;About&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="/blog/"&gt;Blog&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/nav&gt;
+&lt;/header&gt;</code-block>
+
+        <p>Template variables like <code>${siteName}</code> work inside includes because includes are resolved before template string processing.</p>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- COMPONENTS -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="components">
+        <h2>Components</h2>
+        <p>Cook supports reusable HTML components stored in <code>src/components/</code>. A component is just an HTML file named after the custom element tag.</p>
+
+        <h3>Creating a Component</h3>
+        <code-block language="html" label="src/components/product-card.html">&lt;article class="product-card"&gt;
+  &lt;h3&gt;&lt;a href="${url}"&gt;${name}&lt;/a&gt;&lt;/h3&gt;
+  &lt;p class="price"&gt;${priceDisplay}&lt;/p&gt;
+  &lt;p&gt;${description}&lt;/p&gt;
+  &lt;p class="features"&gt;${features}&lt;/p&gt;
+&lt;/article&gt;</code-block>
+
+        <h3>Using a Component</h3>
+        <p>Use the component as a custom element. Attributes map to template variables inside the component.</p>
+
+        <code-block language="html" label="Using product-card">&lt;product-card
+  data-name="Trail Runner Pack"
+  data-price-display="$189"
+  data-description="32L ultralight pack."
+  data-features="Waterproof &amp;middot; 680g"
+  data-url="/products/trail-runner-pack/"&gt;
+&lt;/product-card&gt;</code-block>
+
+        <p>Cook replaces the custom element with the component template, substituting <code>data-*</code> attribute values for the matching <code>${var}</code> placeholders. The <code>data-</code> prefix is stripped and camelCase is converted: <code>data-price-display</code> becomes <code>${priceDisplay}</code>.</p>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- REPEAT -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="repeat">
+        <h2>Data-Driven Repeat</h2>
+        <p>The <code>data-repeat</code> attribute clones an element for each item in a data array. The syntax is <code>data-repeat="arrayName as itemName"</code>.</p>
+
+        <code-block language="html" label="Repeating from Data">&lt;!-- Repeat a card for each product --&gt;
+&lt;layout-grid data-layout-min="18rem"&gt;
+  &lt;product-card data-repeat="products as product"
+    data-name="${product.name}"
+    data-price-display="${product.priceDisplay}"
+    data-description="${product.description}"
+    data-url="${product.url}"&gt;
+  &lt;/product-card&gt;
+&lt;/layout-grid&gt;</code-block>
+
+        <h3>Limiting Results</h3>
+        <p>Use the pipe syntax to limit how many items are rendered:</p>
+
+        <code-block language="html" label="Limiting Repeat">&lt;!-- Show only the 3 most recent blog posts --&gt;
+&lt;layout-card data-repeat="collections.blog | limit:3 as post"&gt;
+  &lt;article&gt;
+    &lt;h3&gt;&lt;a href="${post.url}"&gt;${post.title}&lt;/a&gt;&lt;/h3&gt;
+    &lt;p&gt;${post.description}&lt;/p&gt;
+  &lt;/article&gt;
+&lt;/layout-card&gt;</code-block>
+
+        <h3>Nested Data</h3>
+        <p>Access nested properties with dot notation. Collections from markdown are available at <code>collections.collectionName</code>.</p>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- MARKDOWN -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="markdown">
+        <h2>Markdown &amp; Collections</h2>
+        <p>Drop <code>.md</code> files into <code>src/</code> and Cook converts them to HTML pages using a layout template. Front matter defines metadata.</p>
+
+        <code-block language="markdown" label="src/blog/trail-running-basics.md">---
+title: Trail Running Basics
+description: Everything you need to know to start trail running.
+date: 2026-01-15
+collection: blog
+tags: [running, beginners]
+---
+
+# Trail Running Basics
+
+Trail running combines the cardiovascular benefits of road running
+with the mental engagement of navigating natural terrain.
+
+## What You Need
+
+- **Shoes** with aggressive tread and rock plates
+- **Hydration** vest or handheld bottle
+- **Navigation** — know your route</code-block>
+
+        <h3>Layouts</h3>
+        <p>Markdown pages are wrapped in a layout from <code>src/layouts/</code>. The default layout is configured in <code>config/main.js</code>.</p>
+
+        <code-block language="html" label="src/layouts/post.html">&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;title&gt;${title} — ${siteName}&lt;/title&gt;
+  &lt;meta name="description" content="${description}"&gt;
+  &lt;link rel="stylesheet" href="/assets/css/styles.css"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div data-include="/includes/header.html"&gt;&lt;/div&gt;
+
+  &lt;main id="main"&gt;
+    &lt;article&gt;
+      ${content}
+    &lt;/article&gt;
+  &lt;/main&gt;
+
+  &lt;div data-include="/includes/footer.html"&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code-block>
+
+        <h3>Collections</h3>
+        <p>When <code>collection: blog</code> is set in front matter, the page is added to <code>collections.blog</code>. Use <code>data-repeat</code> to list collection items on any page.</p>
+
+        <code-block language="javascript" label="config/main.js">markdown: {
+  layout: 'post',       // default layout in src/layouts/
+  layoutPath: 'layouts',
+  collections: true,    // enable front matter collections
+  markedOptions: { gfm: true },
+}</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- AUTO-COMPONENTS -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="auto-components">
+        <h2>Auto-Component Islands</h2>
+        <p>Cook scans each page for custom element tags and determines which ones need JavaScript. CSS-only layout components load zero JS. Pages that only use layout elements have the VB script bundle removed entirely.</p>
+
+        <code-block language="javascript" label="config/main.js">autoComponents: {
+  enabled: true,
+  cssOnly: [
+    'layout-center', 'layout-grid', 'layout-card',
+    'layout-cover', 'layout-stack', 'layout-cluster',
+    'layout-sidebar', 'brand-mark',
+  ],
+}</code-block>
+
+        <h3>How It Works</h3>
+
+        <code-block language="text" label="Auto-Detection Logic">Page HTML
+  ↓
+Scan for custom elements (tags containing a hyphen)
+  ↓
+Check against cssOnly list
+  ↓
+├── ALL elements are CSS-only → remove VB &lt;script&gt; tag (zero JS)
+└── Some elements need JS    → keep VB &lt;script&gt; tag</code-block>
+
+        <p>A page using only <code>&lt;layout-grid&gt;</code> and <code>&lt;layout-card&gt;</code> loads no JavaScript from VB. A page using <code>&lt;data-table&gt;</code> or <code>&lt;audio-player&gt;</code> keeps the bundle.</p>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- DSD -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="dsd">
+        <h2>Declarative Shadow DOM</h2>
+        <p>Cook can pre-render Shadow DOM content at build time using Declarative Shadow DOM (DSD). This eliminates the flash of unstyled content for Shadow DOM components and makes their content visible before JavaScript loads.</p>
+
+        <code-block language="javascript" label="config/main.js">dsd: {
+  enabled: true,
+  manifest: 'assets/vendor/vanilla-breeze/dsd-manifest.json',
+}</code-block>
+
+        <h3>Before &amp; After</h3>
+        <p>Without DSD, a Shadow DOM component is invisible until JS runs:</p>
+
+        <code-block language="html" label="Before — Runtime Shadow DOM">&lt;!-- Invisible until JS loads and creates shadow root --&gt;
+&lt;icon-wc name="check" set="lucide"&gt;&lt;/icon-wc&gt;</code-block>
+
+        <p>With DSD enabled, Cook injects the shadow root at build time:</p>
+
+        <code-block language="html" label="After — Declarative Shadow DOM">&lt;icon-wc name="check" set="lucide"&gt;
+  &lt;template shadowrootmode="open"&gt;
+    &lt;style&gt;
+      :host { display: inline-flex; width: 1em; height: 1em; }
+      svg { width: 100%; height: 100%; }
+    &lt;/style&gt;
+    &lt;slot&gt;&lt;/slot&gt;
+  &lt;/template&gt;
+&lt;/icon-wc&gt;</code-block>
+
+        <h3>The DSD Manifest</h3>
+        <p>The manifest maps component tag names to their shadow root HTML. Cook reads this file and injects the content as a <code>&lt;template shadowrootmode="open"&gt;</code> inside each matching element.</p>
+
+        <code-block language="json" label="dsd-manifest.json">{
+  "icon-wc": "&lt;style&gt;:host{display:inline-flex;...}&lt;/style&gt;&lt;slot&gt;&lt;/slot&gt;",
+  "audio-player": "&lt;style&gt;:host{display:block;...}&lt;/style&gt;&lt;div part=\"player\"&gt;...&lt;/div&gt;"
+}</code-block>
+
+        <p>Components that use Light DOM (most interactive VB components) don't need DSD &mdash; they already work without JavaScript via native HTML fallbacks.</p>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- FRAGMENTS -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="fragments">
+        <h2>Fragment Generation</h2>
+        <p>Cook generates content-only fragments for SPA-style navigation. For every <code>index.html</code> in <code>dist/</code>, a sibling <code>_fragment.html</code> is created containing only the <code>&lt;main&gt;</code> element's content.</p>
+
+        <code-block language="text" label="Fragment Output">dist/about/
+├── index.html         # Full page (html, head, body)
+└── _fragment.html     # &lt;main&gt; content only</code-block>
+
+        <p>Client-side routers (like html-star) fetch the fragment on navigation and swap it into the page, avoiding a full page reload while still supporting View Transitions.</p>
+
+        <code-block language="text" label="Fragment Request Flow">Click link → fetch /about/_fragment.html
+           → swap into &lt;main&gt;
+           → View Transition plays
+           → URL updated via History API</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- FORMATS -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="formats">
+        <h2>Multi-Format Output</h2>
+        <p>Cook generates the same content in multiple formats. Each page can be served as HTML, markdown, or JSON from the same URL structure.</p>
+
+        <code-block language="javascript" label="config/main.js">formats: {
+  markdown: true,   // dist/md/{path}/index.md
+  json: true,       // dist/api/{path}.json
+  feed: {           // dist/feed.xml (Atom)
+    title: 'My Blog',
+    collection: 'blog',
+    limit: 20,
+  },
+  llmsTxt: true,    // dist/llms.txt
+}</code-block>
+
+        <h3>Output Structure</h3>
+
+        <code-block language="text" label="Multi-Format Files">dist/
+├── blog/
+│   └── my-post/
+│       ├── index.html           # Full HTML page
+│       └── _fragment.html       # Content fragment
+├── md/
+│   └── blog/
+│       └── my-post/
+│           └── index.md         # Markdown source
+├── api/
+│   └── blog/
+│       └── my-post.json         # JSON metadata
+├── feed.xml                     # Atom feed
+└── llms.txt                     # LLM-readable index</code-block>
+
+        <h3>Content Negotiation</h3>
+        <p>When deployed with the Cloudflare Worker, the same URL serves different formats based on the <code>Accept</code> header:</p>
+
+        <code-block language="bash" label="Content Negotiation Examples"># HTML (default)
+curl https://example.com/blog/my-post/
+
+# Markdown
+curl -H "Accept: text/markdown" https://example.com/blog/my-post/
+
+# JSON
+curl -H "Accept: application/json" https://example.com/blog/my-post/
+
+# Fragment (for SPA navigation)
+curl -H "X-Requested-With: htmlstar" https://example.com/blog/my-post/</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- DEV SERVER -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="dev-server">
+        <h2>Dev Server</h2>
+        <p>Cook's dev server uses BrowserSync with live reload. It also includes middleware for content negotiation, so fragment routing and format switching work during development.</p>
+
+        <code-block language="bash" label="Start Dev Server">npm run dev</code-block>
+
+        <p>The dev server:</p>
+        <ul>
+          <li>Watches <code>src/</code> for changes and rebuilds automatically</li>
+          <li>Serves from <code>dist/</code> with live reload</li>
+          <li>Routes fragment requests (<code>X-Requested-With: htmlstar</code>) to <code>_fragment.html</code></li>
+          <li>Serves markdown and JSON formats via Accept headers</li>
+        </ul>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- DEPLOYMENT -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section id="deployment">
+        <h2>Deployment</h2>
+        <p>Cook's output is static files. Deploy <code>dist/</code> anywhere &mdash; Cloudflare Pages, Netlify, Vercel, GitHub Pages, or a plain web server.</p>
+
+        <h3>Cloudflare Workers (Optional)</h3>
+        <p>For content negotiation at the edge, deploy the included Worker. It routes requests to the correct format based on headers and falls back to static files.</p>
+
+        <code-block language="bash" label="Deploy to Cloudflare"># Build the site
+npm run build
+
+# Deploy the worker + static files
+npx wrangler deploy</code-block>
+
+        <h3>Static Hosting</h3>
+        <p>Without the Worker, everything still works. HTML pages are served normally, and you can link directly to <code>/md/</code>, <code>/api/</code>, and <code>_fragment.html</code> paths.</p>
+
+        <code-block language="bash" label="Deploy to Any Static Host"># Build
+npm run build
+
+# Upload dist/ to your hosting provider
+# e.g., rsync, scp, or CI/CD pipeline</code-block>
+      </section>
+    </layout-center>
+
+    <!-- ============================================ -->
+    <!-- BUILD PIPELINE SUMMARY -->
+    <!-- ============================================ -->
+
+    <layout-center>
+      <section>
+        <h2>Build Pipeline Summary</h2>
+        <p>Here is the complete flow from source to output:</p>
+
+        <code-block language="text" label="Cook Build Pipeline">CREATE dist/
+  ↓
+COPY src/ → dist/  (skip buildOnlyPaths)
+  ↓
+PROCESS MARKDOWN  (.md → .html with layouts + collections)
+  ↓
+FOR EACH .html FILE:
+  │
+  ├── 1. Replace includes      (data-include → inline HTML)
+  ├── 2. Repeat collections     (data-repeat → cloned elements)
+  ├── 3. Replace components     (custom elements → templates)
+  ├── 4. Template strings       (${var} → resolved values)
+  ├── 5. Auto-components        (strip unused JS imports)
+  ├── 6. Declarative Shadow DOM (inject &lt;template shadowrootmode&gt;)
+  ├── 7. Fix external links     (add missing http://)
+  ├── 8. Inline assets          (data-inline → embedded CSS/JS)
+  ├── 9. Set active links       (mark current page nav links)
+  ├── 10. Bundle collection     (group CSS/JS for bundling)
+  └── 11. Minify                (compress HTML/CSS/JS)
+  ↓
+GENERATE FRAGMENTS  (_fragment.html for each page)
+  ↓
+GENERATE FORMATS    (markdown, JSON, feed, llms.txt)
+  ↓
+GENERATE SITEMAP    (sitemap.xml)
+  ↓
+BUILD BUNDLES       (combined CSS/JS files)
+  ↓
+DONE → dist/ ready to deploy</code-block>
+      </section>
+    </layout-center>
+
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+  <script src="/assets/vendor/vanilla-breeze/code-block.js" type="module"></script>
+  <script src="/assets/vendor/vanilla-breeze/browser-window.js" type="module"></script>
+</body>
+</html>

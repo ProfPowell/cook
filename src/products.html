@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Products — ${siteTitle}</title>
+  <meta name="description" content="Three categories. Zero compromises. Every product backed by our lifetime repair promise.">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/">Home</a></li>
+        <li aria-current="page">Products</li>
+      </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <layout-center>
+      <hgroup>
+        <h1>Our Gear</h1>
+        <p>Three categories. Zero compromises. Every product backed by our lifetime repair promise.</p>
+      </hgroup>
+    </layout-center>
+
+    <!-- Product Grid (data-repeat from config data) -->
+    <layout-center>
+      <section aria-label="Product catalog">
+        <layout-grid data-layout-min="18rem">
+          <product-card data-repeat="products as product"
+            data-name="${product.name}"
+            data-price="${product.price}"
+            data-price-display="${product.priceDisplay}"
+            data-description="${product.description}"
+            data-features="${product.features}"
+            data-url="${product.url}">
+          </product-card>
+        </layout-grid>
+      </section>
+    </layout-center>
+
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>

@@ -1,14 +1,29 @@
 {
-  "name": "cook",
-  "siteName": "cook",
+  "name": "cook-ssg",
   "version": "2.0.0",
-  "private": true,
+  "description": "Cook your static pages into a beautifully performing site. Static site generation the web platform way.",
   "type": "module",
+  "bin": {
+    "cook": "./bin/cook.js"
+  },
+  "main": "./scripts/build.js",
+  "exports": {
+    ".": "./scripts/build.js",
+    "./build": "./scripts/build.js",
+    "./dev": "./scripts/dev.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "patches/",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "postinstall": "node patches/jsdom-fetch-fix.js",
     "build": "node scripts/build.js",
     "dev": "NODE_ENV=development npm run build && node scripts/dev.js",
-    "dev:prod": "NODE_ENV=production npm run build && http-server ./dist -p $npm_package_config_devPort",
+    "dev:prod": "NODE_ENV=production npm run build && npx http-server ./dist -p 3000",
     "test": "node --test test/*.test.js",
     "test:watch": "node --test --watch test/*.test.js",
     "reset": "rm -rf node_modules",
@@ -19,8 +34,22 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "config": {
-    "devPort": 3000
+  "keywords": [
+    "static-site-generator",
+    "ssg",
+    "web-components",
+    "web-platform",
+    "vanilla-breeze"
+  ],
+  "author": "Prof. Powell",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ProfPowell/cook.git"
+  },
+  "homepage": "https://github.com/ProfPowell/cook#readme",
+  "bugs": {
+    "url": "https://github.com/ProfPowell/cook/issues"
   },
   "dependencies": {
     "browser-sync": "^3.0.4",
@@ -31,14 +60,16 @@
     "fs-extra": "^11.3.2",
     "gray-matter": "^4.0.3",
     "html-minifier-terser": "^7.2.0",
-    "http-server": "^14.1.1",
     "jsdom": "^27.3.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
     "marked": "^17.0.1",
-    "npm-check-updates": "^19.2.0",
     "rimraf": "^6.1.2",
     "sharp": "^0.34.5",
     "terser": "^5.44.1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "npm-check-updates": "^19.2.0"
   }
 }

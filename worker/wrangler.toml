@@ -1,0 +1,16 @@
+# Cloudflare Worker configuration for Cook content negotiation
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "cook-site"
+main = "index.js"
+compatibility_date = "2024-12-01"
+
+# Serve static assets from the Cook dist/ output
+[assets]
+directory = "../dist"
+
+# Uncomment to enable D1 database for Tier 2 dynamic rendering
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "content"
+# database_id = "<your-database-id>"

@@ -4,11 +4,11 @@ import browserSyncLib from 'browser-sync';
 import chalk from 'chalk';
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const require = createRequire(import.meta.url);
-const packageJSON = require('../package.json');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const buildScript = path.resolve(__dirname, 'build.js');
 
 const browserSync = browserSyncLib.create('Dev Server');
 
@@ -81,7 +81,7 @@ browserSync.init({
   // Open the site in the browser automatically
   open: false,
   // The `localhost` port number to use (Defaults to `:3000`)
-  port: packageJSON.config.devPort || 3000,
+  port: parseInt(process.env.COOK_DEV_PORT, 10) || 3000,
   // Where to serve `localhost` from (dev files)
   server: {
     baseDir: distPath,
@@ -111,7 +111,7 @@ watchFiles.forEach(path => {
     // this changed file.
     process.env.DEV_CHANGED_PAGE = file;
     // Run the build process
-    execSync('NODE_ENV=development npm run build', {stdio: 'inherit'});
+    execSync(`NODE_ENV=development node "${buildScript}"`, {stdio: 'inherit'});
     // Reload changed page
     const fileDist = file.replace(`${srcPath}/`, `${distPath}/`);
     browserSync.reload(fileDist);

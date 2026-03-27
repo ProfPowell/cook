@@ -1,0 +1,14 @@
+/* Alpenglow Gear — Site Styles
+   Supplements vanilla-breeze with site-specific overrides */
+
+/* Mobile nav toggle */
+.nav-mobile { display: none; }
+@media (max-width: 48rem) {
+  .nav-desktop { display: none; }
+  .nav-mobile { display: block; }
+}
+
+/* Hero section */
+.hero-centered {
+  text-align: center;
+}

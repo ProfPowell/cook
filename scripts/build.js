@@ -135,15 +135,6 @@ class Build {
       // Runs after template: includes inside the template get resolved
       await replaceInclude({file, store, allowType: ['.html']});
 
-      // Restore base64-encoded code-block content from escape-code-blocks plugin.
-      // The content was encoded to survive JSDOM processing without being
-      // re-parsed as HTML attributes on custom elements.
-      if (file.src.includes('data-cook-esc')) {
-        file.src = file.src.replace(/ data-cook-esc="([^"]+)"/g, (_, b64) => {
-          return Buffer.from(b64, 'base64').toString('utf-8');
-        });
-      }
-
       // PLUGIN: Repeat elements for each item in a collection
       // Runs second: repeat generates DOM from data, resolving collection variables in attributes
       // Must run before components so repeated custom elements get expanded individually
@@ -182,6 +173,16 @@ class Build {
 
       // PLUGIN: Minify Source
       await minifySrc({file, disallowType: ['.json', '.webmanifest']});
+
+      // Restore base64-encoded code-block content from escape-code-blocks plugin.
+      // Must run LAST — after all JSDOM-based plugins have finished processing.
+      if (file.src.includes('data-cook-esc')) {
+        file.src = file.src.replace(/<code-block([^>]*) data-cook-esc="([^"]+)"([^>]*)><\/code-block>/g,
+          (_, before, b64, after) => {
+            const decoded = Buffer.from(b64, 'base64').toString('utf-8');
+            return `<code-block${before}${after}>${decoded}</code-block>`;
+          });
+      }
 
       // Write new, modified source back to the file
       await updatePage(file);

@@ -4,11 +4,14 @@
 // The patch will silently skip if the target file structure has changed.
 
 import fs from 'fs-extra';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-const cwd = process.cwd();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Path to target file (may vary by jsdom version)
-const filePath = `${cwd}/../jsdom/lib/jsdom/browser/resources/per-document-resource-loader.js`;
+// Resolve jsdom relative to Cook's own node_modules (works whether Cook is
+// the project root or installed as a dependency inside another project)
+const filePath = path.resolve(__dirname, '..', 'node_modules', 'jsdom', 'lib', 'jsdom', 'browser', 'resources', 'per-document-resource-loader.js');
 
 try {
   // Check if file exists first
