@@ -46,6 +46,15 @@ class ProcessHtmlFrontmatter {
     // Early Exit: No front matter found
     if (!frontMatter || Object.keys(frontMatter).length === 0) return;
 
+    // Derive currentPath from file path if not set in front matter.
+    // e.g., dist/pages/docs/elements/native/button.html → /docs/elements/native/button/
+    if (!frontMatter.currentPath && this.file.path) {
+      const distMatch = this.file.path.match(/dist\/(?:pages\/)?(.*?)(?:\/index)?\.html$/);
+      if (distMatch) {
+        frontMatter.currentPath = '/' + distMatch[1] + '/';
+      }
+    }
+
     // Store parsed front matter on the file object
     this.file.frontMatter = frontMatter;
 

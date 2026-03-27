@@ -57,7 +57,22 @@ class ReplaceTemplateStrings {
     // So we find the missing character by adjusting the offset by 2 (`offset+2`)
     // and then applying it back to `g` to get the correct variable lookup (why 2? Because we need to go past the starting `${`)
     // ---
-    this.file.src = this.replaceTemplateVars(this.file.src, this.data);
+    // Protect the CONTENT of <script> and <style> blocks from template resolution.
+    // JavaScript template literals like `${name}` and CSS custom properties
+    // should not be replaced with data values. But we still need to resolve
+    // vars in attributes (e.g., <script src="${site.js}">).
+    const protectedContent = [];
+    let src = this.file.src.replace(/(<(?:script|style)\b[^>]*>)([\s\S]*?)(<\/(?:script|style)>)/gi, (match, openTag, content, closeTag) => {
+      if (!content.trim()) return match; // Empty — nothing to protect
+      const index = protectedContent.length;
+      protectedContent.push(content);
+      return `${openTag}<!--COOK_PROTECTED_${index}-->${closeTag}`;
+    });
+
+    src = this.replaceTemplateVars(src, this.data);
+
+    // Restore protected content
+    this.file.src = src.replace(/<!--COOK_PROTECTED_(\d+)-->/g, (_, i) => protectedContent[i]);
   }
 
   // HELPER METHODS
