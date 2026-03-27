@@ -135,6 +135,15 @@ class Build {
       // Runs after template: includes inside the template get resolved
       await replaceInclude({file, store, allowType: ['.html']});
 
+      // Restore base64-encoded code-block content from escape-code-blocks plugin.
+      // The content was encoded to survive JSDOM processing without being
+      // re-parsed as HTML attributes on custom elements.
+      if (file.src.includes('data-cook-esc')) {
+        file.src = file.src.replace(/ data-cook-esc="([^"]+)"/g, (_, b64) => {
+          return Buffer.from(b64, 'base64').toString('utf-8');
+        });
+      }
+
       // PLUGIN: Repeat elements for each item in a collection
       // Runs second: repeat generates DOM from data, resolving collection variables in attributes
       // Must run before components so repeated custom elements get expanded individually
