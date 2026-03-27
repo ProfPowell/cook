@@ -52,6 +52,7 @@ class MinifySrc {
       // confuses the parser. Also skip any user-provided patterns.
       ignoreCustomFragments: [
         /<code-block[\s\S]*?<\/code-block>/gi,
+        /<pre[\s\S]*?<\/pre>/gi,
         ...(minifyHtmlConfigCustom?.ignoreCustomFragments || []),
       ],
     };
@@ -103,12 +104,19 @@ class MinifySrc {
   // PRIMARY MINIFY METHODS
   // -----------------------------
   async minHtml({file}) {
-    // MINIFY HTML
-    file.src = await minifyHtml(file.src, this.minifyHtmlConfig);
-    // MINIFY INLINE CSS
-    file.src = this.minifyInline(file, 'style', this.minCss.bind(this));
-    // MINIFY INLINE SCRIPTS
-    file.src = await this.minifyInlineAsync(file, 'script', this.minJs.bind(this));
+    // MINIFY HTML — wrapped in try/catch so parse errors on pages with
+    // complex inline code examples don't crash the entire build
+    try {
+      file.src = await minifyHtml(file.src, this.minifyHtmlConfig);
+      // MINIFY INLINE CSS
+      file.src = this.minifyInline(file, 'style', this.minCss.bind(this));
+      // MINIFY INLINE SCRIPTS
+      file.src = await this.minifyInlineAsync(file, 'script', this.minJs.bind(this));
+    } catch (err) {
+      // Skip minification for this file — likely has unescaped code examples
+      // that confuse the HTML parser. The unminified output is still valid.
+      if (process.env.LOGGER) console.warn(`  ⚠ Skipped minification for ${file.path}: ${err.message.substring(0, 80)}`);
+    }
     // Return new src
     return file.src;
   }
