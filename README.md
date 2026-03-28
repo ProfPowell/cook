@@ -440,6 +440,8 @@ export default {
 
 ---
 
+Note: Project was started and used internally at PINT, Inc in 2020 and it was recently revived in 2025 and moved to use in 2026
+
 ## License
 
-MIT © 2020 Prof Thomas Powell
+MIT © 2020 Thomas A. Powell
