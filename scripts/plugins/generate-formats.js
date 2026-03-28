@@ -7,6 +7,7 @@
  * - JSON metadata in dist/api/{path}.json (for all pages)
  * - Atom feed at dist/feed.xml (from a configurable collection)
  * - llms.txt at dist/llms.txt (index of all content with markdown URLs)
+ * - llms-full.txt at dist/llms-full.txt (complete documentation in one file)
  */
 
 // IMPORTS
@@ -33,10 +34,11 @@ class GenerateFormats {
       json: true,
       feed: null,
       llmsTxt: true,
+      llmsFullTxt: false,
       ...formatsConfig,
     };
 
-    this.stats = { markdown: 0, json: 0, feed: false, llmsTxt: false };
+    this.stats = { markdown: 0, json: 0, feed: false, llmsTxt: false, llmsFullTxt: false };
 
     // Init terminal logging
     Util.initLogging.call(this);
@@ -46,7 +48,7 @@ class GenerateFormats {
   // -----------------------------
   async init() {
     // Early Exit: No formats configured
-    if (!this.config.markdown && !this.config.json && !this.config.feed && !this.config.llmsTxt) return;
+    if (!this.config.markdown && !this.config.json && !this.config.feed && !this.config.llmsTxt && !this.config.llmsFullTxt) return;
 
     // ADD TERMINAL SECTION HEADING
     Logger.persist.header(`\nGenerate Formats`);
@@ -74,6 +76,11 @@ class GenerateFormats {
       // Generate llms.txt
       if (this.config.llmsTxt) {
         await this.generateLlmsTxt(indexFiles);
+      }
+
+      // Generate llms-full.txt (complete documentation in one file)
+      if (this.config.llmsFullTxt) {
+        await this.generateLlmsFullTxt(indexFiles);
       }
     } catch (err) {
       Util.customError(err, 'generate-formats.js');
@@ -271,43 +278,169 @@ class GenerateFormats {
   }
 
   /**
-   * Generate llms.txt listing all content with markdown URLs
+   * Collect page metadata from all index files for llms.txt generation.
+   * Reads HTML to extract title and description.
+   * @param {string[]} indexFiles - All index.html file paths
+   * @returns {Array<{title: string, description: string, url: string, mdUrl: string|null, section: string|null}>}
+   */
+  async collectPageMeta(indexFiles) {
+    const pages = [];
+    for (const filePath of indexFiles) {
+      const relativePath = filePath.replace(distPath, '');
+      const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
+      const mdSource = this.findMarkdownSource(urlPath);
+      const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
+
+      // Read HTML to extract title and description
+      let title = trimmedPath || 'index';
+      let description = '';
+      let section = null;
+      try {
+        const src = await fs.readFile(filePath, 'utf-8');
+        const dom = Util.jsdom.dom({ src });
+        const doc = dom.window.document;
+        const h1 = doc.querySelector('h1')?.textContent;
+        const titleTag = doc.querySelector('title')?.textContent;
+        const metaDesc = doc.querySelector('meta[name="description"]')?.getAttribute('content');
+        title = h1 || titleTag || title;
+        description = metaDesc || '';
+      } catch { /* use defaults */ }
+
+      // Check collection item for additional metadata
+      const collectionItem = this.findCollectionItem(urlPath);
+      if (collectionItem) {
+        title = collectionItem.title || title;
+        description = collectionItem.description || description;
+        section = collectionItem.section || null;
+      }
+
+      const mdUrl = mdSource
+        ? (trimmedPath ? `/md/${trimmedPath}/index.md` : `/md/index.md`)
+        : null;
+
+      pages.push({ title, description, url: urlPath, mdUrl, section });
+    }
+    return pages;
+  }
+
+  /**
+   * Generate llms.txt listing all content with markdown URLs.
+   * Enhanced with descriptions, section grouping, and AI instructions.
    * @param {string[]} indexFiles - All index.html file paths
    */
   async generateLlmsTxt(indexFiles) {
     const siteTitle = this.data.siteTitle || 'Site';
     const siteDescription = this.data.siteDescription || '';
     const siteUrl = this.data.siteUrl || '';
+    const llmsInstructions = this.data.llmsInstructions || '';
 
     let content = `# ${siteTitle}\n\n`;
     if (siteDescription) content += `> ${siteDescription}\n\n`;
 
-    // List pages that have markdown sources
-    const mdPages = [];
-    for (const filePath of indexFiles) {
-      const relativePath = filePath.replace(distPath, '');
-      const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
-      const mdSource = this.findMarkdownSource(urlPath);
-      if (mdSource) {
-        const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
-        // Find title from collection data or use path
-        const collectionItem = this.findCollectionItem(urlPath);
-        const title = collectionItem?.title || trimmedPath || 'index';
-        const mdUrl = trimmedPath ? `/md/${trimmedPath}/index.md` : `/md/index.md`;
-        mdPages.push({ title, url: urlPath, mdUrl });
-      }
+    // AI instructions section (Stripe-style guidance for LLM agents)
+    if (llmsInstructions) {
+      content += `## Instructions for AI Agents\n\n${llmsInstructions.trim()}\n\n`;
     }
 
+    // Collect page metadata
+    const pages = await this.collectPageMeta(indexFiles);
+    const mdPages = pages.filter(p => p.mdUrl);
+
     if (mdPages.length) {
-      content += `## Content\n\n`;
-      for (const page of mdPages) {
-        const fullMdUrl = siteUrl ? `${siteUrl}${page.mdUrl}` : page.mdUrl;
-        content += `- [${page.title}](${fullMdUrl})\n`;
+      // Group by section if sections exist, otherwise flat list
+      const hasSections = mdPages.some(p => p.section);
+
+      if (hasSections) {
+        const sections = {};
+        const unsectioned = [];
+        for (const page of mdPages) {
+          if (page.section) {
+            if (!sections[page.section]) sections[page.section] = [];
+            sections[page.section].push(page);
+          } else {
+            unsectioned.push(page);
+          }
+        }
+
+        // Output sectioned pages
+        for (const [sectionName, sectionPages] of Object.entries(sections)) {
+          content += `## ${sectionName}\n\n`;
+          for (const page of sectionPages) {
+            const fullMdUrl = siteUrl ? `${siteUrl}${page.mdUrl}` : page.mdUrl;
+            const desc = page.description ? `: ${page.description}` : '';
+            content += `- [${page.title}](${fullMdUrl})${desc}\n`;
+          }
+          content += '\n';
+        }
+
+        // Output unsectioned pages
+        if (unsectioned.length) {
+          content += `## Content\n\n`;
+          for (const page of unsectioned) {
+            const fullMdUrl = siteUrl ? `${siteUrl}${page.mdUrl}` : page.mdUrl;
+            const desc = page.description ? `: ${page.description}` : '';
+            content += `- [${page.title}](${fullMdUrl})${desc}\n`;
+          }
+        }
+      } else {
+        // Flat list with descriptions
+        content += `## Content\n\n`;
+        for (const page of mdPages) {
+          const fullMdUrl = siteUrl ? `${siteUrl}${page.mdUrl}` : page.mdUrl;
+          const desc = page.description ? `: ${page.description}` : '';
+          content += `- [${page.title}](${fullMdUrl})${desc}\n`;
+        }
       }
     }
 
     await fs.writeFile(path.resolve(`${distPath}/llms.txt`), content, 'utf-8');
     this.stats.llmsTxt = true;
+  }
+
+  /**
+   * Generate llms-full.txt: concatenate all markdown page content into one file.
+   * Ideal for bulk ingestion by IDE tools and AI systems.
+   * @param {string[]} indexFiles - All index.html file paths
+   */
+  async generateLlmsFullTxt(indexFiles) {
+    const siteTitle = this.data.siteTitle || 'Site';
+    const siteDescription = this.data.siteDescription || '';
+    const llmsInstructions = this.data.llmsInstructions || '';
+
+    let content = `# ${siteTitle} — Complete Documentation\n\n`;
+    if (siteDescription) content += `> ${siteDescription}\n\n`;
+
+    // AI instructions
+    if (llmsInstructions) {
+      content += `## Instructions for AI Agents\n\n${llmsInstructions.trim()}\n\n---\n\n`;
+    }
+
+    // Collect pages and read their markdown content
+    for (const filePath of indexFiles) {
+      const relativePath = filePath.replace(distPath, '');
+      const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
+      const mdSource = this.findMarkdownSource(urlPath);
+      if (!mdSource) continue;
+
+      try {
+        let mdContent = await fs.readFile(mdSource, 'utf-8');
+
+        // Strip YAML frontmatter for the concatenated output
+        mdContent = mdContent.replace(/^---[\s\S]*?---\n*/, '');
+
+        // Find title
+        const collectionItem = this.findCollectionItem(urlPath);
+        const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
+        const title = collectionItem?.title || trimmedPath || 'index';
+
+        content += `## ${title}\n\n`;
+        content += mdContent.trim();
+        content += '\n\n---\n\n';
+      } catch { /* skip unreadable files */ }
+    }
+
+    await fs.writeFile(path.resolve(`${distPath}/llms-full.txt`), content, 'utf-8');
+    this.stats.llmsFullTxt = true;
   }
 
   /**
@@ -339,6 +472,7 @@ class GenerateFormats {
     if (this.stats.json) parts.push(`${this.stats.json} json`);
     if (this.stats.feed) parts.push('feed.xml');
     if (this.stats.llmsTxt) parts.push('llms.txt');
+    if (this.stats.llmsFullTxt) parts.push('llms-full.txt');
 
     if (parts.length) {
       this.loading.stop(`Generated ${chalk.magenta(parts.join(', '))} ${this.timer.end()}`);

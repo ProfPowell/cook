@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — Cook SSG</title>
+  <meta name="description" content="${description}">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+    <layout-center>
+      <layout-sidebar>
+        <div data-include="/includes/docs-sidebar.html"></div>
+        <article class="docs-content">
+          <heading-links>
+            <layout-stack>
+              ${content}
+            </layout-stack>
+          </heading-links>
+          <layout-cluster class="docs-footer-actions">
+            <print-page></print-page>
+          </layout-cluster>
+        </article>
+      </layout-sidebar>
+    </layout-center>
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>

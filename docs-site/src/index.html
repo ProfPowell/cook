@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-template="page">
+<head>
+  <title>Cook SSG — Static Site Generation the Web Platform Way</title>
+  <meta name="description" content="A platform-native static site generator. ES6 template literals for templating, custom elements for components, file-based routing by default.">
+</head>
+<body>
+
+  <!-- Hero -->
+  <layout-cover class="hero">
+    <layout-center>
+      <hgroup>
+        <h1>Cook SSG</h1>
+        <p>Static site generation the web platform way. ES6 template literals for templating, custom elements for composition, file-based routing by default.</p>
+      </hgroup>
+      <layout-cluster class="hero-actions">
+        <a href="/docs/quick-start/" class="btn-primary">Get Started</a>
+        <a href="${githubUrl}" class="btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
+      </layout-cluster>
+    </layout-center>
+  </layout-cover>
+
+  <!-- Install -->
+  <layout-center>
+    <code-block language="bash" label="Install">npm install cook-ssg
+npx cook build</code-block>
+  </layout-center>
+
+  <!-- Features -->
+  <layout-center>
+    <section>
+      <h2 style="text-align: center;">Why Cook?</h2>
+      <layout-grid data-layout-min-width="18rem">
+        <feature-card data-repeat="features as feature"
+          data-title="${feature.title}"
+          data-description="${feature.description}">
+        </feature-card>
+      </layout-grid>
+    </section>
+  </layout-center>
+
+  <!-- Quick example -->
+  <layout-center>
+    <section>
+      <h2>How It Works</h2>
+      <layout-grid data-layout-min-width="20rem">
+        <layout-stack>
+          <h3>Write a component</h3>
+          <code-block language="html" label="src/components/greeting.html">&lt;article class="greeting"&gt;
+  &lt;h2&gt;${title}&lt;/h2&gt;
+  ${slot}
+&lt;/article&gt;</code-block>
+        </layout-stack>
+        <layout-stack>
+          <h3>Use it in a page</h3>
+          <code-block language="html" label="src/index.html">&lt;greeting title="Hello World"&gt;
+  &lt;p&gt;Built with Cook SSG.&lt;/p&gt;
+&lt;/greeting&gt;</code-block>
+        </layout-stack>
+      </layout-grid>
+    </section>
+  </layout-center>
+
+</body>
+</html>

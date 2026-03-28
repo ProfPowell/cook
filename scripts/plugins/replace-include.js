@@ -55,43 +55,53 @@ class ReplaceInclude {
     const allowed = Util.isAllowedType(this.opts);
     if (!allowed) return;
 
-    // Store string source as traversable DOM
-    let dom = Util.jsdom.dom({src: this.file.src});
-    // Allow `[include]` or `[data-include]` by default
-    const includeSelector = Util.getSelector(Util.attr.include);
-    const includeItems = dom.window.document.querySelectorAll(includeSelector);
-    this.total = includeItems.length;
-
-    // Early Exit: No includes
-    if (!includeItems) return;
+    // Early Exit: No includes in source
+    if (!this.file.src.includes('data-include') &&
+        !this.file.src.includes('<include-file')) return;
 
     // START LOGGING
     this.startLog();
 
-    // Loop through each found include call and replace with fetched file source
-    for (let item of includeItems) {
-      await this.replaceInclude(item);
-    }
+    // Resolve includes at the string level using regex.
+    // This avoids DOM parsing quirks (e.g., parsers moving elements
+    // out of <head>) and is faster than DOM-based resolution.
+    let changed = true;
+    while (changed && this._depth < this.MAX_DEPTH) {
+      changed = false;
 
-    // Store updated file source
-    this.file.src = Util.setSrc({dom});
+      // Match <include-file src="/path"></include-file>
+      this.file.src = await this.replacePattern(
+        this.file.src,
+        /<include-file\s+src="([^"]+)"[^>]*><\/include-file>/gi,
+        (match, srcPath) => srcPath,
+        () => { changed = true; }
+      );
 
-    // Nested includes: if the injected content contains further includes,
-    // resolve them recursively up to MAX_DEPTH to prevent infinite loops.
-    if (this._depth < this.MAX_DEPTH) {
-      const checkDom = Util.jsdom.dom({src: this.file.src});
-      const nestedSelector = Util.getSelector(Util.attr.include);
-      const nestedIncludes = checkDom.window.document.querySelectorAll(nestedSelector);
-      if (nestedIncludes.length) {
-        await new ReplaceInclude({
-          file: this.file,
-          store: this.store,
-          allowType: this.allowType,
-          disallowType: this.disallowType,
-          excludePaths: this.excludePaths,
-          _depth: this._depth + 1,
-        }).init();
-      }
+      // Match <... data-include="/path"...> (any element with data-include attribute)
+      this.file.src = await this.replacePattern(
+        this.file.src,
+        /<(\w+)\s[^>]*data-include="([^"]+)"[^>]*><\/\1>/gi,
+        (match, tag, srcPath) => srcPath,
+        () => { changed = true; }
+      );
+
+      // Match <... include="/path"...> (any element with include attribute)
+      this.file.src = await this.replacePattern(
+        this.file.src,
+        /<(\w+)\s[^>]*\binclude="([^"]+)"[^>]*><\/\1>/gi,
+        (match, tag, srcPath) => srcPath,
+        () => { changed = true; }
+      );
+
+      // Also handle self-closing: <meta data-include="/path">
+      this.file.src = await this.replacePattern(
+        this.file.src,
+        /<meta\s[^>]*data-include="([^"]+)"[^>]*>/gi,
+        (match, srcPath) => srcPath,
+        () => { changed = true; }
+      );
+
+      this._depth++;
     }
 
     // END LOGGING
@@ -99,7 +109,50 @@ class ReplaceInclude {
   }
 
 
-  // REPLACE INDIV. INCLUDE
+  // STRING-LEVEL INCLUDE RESOLUTION
+  // -----------------------------
+  /**
+   * @description Replace all matches of a pattern with fetched file content
+   * @param {string} src - The source HTML string
+   * @param {RegExp} pattern - Regex to match include markers
+   * @param {Function} pathExtractor - Function that extracts the file path from regex groups
+   * @param {Function} onReplace - Callback when a replacement is made
+   * @returns {string} Updated source
+   */
+  async replacePattern(src, pattern, pathExtractor, onReplace) {
+    const matches = [...src.matchAll(pattern)];
+    if (!matches.length) return src;
+
+    // Process matches in reverse order to preserve string positions
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const match = matches[i];
+      const filePath = pathExtractor(...match);
+      const content = await this.getIncludeContent(filePath);
+      src = src.substring(0, match.index) + content + src.substring(match.index + match[0].length);
+      this.total++;
+      onReplace();
+    }
+    return src;
+  }
+
+  /**
+   * @description Get include file content (with caching)
+   * @param {string} filePath - The include path (e.g., "/includes/head.html")
+   * @returns {string} File content
+   */
+  async getIncludeContent(filePath) {
+    const fullPath = path.resolve(`${srcPath}/${filePath}`);
+
+    // Check cache
+    const cached = this.store.cachedIncludes[fullPath];
+    if (cached !== undefined && cached !== null) return cached;
+
+    // Fetch and cache
+    return await this.fetchIncludeSrc(fullPath);
+  }
+
+
+  // REPLACE INDIV. INCLUDE (legacy DOM-based — kept for backward compat)
   // -----------------------------
   /**
    * @description Replace include with corresponding source code
@@ -130,14 +183,9 @@ class ReplaceInclude {
         else content = await this.fetchIncludeSrc(includePath);
 
         // ADD CONTENT TO DOM
-        // Add included content in DOM before placeholder element
-        el.insertAdjacentHTML('afterend', content);
-        // Add any attributes that were on the include element to the first replaced DOM element (that is valid)
-        // A 'valid' element is a non- style/script/template etc. element. See the check in the method for the full list
-        // NOTE: If an include has multiple 'top-level' elements, they will be applied to the first one
-        this.addAttributesToReplacedDOM(el);
-        // Remove placeholder element from DOM (`<div include="/includes/xxxx"></div>`)
-        el.remove();
+        // Replace the include element with the fetched content using outerHTML.
+        // This keeps content in the correct DOM context (e.g., <head> stays in <head>).
+        el.outerHTML = content;
       }
       catch (err) {
         Util.customError(err, `replace-includes.js`);
@@ -195,7 +243,11 @@ class ReplaceInclude {
     for (let i=0; i<el.attributes.length; i++) {
       const name = el.attributes[i].name;
       const value = el.attributes[i].value;
-      const isValidAttr = Util.attr.include.indexOf(name) === -1;
+      const includeFileOwnAttrs = ['src', 'mode', 'lazy', 'allow-scripts'];
+      const isIncludeFile = el.tagName === 'INCLUDE-FILE';
+      const isValidAttr = isIncludeFile
+        ? includeFileOwnAttrs.indexOf(name) === -1
+        : Util.attr.include.indexOf(name) === -1;
       if (isValidAttr) targetEl.setAttribute(name, value);
     }
   }
@@ -226,6 +278,12 @@ class ReplaceInclude {
    * @private
    */
   hasAttribute(el, attrs) {
+    // Handle <include-file src="..."> elements
+    if (el.tagName === 'INCLUDE-FILE') {
+      const srcVal = el.getAttribute('src');
+      return srcVal ? { type: 'src', path: srcVal } : false;
+    }
+    // Handle [include] / [data-include] elements
     let tmpArr = [];
     if (typeof attrs === 'string') tmpArr.push({ type: Util.attr.include, path: el.getAttribute(Util.attr.include) });
     else attrs.forEach(a => tmpArr.push({ type: a, path: el.getAttribute(a) }));

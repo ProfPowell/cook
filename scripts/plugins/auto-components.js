@@ -19,7 +19,7 @@ import path from 'node:path';
 import Util from '../utils/util/util.js';
 
 // Config
-import { distPath, autoComponents as autoComponentsConfig } from '../utils/config/config.js';
+import { distPath, srcPath, autoComponents as autoComponentsConfig, components as componentsConfig } from '../utils/config/config.js';
 
 
 // DEFINE
@@ -76,13 +76,21 @@ class AutoComponents {
     // Separate into CSS-only and JS-requiring
     const jsComponents = customElements.filter(tag => !this.isCssOnly(tag));
 
-    if (jsComponents.length === 0) {
-      // No JS-requiring components — remove VB bundle script
+    // Check for Cook DSD components with companion JS hydration scripts
+    const cookDsdComponents = this.store._cookDsdComponents || {};
+    const cookJsComponents = jsComponents.filter(tag => cookDsdComponents[tag]);
+    this.injectCookDsdScripts(document, cookJsComponents);
+
+    // Filter out Cook DSD components from VB handling — they have their own scripts
+    const vbJsComponents = jsComponents.filter(tag => !cookDsdComponents[tag]);
+
+    if (vbJsComponents.length === 0) {
+      // No VB JS-requiring components — remove VB bundle script
       this.removeVbScript(document);
       this.store._autoComponentsStats.stripped++;
     } else if (this.store._autoComponentsManifest) {
       // We have a manifest — generate import map for only needed components
-      this.injectImportMap(document, jsComponents);
+      this.injectImportMap(document, vbJsComponents);
       this.removeVbScript(document);
       this.store._autoComponentsStats.importMapped++;
     } else {
@@ -201,6 +209,33 @@ class AutoComponents {
     head.appendChild(moduleScript);
   }
 
+
+  /**
+   * Inject <script type="module"> tags for Cook DSD components with companion JS.
+   * Looks for {componentName}.js alongside {componentName}.html in the components dir.
+   * @param {Document} document
+   * @param {string[]} cookJsComponents - Tag names of Cook DSD components on this page
+   */
+  injectCookDsdScripts(document, cookJsComponents) {
+    if (cookJsComponents.length === 0) return;
+
+    const jsPath = componentsConfig?.jsPath || 'assets/components';
+    const componentsPath = componentsConfig?.path || 'components';
+    const head = document.querySelector('head');
+    if (!head) return;
+
+    for (const tag of cookJsComponents) {
+      // Check if companion JS exists in src/components/
+      const jsFile = `${srcPath}/${componentsPath}/${tag}.js`;
+      if (!existsSync(path.resolve(jsFile))) continue;
+
+      // Add a module script pointing to the dist location
+      const script = document.createElement('script');
+      script.setAttribute('type', 'module');
+      script.setAttribute('src', `/${jsPath}/${tag}.js`);
+      head.appendChild(script);
+    }
+  }
 
   // EXPORT WRAPPER
   // -----------------------------

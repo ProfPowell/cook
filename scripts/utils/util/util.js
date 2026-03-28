@@ -6,7 +6,7 @@ import cliCursor from 'cli-cursor';
 import cliSpinners from 'cli-spinners';
 import v8 from 'node:v8';
 import { lstatSync, readdirSync } from 'node:fs';
-import { JSDOM } from 'jsdom';
+import { parseHTML } from 'linkedom';
 
 import Logger from '../logger/logger.js';
 import Spinner from '../spinner/spinner.js';
@@ -17,12 +17,14 @@ import { activeLink, convertPageToDirectory, includeAttr, inlineAttr } from '../
 
 const cwd = process.cwd();
 
-// JSDOM CONFIG
+// DOM CONFIG
 // ----------------------------------
-// https://github.com/jsdom/jsdom
+// Using LinkeDOM for fast, lenient HTML parsing that doesn't enforce
+// content model rules (allows custom elements in <head>, etc.)
+// https://github.com/WebReflection/linkedom
 const jsdom = {
   baseUrl: 'https://localhost',
-  dom: newJSDOM,
+  dom: newDOM,
   frag: newFrag,
 }
 
@@ -33,6 +35,7 @@ const attr = {
   active: convertToKebab(activeLink && activeLink.activeState, 'space') || 'active',
   activeParent: convertToKebab(activeLink && activeLink.parentState, 'space') || 'active-parent',
   include: includeAttr ? [includeAttr, `data-${includeAttr}`] : ['include', 'data-include'],
+  includeFile: 'include-file[src]',
   inline: inlineAttr ? [inlineAttr, `data-${inlineAttr}`] : ['inline', 'data-inline'],
 }
 
@@ -380,11 +383,13 @@ function fakePromise(ms, throwError) {
  * @private
  */
 function getFileName(path, distPath) {
+  if (!path || typeof path !== 'string') return '';
   let splitOnSlash = path.split('/');
   splitOnSlash = splitOnSlash.filter(s => s !== '');
   let lastPart = splitOnSlash[splitOnSlash.length-1];
+  if (!lastPart) return '';
   let fileName = lastPart.split('.')[0];
-  if (fileName === 'index') fileName = splitOnSlash[splitOnSlash.length-2];
+  if (fileName === 'index') fileName = splitOnSlash[splitOnSlash.length-2] || '/';
   if (fileName === distPath) fileName = '/';
   return fileName;
 }
@@ -545,39 +550,26 @@ function isExtension(fileName, target) {
  * @property {Object} [options] - Optional JSDOM options config object
  * @returns {Object}
  */
-function newJSDOM({src,options}) {
-  const opts = options || { url: jsdom.baseUrl };
-
-  // Protect <code-block> elements from JSDOM parsing.
-  // JSDOM treats custom elements as generic HTML and can mangle their
-  // text content (especially plain JS/CSS) into attribute-like tokens.
-  // We replace them with comment placeholders before parsing, then restore after.
-  const codeBlockStore = [];
-  const protectedSrc = src.replace(/<code-block\b[\s\S]*?<\/code-block>/gi, (match) => {
-    const index = codeBlockStore.length;
-    codeBlockStore.push(match);
-    return `<!--COOK_CB_${index}-->`;
-  });
-
-  const dom = new JSDOM(protectedSrc, opts);
-
-  // Attach the code-block store to the dom object so setSrc can restore them
-  if (codeBlockStore.length) {
-    dom._codeBlockStore = codeBlockStore;
-  }
-
-  return dom;
+function newDOM({src, options}) {
+  // LinkeDOM's parseHTML returns { document, window, ... }
+  // We wrap it to provide a compatible interface for existing plugins
+  const parsed = parseHTML(src);
+  return {
+    window: { document: parsed.document },
+    serialize: () => parsed.document.toString(),
+    _document: parsed.document,
+  };
 }
 
 /**
- * @description Get a new JSDOM fragment from the passed in string source
- * @docs https://github.com/jsdom/jsdom
- * @param {Object} opts - The arguments object
- * @property {String} fileSource - The source to make a traversable document from
- * @returns {Object}
+ * @description Get a new DOM fragment from the passed in string source
+ * @param {String} src - The HTML source to parse as a fragment
+ * @returns {Object} DocumentFragment-like object
  */
 function newFrag(src) {
-  return JSDOM.fragment(src);
+  const { document } = parseHTML(`<body>${src}</body>`);
+  // Return the body element as a fragment-like container
+  return document.body;
 }
 
 /**
@@ -649,13 +641,9 @@ async function runFileLoop(files, method) {
 function setSrc({dom, path}) {
   let result;
 
-  // Dom Fragment
+  // Dom Fragment (from newFrag — a body element used as container)
   if (!dom.window) {
-    const XMLSerializer = new JSDOM('').window.XMLSerializer;
-    const domString = new XMLSerializer().serializeToString(dom)
-    result = domString
-      .replace(/ xmlns="http:\/\/www.w3.org\/1999\/xhtml"/gmi, '')
-      .replace(/ns(\d)*?:(?:href)/gmi, 'href');
+    result = dom.innerHTML;
   }
   // Full HTML document
   else {
@@ -664,11 +652,6 @@ function setSrc({dom, path}) {
 
     if (isFullDoc) result = dom.serialize();
     else result = `${document.head.innerHTML}${document.body.innerHTML}`;
-  }
-
-  // Restore protected <code-block> elements
-  if (dom._codeBlockStore) {
-    result = result.replace(/<!--COOK_CB_(\d+)-->/g, (_, i) => dom._codeBlockStore[i]);
   }
 
   return result;

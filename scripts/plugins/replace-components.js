@@ -16,6 +16,14 @@
  * - Template variables resolved with global data
  * - Consolidated into a single <style> in <head>
  * Authors can use native @scope and @layer for CSS scoping.
+ *
+ * DSD (Declarative Shadow DOM) components:
+ * If a component template contains <template shadowrootmode="open">,
+ * the component is rendered as a web component with Declarative Shadow DOM:
+ * - The custom element is preserved (not replaced with flat HTML)
+ * - Styles stay inside the shadow root (not extracted to <head>)
+ * - Native <slot> elements handle content projection
+ * - Optional companion .js files provide client-side hydration
  */
 
 // IMPORTS
@@ -165,7 +173,18 @@ class ReplaceComponents {
   }
 
   /**
-   * Replace a component element with its template
+   * Check if a component template uses Declarative Shadow DOM.
+   * The presence of <template shadowrootmode> signals DSD intent.
+   * @param {string} template - Component template string
+   * @returns {boolean}
+   */
+  isDsdComponent(template) {
+    return /<template\s+shadowrootmode/i.test(template);
+  }
+
+  /**
+   * Replace a component element with its template.
+   * Routes to DSD or flat rendering based on template content.
    * @param {Object} componentInfo - Component information object
    */
   async replaceComponent(componentInfo) {
@@ -181,38 +200,102 @@ class ReplaceComponents {
         return;
       }
 
-      // Extract <style> blocks from template (deduplicate per component)
-      const { html: htmlTemplate, css } = this.extractStyles(template);
-      if (css && !this.collectedStyles[componentName]) {
-        // Resolve template variables in CSS with global data only
-        this.collectedStyles[componentName] = this.renderTemplate(css, this.data);
+      // Branch: DSD components preserve the custom element with shadow DOM;
+      // flat components expand into plain HTML (existing behavior)
+      if (this.isDsdComponent(template)) {
+        this.renderDsdComponent(element, template, name, componentName);
+      } else {
+        this.renderFlatComponent(element, template, type, name, componentName);
       }
-
-      // Extract data from element attributes
-      const componentData = this.extractComponentData(element, type);
-
-      // Extract named and default slot content from children
-      this.extractSlots(element, componentData);
-
-      // Merge with global data (component data takes precedence)
-      const mergedData = { ...this.data, ...componentData };
-
-      // Replace template variables with data (style-free HTML only)
-      const renderedContent = this.renderTemplate(htmlTemplate, mergedData);
-
-      // Insert rendered content and remove original element
-      element.insertAdjacentHTML('afterend', renderedContent);
-
-      // Transfer non-data attributes to the first valid replaced element
-      this.transferAttributes(element, type);
-
-      // Remove the original component element
-      element.remove();
-
-      this.replaced.push(name);
     } catch (err) {
       Util.customError(err, `replace-components.js: Error replacing ${name}`);
     }
+  }
+
+  /**
+   * Render a DSD component: inject Declarative Shadow DOM into the custom element.
+   * - The custom element is preserved in the DOM
+   * - Styles stay inside the shadow root (not extracted to <head>)
+   * - Native <slot> elements handle content projection
+   * @param {Element} element - The custom element
+   * @param {string} template - Component template containing <template shadowrootmode>
+   * @param {string} name - Element tag name
+   * @param {string} componentName - Component template filename
+   */
+  renderDsdComponent(element, template, name, componentName) {
+    // Extract the <template shadowrootmode="..."> content via regex
+    // (avoids JSDOM template parsing quirks with document fragments)
+    const shadowMatch = template.match(
+      /<template\s+shadowrootmode="([^"]+)">([\s\S]*?)<\/template>/i
+    );
+    if (!shadowMatch) return;
+
+    const mode = shadowMatch[1]; // "open" or "closed"
+    let shadowContent = shadowMatch[2];
+
+    // Extract data from element attributes
+    const componentData = this.extractComponentData(element, 'custom-element');
+
+    // Merge with global data (component data takes precedence)
+    const mergedData = { ...this.data, ...componentData };
+
+    // Resolve template variables in shadow content
+    // Note: <slot> elements are NOT template variables — they stay as-is
+    shadowContent = this.renderTemplate(shadowContent, mergedData);
+
+    // Inject the DSD template as first child of the custom element
+    // Do NOT extract styles — they belong inside the shadow root for encapsulation
+    // Do NOT touch children — native <slot> handles content projection
+    element.insertAdjacentHTML('afterbegin',
+      `<template shadowrootmode="${mode}">${shadowContent}</template>`
+    );
+
+    // Record on store for auto-components awareness
+    if (!this.store._cookDsdComponents) this.store._cookDsdComponents = {};
+    this.store._cookDsdComponents[name] = componentName;
+
+    this.replaced.push(name);
+  }
+
+  /**
+   * Render a flat component: replace the element with expanded template HTML.
+   * This is the original behavior — styles extracted to <head>, element removed.
+   * @param {Element} element - The component element
+   * @param {string} template - Component template HTML
+   * @param {string} type - 'custom-element' or 'data-component'
+   * @param {string} name - Element tag/component name
+   * @param {string} componentName - Component template filename
+   */
+  renderFlatComponent(element, template, type, name, componentName) {
+    // Extract <style> blocks from template (deduplicate per component)
+    const { html: htmlTemplate, css } = this.extractStyles(template);
+    if (css && !this.collectedStyles[componentName]) {
+      // Resolve template variables in CSS with global data only
+      this.collectedStyles[componentName] = this.renderTemplate(css, this.data);
+    }
+
+    // Extract data from element attributes
+    const componentData = this.extractComponentData(element, type);
+
+    // Extract named and default slot content from children
+    this.extractSlots(element, componentData);
+
+    // Merge with global data (component data takes precedence)
+    const mergedData = { ...this.data, ...componentData };
+
+    // Replace template variables with data (style-free HTML only)
+    const renderedContent = this.renderTemplate(htmlTemplate, mergedData);
+
+    // Insert rendered content and remove original element
+    element.insertAdjacentHTML('afterend', renderedContent);
+
+    // Transfer non-data attributes to the first valid replaced element
+    this.transferAttributes(element, type);
+
+    // Remove the original component element
+    element.remove();
+
+    this.replaced.push(name);
   }
 
   /**

@@ -83,6 +83,8 @@ const defaultConfig = {
     // Explicit mapping of element names to template files
     // If not mapped, uses element name as filename (e.g., 'header' -> 'header.html')
     mapping: {},
+    // Path in dist where DSD component JS hydration scripts are served from
+    jsPath: 'assets/components',
   },
 
   // Markdown: Convert .md files to HTML with front matter support
@@ -130,6 +132,7 @@ const defaultConfig = {
     json: true,
     feed: null,
     llmsTxt: true,
+    llmsFullTxt: false,
   },
 
   // Fragments: Generate content-only HTML fragments for SPA navigation

@@ -1,0 +1,13 @@
+{
+  "name": "cook-docs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cook build",
+    "dev": "cook dev"
+  },
+  "dependencies": {
+    "cook-ssg": "file:.."
+  }
+}

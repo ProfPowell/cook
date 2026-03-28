@@ -96,8 +96,8 @@ class ReplaceExternalLinkProtocol {
    * @private
    */
   replaceMissingProtocol({file, scope, el}) {
-    // Get source type (`href` or `src`)
-    let srcType = el.href || el.src;
+    // Get source type (`href` or `src`) — use getAttribute for parser compatibility
+    let srcType = el.getAttribute('href') || el.getAttribute('src');
     // Early Exit: Tag does not have `[href]` or `[src]` or attribute value is empty string
     // Example: Someone adds an old-school anchor jump point: `<a id="jump-point"></a>`
     if (!srcType || srcType === '') return;
@@ -106,7 +106,7 @@ class ReplaceExternalLinkProtocol {
     // Only replace for `www` and `cdn` instances, unless user defined their own
     const domainTargets = replaceExternalLinkProtocol.match || Util.replaceExternalLinkProtocolDefaults;
     const isTargetMatch = domainTargets.indexOf(linkPath) > -1;
-    const pathType = el.href ? 'href' : 'src';
+    const pathType = el.getAttribute('href') ? 'href' : 'src';
     // Update path
     if (isTargetMatch) this.replaceExternal(file, el, pathType);
     // Increment total counter

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — Cook SSG Blog</title>
+  <meta name="description" content="${description}">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+
+  <div data-include="/includes/header.html"></div>
+
+  <main id="main">
+    <layout-center>
+      <article>
+        <heading-links>
+          <layout-stack>
+            <hgroup>
+              <h1>${title}</h1>
+              <p><time>${date}</time> &mdash; ${author}</p>
+            </hgroup>
+            ${content}
+          </layout-stack>
+        </heading-links>
+        <share-wc services="clipboard,email,twitter,linkedin"></share-wc>
+      </article>
+    </layout-center>
+  </main>
+
+  <div data-include="/includes/footer.html"></div>
+
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</body>
+</html>
