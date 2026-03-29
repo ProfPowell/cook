@@ -15,25 +15,46 @@
   top: 0.5rem;
 }
 
-/* Navigation bar */
-.nav-bar {
-  padding: 0.75rem 0;
+/* Site header */
+.site-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  padding: 0.75rem var(--space-m, 1rem);
+  max-width: 80rem;
+  margin-inline: auto;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
 }
 .logo {
   text-decoration: none;
-  font-size: 1.25rem;
-  font-weight: 700;
+  color: inherit;
 }
-.nav-desktop {
-  gap: 0.25rem;
+.site-nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
-.nav-mobile {
+.site-nav a {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  color: var(--color-text-muted, #555);
+  font-size: 0.9rem;
+}
+.site-nav a:hover {
+  background: var(--color-surface-raised, #f3f3f3);
+  color: var(--color-text, #1a1a1a);
+}
+.site-nav a.active {
+  background: var(--color-interactive, #2563eb);
+  color: white;
+}
+.site-nav-mobile {
   display: none;
 }
 @media (max-width: 48rem) {
-  .nav-desktop { display: none; }
-  .nav-mobile { display: block; }
+  .site-nav { display: none; }
+  .site-nav-mobile { display: block; }
 }
 
 /* Docs sidebar */

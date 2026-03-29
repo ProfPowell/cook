@@ -7,7 +7,7 @@
 <body>
 
   <!-- Hero -->
-  <layout-cover class="hero">
+  <section class="hero">
     <layout-center>
       <hgroup>
         <h1>Cook SSG</h1>
@@ -15,14 +15,14 @@
       </hgroup>
       <layout-cluster class="hero-actions">
         <a href="/docs/quick-start/" class="btn-primary">Get Started</a>
-        <a href="${githubUrl}" class="btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
+        <a href="${githubUrl}" class="btn-secondary" target="_blank" rel="noopener">GitHub</a>
       </layout-cluster>
     </layout-center>
-  </layout-cover>
+  </section>
 
   <!-- Install -->
   <layout-center>
-    <code-block language="bash" label="Install">npm install cook-ssg
+    <code-block language="bash" label="Install" data-escape>npm install cook-ssg
 npx cook build</code-block>
   </layout-center>
 
@@ -46,16 +46,18 @@ npx cook build</code-block>
       <layout-grid data-layout-min-width="20rem">
         <layout-stack>
           <h3>Write a component</h3>
-          <code-block language="html" label="src/components/greeting.html">&lt;article class="greeting"&gt;
-  &lt;h2&gt;${title}&lt;/h2&gt;
+          <code-block language="html" label="src/components/greeting.html" data-escape>
+<article class="greeting">
+  <h2>${title}</h2>
   ${slot}
-&lt;/article&gt;</code-block>
+</article></code-block>
         </layout-stack>
         <layout-stack>
           <h3>Use it in a page</h3>
-          <code-block language="html" label="src/index.html">&lt;greeting title="Hello World"&gt;
-  &lt;p&gt;Built with Cook SSG.&lt;/p&gt;
-&lt;/greeting&gt;</code-block>
+          <code-block language="html" label="src/index.html" data-escape>
+<greeting title="Hello World">
+  <p>Built with Cook SSG.</p>
+</greeting></code-block>
         </layout-stack>
       </layout-grid>
     </section>

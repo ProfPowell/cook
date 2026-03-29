@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-template="page">
+<head>
+  <title>Blog — Cook SSG</title>
+  <meta name="description" content="News, release notes, and guides from the Cook SSG team.">
+</head>
+<body>
+
+  <layout-center>
+    <layout-stack>
+      <hgroup>
+        <h1>Blog</h1>
+        <p>News, release notes, and guides.</p>
+      </hgroup>
+
+      <layout-grid data-layout-min-width="20rem">
+        <layout-card data-repeat="collections.blog as post">
+          <article>
+            <h3><a href="${post.url}">${post.title}</a></h3>
+            <p><time>${post.date}</time></p>
+            <p>${post.description}</p>
+          </article>
+        </layout-card>
+      </layout-grid>
+
+    </layout-stack>
+  </layout-center>
+
+</body>
+</html>

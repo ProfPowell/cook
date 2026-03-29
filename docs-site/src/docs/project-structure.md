@@ -43,7 +43,7 @@ Your source files. Every `.html` and `.md` file becomes a page:
 ### `config/`
 
 - **`main.js`** — Build configuration (paths, plugins, features)
-- **`data.js`** — Global data available in all templates as `${variableName}`
+- **`data.js`** — Global data available in all templates as `&#36;{variableName}`
 
 ### `src/components/`
 

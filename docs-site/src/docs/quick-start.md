@@ -46,10 +46,10 @@ Create `config/data.js` to define template variables available on every page:
   year: new Date().getFullYear().toString(),
 };</code-block>
 
-Use them in any HTML file with `${variableName}`:
+Use them in any HTML file with template string syntax:
 
-<code-block language="html" label="src/index.html">&lt;title&gt;${siteTitle}&lt;/title&gt;
-&lt;footer&gt;&amp;copy; ${year}&lt;/footer&gt;</code-block>
+<code-block language="html" label="src/index.html">&lt;title&gt;&#36;{siteTitle}&lt;/title&gt;
+&lt;footer&gt;&amp;copy; &#36;{year}&lt;/footer&gt;</code-block>
 
 ## Next steps
 

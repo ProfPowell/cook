@@ -13,9 +13,9 @@ Cook components are reusable HTML templates stored in `src/components/`. They ex
 Create an HTML file in `src/components/`:
 
 <code-block language="html" label="src/components/product-card.html">&lt;article class="product-card"&gt;
-  &lt;h3&gt;${name}&lt;/h3&gt;
-  &lt;p&gt;${description}&lt;/p&gt;
-  ${slot}
+  &lt;h3&gt;&#36;{name}&lt;/h3&gt;
+  &lt;p&gt;&#36;{description}&lt;/p&gt;
+  &#36;{slot}
 &lt;/article&gt;</code-block>
 
 ## Using a component
@@ -28,25 +28,25 @@ Use the filename as a custom element tag. Attributes become template variables:
   &lt;a href="/products/trail-runner-pack/"&gt;View Details&lt;/a&gt;
 &lt;/product-card&gt;</code-block>
 
-<browser-window url="Output">
-&lt;article class="product-card"&gt;
+The output replaces the custom element with the template, resolving all variables:
+
+<browser-window url="Build Output">&lt;article class="product-card"&gt;
   &lt;h3&gt;Trail Runner Pack&lt;/h3&gt;
   &lt;p&gt;32L ultralight backpack&lt;/p&gt;
   &lt;a href="/products/trail-runner-pack/"&gt;View Details&lt;/a&gt;
-&lt;/article&gt;
-</browser-window>
+&lt;/article&gt;</browser-window>
 
 ## Slots
 
-**Default slot** — `${slot}` receives all child content:
+**Default slot** — `&#36;{slot}` receives all child content:
 
-<code-block language="html" label="Component">&lt;div class="box"&gt;${slot}&lt;/div&gt;</code-block>
+<code-block language="html" label="Component template">&lt;div class="box"&gt;&#36;{slot}&lt;/div&gt;</code-block>
 
-**Named slots** — `${slot:name}` receives children with `slot="name"`:
+**Named slots** — `&#36;{slot:name}` receives children with `slot="name"`:
 
 <code-block language="html" label="src/components/page-section.html">&lt;section&gt;
-  &lt;header&gt;${slot:header}&lt;/header&gt;
-  &lt;main&gt;${slot}&lt;/main&gt;
+  &lt;header&gt;&#36;{slot:header}&lt;/header&gt;
+  &lt;main&gt;&#36;{slot}&lt;/main&gt;
 &lt;/section&gt;</code-block>
 
 <code-block language="html" label="Usage">&lt;page-section&gt;
@@ -56,7 +56,7 @@ Use the filename as a custom element tag. Attributes become template variables:
 
 ## Component styles
 
-Components can include `<style>` blocks. Styles are extracted, deduplicated, and injected into `<head>`:
+Components can include `<style>` blocks. Styles are extracted, deduplicated per component name, and consolidated into a single `<style>` in `<head>`:
 
 <code-block language="html" label="src/components/alert.html">&lt;style&gt;
   @scope (.alert) {
@@ -64,8 +64,8 @@ Components can include `<style>` blocks. Styles are extracted, deduplicated, and
     .alert-error { background: #fee; border: 1px solid #c00; }
   }
 &lt;/style&gt;
-&lt;div class="alert alert-${type}"&gt;
-  ${slot}
+&lt;div class="alert alert-&#36;{type}"&gt;
+  &#36;{slot}
 &lt;/div&gt;</code-block>
 
 Use native `@scope` and `@layer` for CSS isolation — no framework-specific scoping needed.
@@ -90,7 +90,7 @@ Components can use **Declarative Shadow DOM** for true encapsulation. Include `<
     .card { border: 1px solid var(--border, #ccc); padding: 1rem; }
   &lt;/style&gt;
   &lt;div class="card"&gt;
-    &lt;h3&gt;${title}&lt;/h3&gt;
+    &lt;h3&gt;&#36;{title}&lt;/h3&gt;
     &lt;slot&gt;&lt;/slot&gt;
   &lt;/div&gt;
 &lt;/template&gt;</code-block>
@@ -109,7 +109,7 @@ Cook looks for component templates in two locations:
 <code-block language="javascript" label="config/main.js">export default {
   components: {
     path: 'components',       // Directory in src/
-    prefix: 'site-',          // Strip prefix: &lt;site-card&gt; → card.html
+    prefix: 'site-',          // Strip prefix: site-card uses card.html
     mapping: {                // Explicit mappings
       'my-widget': 'special-widget.html',
     },

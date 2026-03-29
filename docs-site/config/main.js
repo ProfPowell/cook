@@ -28,6 +28,10 @@ export default {
     path: 'components',
   },
 
+  plugins: {
+    default: ['unwrap-components'],
+  },
+
   formats: {
     markdown: true,
     json: true,
