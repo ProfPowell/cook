@@ -52,6 +52,7 @@
     "url": "https://github.com/ProfPowell/cook/issues"
   },
   "dependencies": {
+    "@profpowell/code-block": "^2.7.0",
     "browser-sync": "^3.0.4",
     "chalk": "^5.4.1",
     "clean-css": "^5.3.3",

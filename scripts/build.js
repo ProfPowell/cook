@@ -27,6 +27,7 @@ import repeatCollection from './plugins/repeat-collection.js';
 import replaceComponents from './plugins/replace-components.js';
 import applyTemplate from './plugins/apply-template.js';
 import escapeCodeBlocks from './plugins/escape-code-blocks.js';
+import prerenderCodeBlocks from './plugins/prerender-code-blocks.js';
 import processHtmlFrontmatter from './plugins/process-html-frontmatter.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
@@ -183,6 +184,10 @@ class Build {
             return `<code-block${before}${after}>${decoded}</code-block>`;
           });
       }
+
+      // PLUGIN: Pre-render <code-block> with Declarative Shadow DOM
+      // Runs after restore — code-block content is decoded and ready for highlighting.
+      await prerenderCodeBlocks({file, allowType: ['.html']});
 
       // Write new, modified source back to the file
       await updatePage(file);
