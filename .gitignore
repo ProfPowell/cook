@@ -11,3 +11,6 @@ dist/
 # Testing
 .nyc_output
 .playwright-mcp/
+
+# npm pack artifacts
+*.tgz

@@ -1,10 +1,10 @@
 {
   "name": "cook-ssg",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "description": "Cook your static pages into a beautifully performing site. Static site generation the web platform way.",
   "type": "module",
   "bin": {
-    "cook": "./bin/cook.js"
+    "cook": "bin/cook.js"
   },
   "main": "./scripts/build.js",
   "exports": {
