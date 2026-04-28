@@ -17,6 +17,7 @@ import createDist from './plugins/create-dist.js';
 import createDirFromFile from './plugins/create-dir-from-file.js';
 import customPlugins from './plugins/custom-plugins.js';
 import declarativeShadowDom from './plugins/declarative-shadow-dom.js';
+import fingerprintAssets from './plugins/fingerprint-assets.js';
 import generateFormats from './plugins/generate-formats.js';
 import generateFragments from './plugins/generate-fragments.js';
 import generateSitemap from './plugins/generate-sitemap-xml.js';
@@ -206,6 +207,12 @@ class Build {
 
     // PLUGIN: Build and create bundled file
     await bundleBuild({store});
+
+    // PLUGIN: Fingerprint built CSS/JS, rewrite HTML refs, emit asset manifest
+    // Runs after bundleBuild so bundle outputs are also fingerprinted.
+    // Must run after generateSitemap (HTML pages already exist) but before
+    // user-defined `after` plugins so they see fingerprinted output.
+    await fingerprintAssets();
 
     // CUSTOM PLUGINS: Run custom user plugins after file loop
     await customPlugins({store, data, plugins: plugins.after, log: 'After' });

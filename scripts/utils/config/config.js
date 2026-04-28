@@ -153,6 +153,20 @@ const defaultConfig = {
     removeAttribute: true,
   },
 
+  // Fingerprint: Content-hash filenames for built CSS/JS assets
+  // When enabled, renames matching dist/ files to foo.{hash}.css and rewrites
+  // <link href> / <script src> references in HTML. Emits asset-manifest.json
+  // mapping original paths to fingerprinted paths.
+  // Out of scope (v1): url() rewrites inside CSS, image fingerprinting.
+  fingerprint: {
+    enabled: false,
+    hashLength: 8,
+    algorithm: 'sha256',
+    types: ['.css', '.js'],
+    excludePaths: [],
+    manifestPath: 'asset-manifest.json',
+  },
+
   // Images: Automatic responsive image optimization
   // Generates AVIF/WebP derivatives at multiple widths, rewrites <img> to <picture>
   images: {
@@ -259,6 +273,7 @@ export const {
   distPath,
   dsd,
   excludePaths,
+  fingerprint,
   formats,
   fragments,
   images,
