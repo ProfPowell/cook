@@ -77,11 +77,61 @@ class SetActiveLinks {
    * @private
    */
   setActive({file, link}) {
-    const currPath = Util.getFileName(file.path, distPath);
-    const linkPath = Util.getFileName(link.href, distPath);
-    const isParent = this.linkIsParent(file.path, linkPath);
-    if (linkPath === currPath) this.setActiveLink(link);
-    else if (isParent) this.setParentActiveLink(link);
+    // Compare full normalized URL paths — the old last-segment comparison
+    // marked /company/about/ active on /legal/about/ and even matched
+    // external links whose URL ended in the same segment.
+    const pageUrl = this.normalizePagePath(file.path);
+    const linkUrl = this.normalizeHref(link.getAttribute('href'));
+    if (linkUrl === null) return;
+    if (linkUrl === pageUrl) this.setActiveLink(link);
+    // Parent-active: the link is a proper ancestor path of the page.
+    // Root ('/') is an ancestor of everything — never parent-active.
+    else if (linkUrl !== '/' && pageUrl.startsWith(linkUrl)) this.setParentActiveLink(link);
+  }
+
+  /**
+   * @description Normalize the built page's file path to its URL path
+   * @example dist/legal/about/index.html → /legal/about/
+   * @example dist/404.html → /404/
+   * @param {String} pagePath
+   * @returns {String}
+   * @private
+   */
+  normalizePagePath(pagePath) {
+    let p = pagePath.startsWith(`${distPath}/`)
+      ? pagePath.slice(distPath.length)
+      : (pagePath.startsWith('/') ? pagePath : `/${pagePath}`);
+    return this.normalizeUrlPath(p);
+  }
+
+  /**
+   * @description Normalize an internal href to a comparable URL path.
+   * Returns null for links that can never be "the current page":
+   * external URLs, protocol-relative, anchors, non-root-relative paths.
+   * @param {String} href
+   * @returns {String|null}
+   * @private
+   */
+  normalizeHref(href) {
+    if (!href) return null;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//') || href.startsWith('#')) return null;
+    const p = href.split(/[?#]/)[0];
+    if (!p.startsWith('/')) return null;
+    return this.normalizeUrlPath(p);
+  }
+
+  /**
+   * @description Shared URL-path normalization: index.html and .html
+   * suffixes collapse to directory style with a trailing slash
+   * @param {String} p
+   * @returns {String}
+   * @private
+   */
+  normalizeUrlPath(p) {
+    if (p.endsWith('/index.html')) p = p.slice(0, -'index.html'.length);
+    else if (p.endsWith('.html')) p = `${p.slice(0, -'.html'.length)}/`;
+    else if (!p.endsWith('/') && !p.split('/').pop().includes('.')) p = `${p}/`;
+    return p;
   }
 
   /**
@@ -115,25 +165,6 @@ class SetActiveLinks {
     // Increment counter for display in terminal logging
     this.total.activeParent += 1;
   }
-
-  /**
-   * @description Return true if `<a>` link's `[href]` target is a parent of the current page
-   * @param {String} pagePath - The full path of the current page being evaluated
-   * @param {String} linkPath - The current page `<a>` to evaluate
-   * @private
-   */
-  linkIsParent(pagePath, linkPath) {
-    const pagePathSplit = pagePath.split(`${distPath}/`)[1];
-    // Early Exit: No dist path
-    if (!pagePathSplit) return;
-    const pagePathParts = pagePathSplit.split('/');
-    const pagePathPartsLast = pagePathParts.pop();
-    // Return true if `linkPath` is one of the parts AND it is not the last part (we'll mark it as normal-active instead)
-    const isActivePage = linkPath === pagePathParts[pagePathParts.length - 1];
-    const isHierarchyPage = pagePathParts.indexOf(linkPath) > -1;
-    return !isActivePage && isHierarchyPage;
-  }
-
 
   // LOGGING
   // -----------------------------
