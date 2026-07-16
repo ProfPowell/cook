@@ -8,7 +8,7 @@ import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 
 // CONFIG
-import { distPath, sitemap, srcPath } from '../utils/config/config.js';
+import { distPath, fragments, sitemap, srcPath } from '../utils/config/config.js';
 
 
 // DEFINE
@@ -18,7 +18,14 @@ import { distPath, sitemap, srcPath } from '../utils/config/config.js';
  * Is one of the last build processes since we want to get all new, dynamically-generated pages and their final path locations.
  */
 class GenerateSitemap {
-  constructor() {
+  constructor(opts = {}) {
+    // Optional per-call overrides (used by tests and custom pipelines)
+    this.distPath = opts.distPath || distPath;
+    this.sitemap = opts.sitemap || sitemap;
+    // SPA fragment filename — fragment files are content duplicates of
+    // their parent page and must never be listed as URLs
+    this.fragmentsFilename = (fragments && fragments.filename) || '_fragment.html';
+
     // Store total # of file entries generated
     this.total = 0;
 
@@ -31,7 +38,7 @@ class GenerateSitemap {
   // Note: `process.env.DEV_CHANGED_PAGE` is defined in `browserSync.watch()` in dev.js
   async init() {
     // Early Exit: No user-defined site domain in `/config/main.js`
-    if (!sitemap || !sitemap.url || !sitemap.url.length) return;
+    if (!this.sitemap || !this.sitemap.url || !this.sitemap.url.length) return;
 
     // ADD TERMINAL SECTION HEADING
     Logger.persist.header(`\nCreate /sitemap.xml`);
@@ -40,17 +47,16 @@ class GenerateSitemap {
     this.startLog();
 
     try {
-      // Get directory and .html file paths from `/dist`
-      let files = await fs.readdir(distPath);
-      this.total = files.length;
       // Format file paths for XML
-      files = this.formatFilesForXML(files);
+      let files = this.formatFilesForXML();
       // Filter out unwanted entry paths
       files = this.excludeFiles(files);
+      // Store total # of actual sitemap entries (for logging)
+      this.total = files.length;
       // Build XML source
       let xmlSrc = this.buildXML(files);
       // Create `sitemap.xml` and write source to it
-      await fs.writeFile(`${distPath}/sitemap.xml`, xmlSrc);
+      await fs.writeFile(`${this.distPath}/sitemap.xml`, xmlSrc);
     }
     catch (e) {
       Util.customError(e, 'Generate sitemap.xml');
@@ -73,14 +79,14 @@ class GenerateSitemap {
     let date = this.formattedDate();
     let xml = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
     // If `sitemap.url` has a trailing /, remove it to avoid potential double slashes (ex: https://domain.com//path/to/file)
-    const domain = sitemap.url[sitemap.url.length - 1] === '/' ? sitemap.url.slice(0, -1) : sitemap.url;
+    const domain = this.sitemap.url[this.sitemap.url.length - 1] === '/' ? this.sitemap.url.slice(0, -1) : this.sitemap.url;
     files.forEach(f => {
       // Set homepage to higher priority
       const priority = f === '' ? '1.0' : '0.9';
       // Add entry
       xml += `
         <url>
-          <loc>${domain}${f}</loc>
+          <loc>${this.escapeXml(`${domain}${f}`)}</loc>
           <lastmod>${date}</lastmod>
           <changefreq>monthly</changefreq>
           <priority>${priority}</priority>
@@ -103,7 +109,7 @@ class GenerateSitemap {
     // Default path regexes: Any `/assets`, `/includes`, and root-level `404.html` files
     const defaultExcludePaths = [/^\/assets/, /^\/includes/, /^\/404.html/];
     // User defined regexes from `/config/main.js`
-    const userExcludePaths = sitemap && sitemap.excludePaths || [];
+    const userExcludePaths = this.sitemap && this.sitemap.excludePaths || [];
     // Combine the default and user regexes
     const excludePaths = [...defaultExcludePaths, ...userExcludePaths];
     // Filter out unwanted paths
@@ -125,16 +131,18 @@ class GenerateSitemap {
    * @param {Array} files - The array of site file paths
    * @returns {Array}
    */
-  formatFilesForXML(files) {
+  formatFilesForXML() {
     // Allowed page extensions
     const allowedExt = ['html'];
     const excludedPaths = [];
     // Get files in `/dist`
-    files = Util.getPaths(distPath, distPath, excludedPaths);
+    let files = Util.getPaths(this.distPath, this.distPath, excludedPaths);
     // Get only the allowed files by extension (.css, .html)
     files = files.filter(fileName => Util.isExtension(fileName, allowedExt));
+    // Skip SPA fragment files (content duplicates of their parent page)
+    files = files.filter(fileName => !fileName.endsWith(`/${this.fragmentsFilename}`));
     // Format for xml: Remove `/dist`
-    files = files.map(fileName => fileName.split(distPath)[1]);
+    files = files.map(fileName => fileName.split(this.distPath)[1]);
     // Format for xml: Remove `filename`
     files = files.map(fileName => this.formatDirPath(fileName));
     // Alphabetize files
@@ -145,6 +153,21 @@ class GenerateSitemap {
 
   // HELPER METHODS
   // -----------------------------
+
+  /**
+   * @description Escape XML-special characters for <loc> values
+   * @param {String} str - Raw URL string
+   * @returns {String}
+   * @private
+   */
+  escapeXml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
 
   /**
    * @description Format current date in `yyyy-mm-dd` format
