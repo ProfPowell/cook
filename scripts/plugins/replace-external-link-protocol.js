@@ -97,40 +97,25 @@ class ReplaceExternalLinkProtocol {
    */
   replaceMissingProtocol({file, scope, el}) {
     // Get source type (`href` or `src`) — use getAttribute for parser compatibility
-    let srcType = el.getAttribute('href') || el.getAttribute('src');
+    const value = el.getAttribute('href') || el.getAttribute('src');
     // Early Exit: Tag does not have `[href]` or `[src]` or attribute value is empty string
     // Example: Someone adds an old-school anchor jump point: `<a id="jump-point"></a>`
-    if (!srcType || srcType === '') return;
-    // Get href path
-    const linkPath = Util.getFileName(srcType, distPath);
-    // Only replace for `www` and `cdn` instances, unless user defined their own
+    if (!value) return;
+    // Early Exit: Already has a protocol/scheme (http:, https:, mailto:,
+    // tel:, data:, …) or is protocol-relative (//cdn.example.com)
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith('//')) return;
+    // Only replace values starting with a target domain prefix followed
+    // by a dot (`www.`, `cdn.` by default, or user-defined via config).
+    // NOTE: linkedom returns raw attribute values (no URL resolution), so
+    // the check works directly on what the author wrote.
     const domainTargets = replaceExternalLinkProtocol.match || Util.replaceExternalLinkProtocolDefaults;
-    const isTargetMatch = domainTargets.indexOf(linkPath) > -1;
-    const pathType = el.getAttribute('href') ? 'href' : 'src';
+    const prefixPattern = new RegExp(`^(?:${domainTargets.join('|')})\\.`, 'i');
+    if (!prefixPattern.test(value)) return;
     // Update path
-    if (isTargetMatch) this.replaceExternal(file, el, pathType);
+    const pathType = el.getAttribute('href') !== null ? 'href' : 'src';
+    el.setAttribute(pathType, `http://${value}`);
     // Increment total counter
-    if (isTargetMatch) this.total += 1;
-  }
-
-  /**
-   * @description Create new, fixed external path
-   * @property {Object} file - The current file's props (ext,name,path,name)
-   * @property {Object} el - The current <a>, <link>, or <script> tag being evaluated
-   * @property {String} type - Either the element's `[href]` or `[src]` prop to write new value to
-   * @private
-   */
-  replaceExternal(file, el, type) {
-    // Split path on /
-    let linkPathSplit = el[type].split('/');
-    // Filter out ''
-    linkPathSplit = linkPathSplit.filter(s => s);
-    // Find if 'localhost' is in the path name
-    // We'll only replace these, as they represent the links we want to convert
-    if (linkPathSplit.indexOf('localhost') === -1) return;
-    el[type] = `http://${linkPathSplit[linkPathSplit.length-1]}`;
-    // Show terminal message
-    // Logger.success(`/${file.path} - Added 'http://' to [href="${linkPathSplit[linkPathSplit.length-1]}"]: ${ chalk.green(el[type]) }`);
+    this.total += 1;
   }
 
 
