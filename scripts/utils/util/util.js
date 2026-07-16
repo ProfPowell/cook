@@ -131,18 +131,10 @@ export default {
  * @private
  */
 function addDirectory(file) {
-  // Destructure object props
-  const {isDynamic,path} = file;
-  // Get the file path without the `.html`
-  // NOTE: For dynamically-created pages, they didn't run through the 'convert to directory' plugin
-  // So we need to do that here, by dropping the full `index.html`
-  // Static-page Example: `path/to/file.html` becomes `path/to/file`
-  // Dynamic-page Example: `path/to/file/index.html` becomes `path/to/file`
-  const splitOn = isDynamic ? 'index.html' : '.';
-  const pathSplit = path.split(splitOn)[0];
-  const filePath = pathSplit.match(/\/index$/) ? pathSplit.substring(4, -1) : pathSplit;
-  // Create the parent directories
-  fs.mkdirpSync(filePath);
+  // Create the file's parent directories (everything before the filename)
+  // so the following fs.writeFile has a destination to write into.
+  const parentDir = file.path.split('/').slice(0, -1).join('/');
+  if (parentDir) fs.mkdirpSync(parentDir);
 }
 
 /**
@@ -407,8 +399,12 @@ function getFileParts(path) {
   // If last split item is `index.html`, store its parent directory (if option to convert pages to directories is enabled)
   // If not, there will be a lot of pages with `file.name` as
   const fileNameIfIndex = !convertPageToDirectory.disabled && fileName === 'index.html' ? fileSplit[fileSplit.length - 2] : undefined;
-  const fileNameSplit = fileName.split('.');
-  return { name: fileNameSplit[0], nameIfIndex: fileNameIfIndex, ext: fileNameSplit[1] };
+  // The extension is everything after the LAST dot — `lib.min.js` is a
+  // .js file, `report.2024.html` is an .html file.
+  const lastDot = fileName.lastIndexOf('.');
+  const name = lastDot > 0 ? fileName.slice(0, lastDot) : fileName;
+  const ext = lastDot > 0 ? fileName.slice(lastDot + 1) : undefined;
+  return { name, nameIfIndex: fileNameIfIndex, ext };
 }
 
 /**

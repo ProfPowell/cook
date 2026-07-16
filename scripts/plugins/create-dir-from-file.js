@@ -111,8 +111,10 @@ class CreateDirFromFile {
     const matchedExcludePathLen = matchedExcludePath.length;
     if (matchedExcludePathLen) return;
 
-    // Get file path without extension
-    const filePath = file.path.split('.')[0];
+    // Get file path without the trailing `.html` extension only —
+    // dots elsewhere in the path (node.js-guide.html, v1.2/page.html)
+    // are part of real file/directory names.
+    const filePath = file.path.replace(/\.html$/, '');
 
     // CREATE NEW DIRECTORY IN /DIST
     await fs.mkdirp(filePath);
