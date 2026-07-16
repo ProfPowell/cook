@@ -230,7 +230,7 @@ class ReplaceComponents {
         this.renderFlatComponent(element, template, type, name, componentName);
       }
     } catch (err) {
-      Util.customError(err, `replace-components.js: Error replacing ${name}`);
+      Util.customWarn(err, `replace-components.js: Error replacing ${name} in ${this.file.path}`);
     }
   }
 

@@ -83,7 +83,7 @@ class GenerateFormats {
         await this.generateLlmsFullTxt(indexFiles);
       }
     } catch (err) {
-      Util.customError(err, 'generate-formats.js');
+      Util.customWarn(err, 'generate-formats.js (formats skipped)');
     }
 
     // END LOGGING
@@ -153,7 +153,7 @@ class GenerateFormats {
       await fs.writeFile(outputPath, content, 'utf-8');
       this.stats.markdown++;
     } catch (err) {
-      Util.customError(err, `generate-formats.js: markdown for ${urlPath}`);
+      Util.customWarn(err, `generate-formats.js: markdown for ${urlPath} (skipped)`);
     }
   }
 
@@ -204,7 +204,7 @@ class GenerateFormats {
       await fs.writeFile(outputPath, JSON.stringify(meta, null, 2), 'utf-8');
       this.stats.json++;
     } catch (err) {
-      Util.customError(err, `generate-formats.js: json for ${urlPath}`);
+      Util.customWarn(err, `generate-formats.js: json for ${urlPath} (skipped)`);
     }
   }
 

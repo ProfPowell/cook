@@ -20,10 +20,15 @@ let types = {
 // Clone types for persistance option
 const persist = cloneDeep(types);
 
-// DISABLE OUTPUT IF ENV VARIABLE SET
+// DISABLE OUTPUT IF ENV VARIABLE NOT SET
 // ------------------------------------
-// Mute logging if environment var set
-if (!process.env.LOGGER) Object.keys(types).forEach(key => types[key] = () => ({}));
+// Mute verbose logging unless LOGGER is set — but errors and warnings
+// must ALWAYS be visible, or real failures pass silently.
+if (!process.env.LOGGER) {
+  Object.keys(types).forEach(key => {
+    if (key !== 'error' && key !== 'warning') types[key] = () => ({});
+  });
+}
 
 // 'ALWAYS SHOW' OPTION
 // ----------------------------------

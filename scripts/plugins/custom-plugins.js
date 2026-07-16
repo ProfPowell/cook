@@ -96,7 +96,7 @@ class CustomPlugins {
       await new plugin[Object.keys(plugin)[0]]({file, data}).init();
     }
     catch (err) {
-      Util.customError(err, `Plugin: ${this.plugins[index]}.js`)
+      Util.customWarn(err, `Plugin: ${this.plugins[index]}.js`)
     }
 
     // GO TO NEXT PLUGIN

@@ -163,7 +163,7 @@ class ProcessMarkdown {
       });
 
     } catch (err) {
-      Util.customError(err, `ProcessMarkdown: ${filePath}`);
+      Util.customWarn(err, `ProcessMarkdown: ${filePath} (page skipped)`);
     }
   }
 

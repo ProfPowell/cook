@@ -57,6 +57,7 @@ export {
   createDirectory,
   customError,
   customKill,
+  customWarn,
   deepClone,
   encodeTag,
   escapeUrlString,
@@ -92,6 +93,7 @@ export default {
   createDirectory,
   customError,
   customKill,
+  customWarn,
   deepClone,
   encodeTag,
   escapeUrlString,
@@ -151,9 +153,9 @@ function addDirectory(file) {
  */
 function addDynamicPage(path,src,store) {
   // Early Exit: Invalid data provided
-  if (!path) customKill(`addDynamicPage(): No page path provided`);
-  if (!src) customKill(`addDynamicPage(): No page source provided`);
-  if (!store) customKill(`addDynamicPage(): No data store provided`);
+  if (!path) throw new Error('addDynamicPage(): No page path provided');
+  if (!src) throw new Error('addDynamicPage(): No page source provided');
+  if (!store) throw new Error('addDynamicPage(): No data store provided');
   // If desired page collection property doesn't exist on the target store object, add it
   if (!store.dynamicPages) store.dynamicPages = [];
   // Add entry to data store
@@ -306,6 +308,18 @@ function customError(e, label = 'Error') {
   // Kill the node process to prevent completion
   // Note: This is so it doesn't accidently get to the deploy phase and deploy w/ broken code
   customKill('Build Stopped');
+}
+
+/**
+ * @description Always-visible warning for recoverable, per-file problems.
+ * Never exits — the build continues and reports at the end.
+ * @param {Object|String} e - The error (or message)
+ * @param {String} [label] - Context label (page path, plugin name)
+ * @private
+ */
+function customWarn(e, label = 'Warning') {
+  console.log(chalk.bold.yellow(`\n${label}`));
+  console.log(e && e.message ? e.message : e);
 }
 
 /**
@@ -583,7 +597,7 @@ function promiseAll(arr, method, cb, pageLabel) {
     for (const promise of promises) {
       promise
         .then(data => cb({length, data}))
-        .catch(err => customKill(`killed: ${err}${ ` in ${pageLabel}` || '' }`));
+        .catch(err => customWarn(err, pageLabel ? `promiseAll: ${pageLabel}` : 'promiseAll'));
     }
   }
   return Promise.all(promises);

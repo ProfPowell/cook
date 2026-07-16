@@ -102,12 +102,28 @@ class Build {
     await createDirFromFile({files, allowType: ['.html'] });
 
     // THE FILES LOOP
+    // A failing page is recorded and skipped — one bad page must not
+    // kill the other N-1. Failures are reported after the loop and the
+    // process exits non-zero so CI/deploys still catch them.
+    const failedPages = [];
     await runFileLoop(files, fileLoop);
     async function fileLoop(fileName) {
+      let file;
+      try {
+        await processPage(fileName);
+      } catch (err) {
+        const pagePath = (file && file.path) || fileName.path || fileName;
+        failedPages.push({ page: pagePath, error: err });
+        console.warn(chalk.yellow(`\n[build] Page failed: ${pagePath}`));
+        console.warn(`  ${err && err.message ? err.message : err}`);
+      }
+      return fileName;
+
+      async function processPage(fileName) {
       // Read and store the target file source.
       // We'll pass the string around between the plugins
       // then write back the updated/modified source to the file at the end
-      let file = await getSrcConfig({fileName});
+      file = await getSrcConfig({fileName});
 
       // PLUGIN: Parse YAML front matter from HTML files
       // Strips front matter from source, stores on file.frontMatter
@@ -178,8 +194,7 @@ class Build {
 
       // Write new, modified source back to the file
       await updatePage(file);
-
-      return fileName;
+      }
     }
 
     // PLUGIN: Generate content-only fragments for SPA navigation
@@ -202,9 +217,30 @@ class Build {
 
     // CUSTOM PLUGINS: Run custom user plugins after file loop
     await customPlugins({store, data, plugins: plugins.after, log: 'After' });
+
+    // FAILURE SUMMARY
+    // Report pages that failed during the loop and mark the build as
+    // failed (non-zero exit) without having aborted the other pages.
+    if (failedPages.length) {
+      console.error(chalk.bold.red(`\n[build] ${failedPages.length} page(s) failed:`));
+      failedPages.forEach(({ page, error }) => {
+        console.error(chalk.red(`  ✖ ${page}`), chalk.gray(error && error.message ? error.message : String(error)));
+      });
+      process.exitCode = 1;
+    }
   }
 
 }
 
 // Run build
-(async () => await new Build().init())();
+(async () => {
+  try {
+    await new Build().init();
+  } catch (err) {
+    // Truly unrecoverable (config, dist creation, plugin crash outside
+    // the per-page contract): report clearly and fail the process.
+    console.error(chalk.bold.red('\n[build] Fatal error'));
+    console.error(err);
+    process.exit(1);
+  }
+})();

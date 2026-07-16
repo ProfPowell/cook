@@ -34,7 +34,7 @@ class CopySrc {
       // Show terminal message: Start
       Logger.persist.header(`\nCopied Updated Page`);
       // Copy changed page to `/dist` only
-      await fs.copy(changedSrcPath, changedDistPath).catch(err => Util.customError(err, 'CopySrc.init(): Page Change'));
+      await fs.copy(changedSrcPath, changedDistPath).catch(err => Util.customWarn(err, 'CopySrc.init(): Page Change'));
       // Show terminal message
       Logger.persist.success(`/${changedSrcPath} copied to /${changedDistPath}`);
     }

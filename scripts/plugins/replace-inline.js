@@ -158,7 +158,10 @@ class ReplaceInline {
       return fetchedSrc;
     }
     catch (err) {
-      Util.customKill(`fetchInlineSrc(): ${err}`);
+      // Missing inline asset: warn with the referencing page and inline
+      // nothing rather than aborting the whole build
+      Util.customWarn(`Not found: "${path}" referenced in ${this.file.path}`, 'replace-inline');
+      return '';
     }
   }
 

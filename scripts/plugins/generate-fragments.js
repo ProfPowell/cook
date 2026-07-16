@@ -58,7 +58,7 @@ class GenerateFragments {
         await this.generateFragment(filePath);
       }
     } catch (err) {
-      Util.customError(err, 'generate-fragments.js');
+      Util.customWarn(err, 'generate-fragments.js (fragments skipped)');
     }
 
     // END LOGGING
@@ -91,7 +91,7 @@ class GenerateFragments {
 
       this.total++;
     } catch (err) {
-      Util.customError(err, `generate-fragments.js: ${filePath}`);
+      Util.customWarn(err, `generate-fragments.js: ${filePath} (skipped)`);
     }
   }
 

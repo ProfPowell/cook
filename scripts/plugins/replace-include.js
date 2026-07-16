@@ -198,7 +198,7 @@ class ReplaceInclude {
         el.outerHTML = content;
       }
       catch (err) {
-        Util.customError(err, `replace-includes.js`);
+        Util.customWarn(err, `replace-includes.js: ${this.file.path}`);
       }
     }
   }

@@ -59,7 +59,7 @@ class GenerateSitemap {
       await fs.writeFile(`${this.distPath}/sitemap.xml`, xmlSrc);
     }
     catch (e) {
-      Util.customError(e, 'Generate sitemap.xml');
+      Util.customWarn(e, 'Generate sitemap.xml (skipped)');
       Logger.error(`Requires /${distPath} directory - please run the build process first`);
     }
 

@@ -270,7 +270,10 @@ class Bundle {
       return src;
     }
     catch (err) {
-      Util.customKill(err, `Error fetching the source from: ${path}`);
+      // Missing/broken bundle asset: warn and contribute nothing to the
+      // bundle rather than aborting the whole build
+      Util.customWarn(err, `bundle: could not read source from: ${path} (skipped)`);
+      return '';
     }
   }
 
