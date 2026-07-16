@@ -1,6 +1,6 @@
 /**
  * @file minify-src.js
- * @description Remove `/dist` and recreate it
+ * @description Minify HTML, CSS, and JS sources in `/dist`
  */
 
 // IMPORT
@@ -15,11 +15,16 @@ import Util from '../utils/util/util.js';
 // Config
 import { srcPath, distPath, minifyHtmlConfigCustom } from '../utils/config/config.js';
 
+// Inline <script> types that contain executable JavaScript.
+// Anything else (application/ld+json, importmap, speculationrules,
+// text/x-template, etc.) must be left untouched — terser rejects them.
+const JS_SCRIPT_TYPES = new Set(['', 'text/javascript', 'application/javascript', 'module']);
+
 
 // DEFINE
 // -----------------------------
 /**
- * @description Remove `/dist` and recreate it
+ * @description Minify the current file's source based on its type
  * @param {Object} obj - Deconstructed options object
  * @property {Object} obj.file - The current file's info (name, extension, path, src, etc.)
  * @property {Array} [obj.allowType] - Allowed file types (Opt-in)
@@ -88,13 +93,15 @@ class MinifySrc {
     // Minify source differently based on the file type
     let newSrc;
     switch (file.ext) {
-      case 'css': newSrc = this.minCss({file}); break;
-      case 'html': newSrc = await this.minHtml({file}); break;
-      case 'js': newSrc = await this.minJs({file}); break;
+      case 'css': newSrc = this.minCss(file.src); break;
+      case 'html': newSrc = await this.minHtml(file.src, file.path); break;
+      case 'js': newSrc = await this.minJs(file.src, { label: file.path }); break;
     }
 
-    // Store new source
-    file.src = newSrc;
+    // Store new source.
+    // Unrecognized types fall through with `newSrc` undefined and must
+    // keep their original source — never write `undefined` to disk.
+    if (typeof newSrc === 'string') file.src = newSrc;
 
     // END LOGGING
     this.endLog();
@@ -103,36 +110,48 @@ class MinifySrc {
 
   // PRIMARY MINIFY METHODS
   // -----------------------------
-  async minHtml({file}) {
+  // All methods are string-in/string-out and NEVER mutate `file.src` —
+  // a failed minification must leave the page source untouched, not
+  // replace it with an intermediate fragment.
+
+  async minHtml(src, label) {
     // MINIFY HTML — wrapped in try/catch so parse errors on pages with
     // complex inline code examples don't crash the entire build
     try {
-      file.src = await minifyHtml(file.src, this.minifyHtmlConfig);
+      let out = await minifyHtml(src, this.minifyHtmlConfig);
       // MINIFY INLINE CSS
-      file.src = this.minifyInline(file, 'style', this.minCss.bind(this));
+      out = this.minifyInlineStyles(out);
       // MINIFY INLINE SCRIPTS
-      file.src = await this.minifyInlineAsync(file, 'script', this.minJs.bind(this));
+      out = await this.minifyInlineScripts(out, label);
+      return out;
     } catch (err) {
       // Skip minification for this file — likely has unescaped code examples
       // that confuse the HTML parser. The unminified output is still valid.
-      if (process.env.LOGGER) console.warn(`  ⚠ Skipped minification for ${file.path}: ${err.message.substring(0, 80)}`);
+      if (process.env.LOGGER) console.warn(`  ⚠ Skipped minification for ${label}: ${err.message.substring(0, 80)}`);
+      return src;
     }
-    // Return new src
-    return file.src;
   }
 
-  async minJs({file}) {
-    const result = await terser.minify(file.src, this.minifyJsConfig);
-    return result.code;
+  async minJs(src, { module = false, label } = {}) {
+    try {
+      const config = module ? { ...this.minifyJsConfig, module: true } : this.minifyJsConfig;
+      const result = await terser.minify(src, config);
+      return typeof result.code === 'string' ? result.code : src;
+    } catch (err) {
+      // Invalid or non-standard JS: ship it unminified rather than
+      // corrupting the file or killing the build.
+      if (process.env.LOGGER) console.warn(`  ⚠ Skipped JS minification${label ? ` for ${label}` : ''}: ${err.message.substring(0, 80)}`);
+      return src;
+    }
   }
 
-  minCss({file}) {
+  minCss(src) {
     // Minify source
-    file.src = new CleanCSS(this.minifyCssConfig).minify(file.src).styles;
+    let out = new CleanCSS(this.minifyCssConfig).minify(src).styles;
     // Replace '@import' calls with their inlined source
-    file.src = this.replaceCssImports({file});
-    // Return modified file source
-    return file.src;
+    out = this.replaceCssImports(out);
+    // Return modified source
+    return out;
   }
 
 
@@ -140,21 +159,21 @@ class MinifySrc {
   // -----------------------------
 
   /**
-   * @description
-   * @param {Object} opts - The argument object
-   * @property {Object} file - The file source properties (ext,name,path,src)
+   * @description Inline `@import url(...)` sources into the CSS
+   * @param {String} src - The CSS source
+   * @returns {String}
    * @private
    */
   // TODO: The regex could likely be done a little nicer if we could use lookbehinds.
   // Instead for now, the pattern matches: url(/css/variables.css
   // so we just lop off the first four characters
-  replaceCssImports({file}) {
+  replaceCssImports(src) {
     let path, replaceSrc;
     // Check for @import and replace them with their source
     const pattern = /@import\s*url\(([/.\_\-)a-z]*);/gim;
-    const matches = file.src.match(pattern);
+    const matches = src.match(pattern);
     if (matches) {
-      matches.forEach((m,i) => {
+      matches.forEach(m => {
         path = m.match(/url\(.*(?=\))/gim)[0].slice(4);
         // If path has /src at the start, strip it off
         path = path.replace(/^\/src/, '');
@@ -163,58 +182,51 @@ class MinifySrc {
         // Minimize it
         replaceSrc = new CleanCSS(this.minifyCssConfig).minify(replaceSrc).styles;
         // Replace @import with source
-        // console.log('\nsrc', fileSource.src)
-        file.src = file.src.replace(m, replaceSrc);
+        src = src.replace(m, () => replaceSrc);
       });
     }
-    return file.src;
+    return src;
   }
 
   /**
-   * @description Minify inline `<style>` tags
-   * @param {Object} file - The current file items (ext,name,path,src)
-   * @param {String} selector - The html element string selector for querying
-   * @param {Object} type - The minification method to use
+   * @description Minify inline `<style>` tag contents
+   * @param {String} src - The page source
+   * @returns {String}
    * @private
    */
-  minifyInline(file, selector, type) {
-    const dom = Util.jsdom.dom({src: file.src});
-    const group = dom.window.document.querySelectorAll(selector);
-    let minifiedSrc;
-    group.forEach((el,i) => {
-      file.src = el.textContent;
-      // Minify content
-      minifiedSrc = type({file});
-      // Update tag with new minified source
-      el.textContent = minifiedSrc;
+  minifyInlineStyles(src) {
+    const dom = Util.jsdom.dom({src});
+    const group = dom.window.document.querySelectorAll('style');
+    group.forEach(el => {
+      const content = el.textContent;
+      if (!content || !content.trim()) return;
+      el.textContent = this.minCss(content);
     });
-    // Store updated file source
-    file.src = Util.setSrc({dom});
-    // Return updated file source
-    return file.src;
+    return Util.setSrc({dom});
   }
 
   /**
-   * @description Minify inline `<script>` tags (async version for terser)
-   * @param {Object} file - The current file items (ext,name,path,src)
-   * @param {String} selector - The html element string selector for querying
-   * @param {Object} type - The minification method to use
+   * @description Minify inline `<script>` tag contents (async for terser).
+   * Skips external scripts and non-JS types (JSON-LD, import maps, etc.)
+   * @param {String} src - The page source
+   * @param {String} [label] - File path for warning messages
+   * @returns {String}
    * @private
    */
-  async minifyInlineAsync(file, selector, type) {
-    const dom = Util.jsdom.dom({src: file.src});
-    const group = dom.window.document.querySelectorAll(selector);
+  async minifyInlineScripts(src, label) {
+    const dom = Util.jsdom.dom({src});
+    const group = dom.window.document.querySelectorAll('script');
     for (const el of group) {
-      file.src = el.textContent;
-      // Minify content
-      const minifiedSrc = await type({file});
-      // Update tag with new minified source
-      el.textContent = minifiedSrc;
+      // Only minify executable JavaScript
+      const type = (el.getAttribute('type') || '').trim().toLowerCase();
+      if (!JS_SCRIPT_TYPES.has(type)) continue;
+      // External scripts have no inline content to minify
+      if (el.hasAttribute('src')) continue;
+      const content = el.textContent;
+      if (!content || !content.trim()) continue;
+      el.textContent = await this.minJs(content, { module: type === 'module', label });
     }
-    // Store updated file source
-    file.src = Util.setSrc({dom});
-    // Return updated file source
-    return file.src;
+    return Util.setSrc({dom});
   }
 
 
