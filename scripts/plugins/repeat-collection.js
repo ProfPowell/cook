@@ -70,8 +70,11 @@ class RepeatCollection {
     const dom = Util.jsdom.dom({ src: this.file.src });
     const document = dom.window.document;
 
-    // Find all elements with data-repeat attribute
-    const repeatElements = document.querySelectorAll(`[${this.config.attribute}]`);
+    // Find TOP-LEVEL repeat elements only — nested data-repeat elements
+    // are processed recursively with their enclosing iteration context
+    // (so "post.tags" can resolve the outer loop variable `post`).
+    const allRepeats = Array.from(document.querySelectorAll(`[${this.config.attribute}]`));
+    const repeatElements = allRepeats.filter(el => !this.hasRepeatAncestor(el, document));
     this.total = repeatElements.length;
 
     // Early Exit: No repeat elements
@@ -79,7 +82,7 @@ class RepeatCollection {
 
     // Process each repeat element
     for (const element of repeatElements) {
-      this.processRepeatElement(element, document);
+      this.processRepeatElement(element, document, {});
     }
 
     // Store updated file source
@@ -87,11 +90,28 @@ class RepeatCollection {
   }
 
   /**
+   * Return whether the element sits inside another data-repeat element.
+   * Such elements are expanded recursively by their parent iteration,
+   * never at the top level (their collection may be a loop variable).
+   * @param {Element} element
+   * @returns {boolean}
+   */
+  hasRepeatAncestor(element) {
+    let parent = element.parentElement;
+    while (parent) {
+      if (parent.hasAttribute && parent.hasAttribute(this.config.attribute)) return true;
+      parent = parent.parentElement;
+    }
+    return false;
+  }
+
+  /**
    * Process a single repeat element
    * @param {Element} element - The element with data-repeat
    * @param {Document} document - The document object
+   * @param {Object} outerContext - Enclosing iteration context (loop vars)
    */
-  processRepeatElement(element, document) {
+  processRepeatElement(element, document, outerContext = {}) {
     const expression = element.getAttribute(this.config.attribute);
     if (!expression) return;
 
@@ -102,8 +122,12 @@ class RepeatCollection {
       return;
     }
 
-    // Get the collection data
-    let collection = this.getNestedValue(this.data, parsed.collection);
+    // Get the collection data: enclosing loop context first (nested
+    // repeats reference loop variables), then global data, then store
+    let collection = this.getNestedValue(outerContext, parsed.collection);
+    if (!collection || !Array.isArray(collection)) {
+      collection = this.getNestedValue(this.data, parsed.collection);
+    }
     if (!collection || !Array.isArray(collection)) {
       // Try getting from store (for collections built during build)
       collection = this.getNestedValue(this.store, parsed.collection);
@@ -141,10 +165,12 @@ class RepeatCollection {
         clone.removeAttribute(this.config.attribute);
       }
 
-      // Build the data context for this iteration
+      // Build the data context for this iteration.
+      // Enclosing loop variables stay visible (nested repeats).
       const context = {
+        ...outerContext,
         [parsed.itemName]: item,
-        ...item, // Also spread item properties for direct access
+        ...(item && typeof item === 'object' && !Array.isArray(item) ? item : {}), // Also spread item properties for direct access
       };
 
       // Add index if requested
@@ -159,11 +185,38 @@ class RepeatCollection {
       // Also process attributes on the clone itself
       this.processElementAttributes(clone, context);
 
+      // Recursively expand nested data-repeat elements with this
+      // iteration's context, so they can loop over loop variables
+      this.processNestedRepeats(clone, document, context);
+
       fragment.appendChild(clone);
     });
 
     // Replace original element with the fragment
     element.parentNode.replaceChild(fragment, element);
+  }
+
+  /**
+   * Expand data-repeat elements directly nested inside a freshly-rendered
+   * clone (deeper ones are handled by their own recursion level).
+   * @param {Element} container - The clone to search within
+   * @param {Document} document - The document object
+   * @param {Object} context - The iteration context of the enclosing loop
+   */
+  processNestedRepeats(container, document, context) {
+    const nested = Array.from(container.querySelectorAll(`[${this.config.attribute}]`))
+      .filter(el => {
+        // Keep only repeats whose nearest repeat ancestor is the container
+        let parent = el.parentElement;
+        while (parent && parent !== container) {
+          if (parent.hasAttribute(this.config.attribute)) return false;
+          parent = parent.parentElement;
+        }
+        return true;
+      });
+    for (const el of nested) {
+      this.processRepeatElement(el, document, context);
+    }
   }
 
   /**

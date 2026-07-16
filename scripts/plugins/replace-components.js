@@ -82,19 +82,36 @@ class ReplaceComponents {
     const document = dom.window.document;
 
     // Find all components to replace
-    const components = this.findComponents(document);
-    this.total = components.length;
+    let components = this.findComponents(document);
 
     // Early Exit: No components found
-    if (this.total === 0) return;
+    if (components.length === 0) return;
 
     // START LOGGING
     this.startLog();
 
-    // Process each component
-    for (const component of components) {
-      await this.replaceComponent(component);
+    // Expand until stable: rendered templates and slot content may
+    // themselves contain components (nesting), which only appear in the
+    // DOM after a pass completes. `handled` stops us retrying elements
+    // that stay in the DOM by design (DSD hosts, unknown components),
+    // and the pass cap bounds pathological self-referencing templates.
+    const MAX_PASSES = 10;
+    const handled = new Set();
+    let pass = 0;
+    while (components.length && pass < MAX_PASSES) {
+      let progressed = false;
+      for (const component of components) {
+        if (handled.has(component.element)) continue;
+        const before = this.replaced.length;
+        await this.replaceComponent(component);
+        handled.add(component.element);
+        if (this.replaced.length > before) progressed = true;
+      }
+      if (!progressed) break;
+      pass += 1;
+      components = this.findComponents(document).filter(c => !handled.has(c.element));
     }
+    this.total = this.replaced.length;
 
     // Inject collected component styles into <head>
     this.injectCollectedStyles(document);
@@ -184,7 +201,7 @@ class ReplaceComponents {
    * @returns {boolean}
    */
   isDsdComponent(template) {
-    return /<template\s+shadowrootmode/i.test(template);
+    return /<template[^>]*\sshadowrootmode/i.test(template);
   }
 
   /**
@@ -236,15 +253,15 @@ class ReplaceComponents {
     );
     if (hasShadowTemplate) return;
 
-    // Extract the <template shadowrootmode="..."> content via regex
-    // (avoids JSDOM template parsing quirks with document fragments)
-    const shadowMatch = template.match(
-      /<template\s+shadowrootmode="([^"]+)">([\s\S]*?)<\/template>/i
-    );
-    if (!shadowMatch) return;
+    // Extract the <template shadowrootmode="..."> content via a DOM parse.
+    // (The old regex required shadowrootmode to be the first attribute and
+    // truncated shadow content at the first nested </template>.)
+    const templateDom = Util.jsdom.dom({ src: template });
+    const shadowTemplate = templateDom.window.document.querySelector('template[shadowrootmode]');
+    if (!shadowTemplate) return;
 
-    const mode = shadowMatch[1]; // "open" or "closed"
-    let shadowContent = shadowMatch[2];
+    const mode = shadowTemplate.getAttribute('shadowrootmode') || 'open';
+    let shadowContent = shadowTemplate.innerHTML;
 
     // Extract data from element attributes
     const componentData = this.extractComponentData(element, 'custom-element');
