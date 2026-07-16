@@ -639,22 +639,16 @@ async function runFileLoop(files, method) {
  * @param {*} param0
  */
 function setSrc({dom, path}) {
-  let result;
-
   // Dom Fragment (from newFrag — a body element used as container)
-  if (!dom.window) {
-    result = dom.innerHTML;
-  }
-  // Full HTML document
-  else {
-    const document = dom.window.document;
-    const isFullDoc = !!document.doctype;
+  if (!dom.window) return dom.innerHTML;
 
-    if (isFullDoc) result = dom.serialize();
-    else result = `${document.head.innerHTML}${document.body.innerHTML}`;
-  }
-
-  return result;
+  // Document from newDOM: linkedom serializes exactly what was parsed —
+  // partials stay partial (no wrapper gained), full documents keep their
+  // doctype and all <html>/<head>/<body> attributes. (The old
+  // head.innerHTML + body.innerHTML fallback for doctype-less input was
+  // a real-jsdom workaround; it silently dropped <html lang>, body
+  // classes, and returned '' for partials under linkedom.)
+  return dom.serialize();
 }
 
 /**
