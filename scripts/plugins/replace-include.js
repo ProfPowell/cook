@@ -56,8 +56,8 @@ class ReplaceInclude {
     if (!allowed) return;
 
     // Early Exit: No includes in source
-    if (!this.file.src.includes('data-include') &&
-        !this.file.src.includes('<include-file')) return;
+    // \binclude=" matches both include="..." and data-include="..."
+    if (!/\binclude="|<include-file/i.test(this.file.src)) return;
 
     // START LOGGING
     this.startLog();
@@ -70,9 +70,10 @@ class ReplaceInclude {
       changed = false;
 
       // Match <include-file src="/path"></include-file>
+      // (src may appear after other attributes: <include-file lazy src="...">)
       this.file.src = await this.replacePattern(
         this.file.src,
-        /<include-file\s+src="([^"]+)"[^>]*><\/include-file>/gi,
+        /<include-file\b[^>]*\bsrc="([^"]+)"[^>]*><\/include-file>/gi,
         (match, srcPath) => srcPath,
         () => { changed = true; }
       );
@@ -127,9 +128,18 @@ class ReplaceInclude {
     for (let i = matches.length - 1; i >= 0; i--) {
       const match = matches[i];
       const filePath = pathExtractor(...match);
-      const content = await this.getIncludeContent(filePath);
+      let content;
+      try {
+        content = await this.getIncludeContent(filePath);
+        this.total++;
+      } catch (err) {
+        // A missing include must not abort the build: warn with the
+        // referencing page, and replace the marker with a diagnostic
+        // comment (leaving the raw marker would re-match forever).
+        console.warn(chalk.yellow(`  [include] Not found: "${filePath}" referenced in ${this.file.path}`));
+        content = `<!-- cook:include-not-found ${filePath} -->`;
+      }
       src = src.substring(0, match.index) + content + src.substring(match.index + match[0].length);
-      this.total++;
       onReplace();
     }
     return src;
@@ -206,23 +216,28 @@ class ReplaceInclude {
   async fetchIncludeSrc(path) {
     // Store raw path
     let formattedIncludePath = path;
-    // Format the path before doing a file lookup, in case the user added a malformed path
-    const hasExtension = !!path.match(/.html/g);
+    // Format the path before doing a file lookup, in case the user added
+    // a malformed path. Only a literal trailing `.html` counts — the old
+    // unescaped /.html/ matched any "html" substring in the path
+    // (e.g. a directory named html-partials).
+    const hasExtension = /\.html$/i.test(path);
     // Include files are read from src/ where they are in their original form
     // (not directory-converted), so just add .html if missing
     if (!hasExtension) formattedIncludePath = `${path}.html`;
-    // Get and return content of target include file
-    try {
-      // Get source from file
-      const fetchedSrc = await fs.readFile(formattedIncludePath, 'utf-8');
-      // Add entry to cached object store
-      this.store.cachedIncludes[path] = fetchedSrc;
-      // Return source
-      return fetchedSrc;
+    // The cache may be keyed by the formatted path (prior fetch or pre-seed)
+    const cached = this.store.cachedIncludes[formattedIncludePath];
+    if (cached !== undefined && cached !== null) {
+      this.store.cachedIncludes[path] = cached;
+      return cached;
     }
-    catch (err) {
-      Util.customKill(`fetchInlineSrc(): ${err}`);
-    }
+    // Get and return content of target include file.
+    // Read errors propagate to replacePattern, which warns with the
+    // referencing page and keeps the build alive.
+    const fetchedSrc = await fs.readFile(formattedIncludePath, 'utf-8');
+    // Add entry to cached object store
+    this.store.cachedIncludes[path] = fetchedSrc;
+    // Return source
+    return fetchedSrc;
   }
 
 
