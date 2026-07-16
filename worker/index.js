@@ -32,15 +32,24 @@ export default {
       );
 
       if (rewrittenResponse.ok) {
-        return addVaryHeader(rewrittenResponse, format);
+        return addVaryHeader(rewrittenResponse, format, true);
       }
     }
 
     // Serve the original static file from Pages
     const staticResponse = await env.ASSETS.fetch(request);
 
+    // Pass through redirects (e.g. 301/308 slash normalization from the
+    // static asset layer) — .ok is 2xx-only and previously turned these
+    // into 404 pages.
+    if (isRedirect(staticResponse.status)) {
+      return staticResponse;
+    }
+
     if (staticResponse.ok) {
-      return addVaryHeader(staticResponse, format);
+      // NOTE: this is the ORIGINAL file (negotiated variant didn't exist),
+      // so its own Content-Type must be preserved — not the negotiated one.
+      return addVaryHeader(staticResponse, format, false);
     }
 
     // 404
@@ -134,26 +143,41 @@ function rewritePath(pathname, format) {
 
 
 /**
+ * Whether a status code is an HTTP redirect
+ * @param {number} status
+ * @returns {boolean}
+ */
+function isRedirect(status) {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+/**
  * Add Vary header to response for correct caching
  * @param {Response} response - Original response
  * @param {string} format - Negotiated format
+ * @param {boolean} negotiatedServed - Whether the response body IS the
+ *   negotiated variant. When false (fallback to the original file), the
+ *   response keeps its own Content-Type.
  * @returns {Response} Response with Vary header
  */
-function addVaryHeader(response, format) {
+function addVaryHeader(response, format, negotiatedServed) {
   const headers = new Headers(response.headers);
   headers.set('Vary', 'Accept, X-Requested-With');
 
-  // Set appropriate content type for non-HTML formats
-  switch (format) {
-    case 'markdown':
-      headers.set('Content-Type', 'text/markdown; charset=utf-8');
-      break;
-    case 'json':
-      headers.set('Content-Type', 'application/json; charset=utf-8');
-      break;
-    case 'fragment':
-      headers.set('Content-Type', 'text/html; charset=utf-8');
-      break;
+  // Set appropriate content type for non-HTML formats — only when the
+  // negotiated file was actually found and served
+  if (negotiatedServed) {
+    switch (format) {
+      case 'markdown':
+        headers.set('Content-Type', 'text/markdown; charset=utf-8');
+        break;
+      case 'json':
+        headers.set('Content-Type', 'application/json; charset=utf-8');
+        break;
+      case 'fragment':
+        headers.set('Content-Type', 'text/html; charset=utf-8');
+        break;
+    }
   }
 
   // Cache publicly with stale-while-revalidate
