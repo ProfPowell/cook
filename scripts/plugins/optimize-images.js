@@ -31,8 +31,10 @@ import { distPath, images as imagesConfig } from '../utils/config/config.js';
 // ============================================================================
 
 class OptimizeImagesGenerate {
-  constructor({ store }) {
+  constructor({ store, distPath: distPathOverride, images: imagesOverride }) {
     this.store = store;
+    // Optional per-call overrides (used by tests and custom pipelines)
+    this.distPath = distPathOverride || distPath;
     this.config = {
       enabled: true,
       widths: [320, 640, 960, 1280, 1920],
@@ -42,6 +44,7 @@ class OptimizeImagesGenerate {
       loading: 'lazy',
       cache: '.cache/images',
       ...imagesConfig,
+      ...(imagesOverride || {}),
     };
 
     // Initialize manifest on store
@@ -56,7 +59,7 @@ class OptimizeImagesGenerate {
     Logger.persist.header('\nOptimize Images');
 
     // Find all raster images in dist/
-    const imageFiles = await this.findImages(distPath);
+    const imageFiles = await this.findImages(this.distPath);
 
     if (!imageFiles.length) {
       Logger.persist.success('No images found (skipped)');
@@ -103,7 +106,11 @@ class OptimizeImagesGenerate {
     if (!allPaths) return [];
     return allPaths.filter(p => {
       const ext = path.extname(p).toLowerCase();
-      return rasterExts.includes(ext);
+      if (!rasterExts.includes(ext)) return false;
+      // Skip our own generated derivatives (foo-320w.webp) — rescanning
+      // them produces derivative-of-derivative cascades (foo-320w-320w.avif)
+      if (/-\d+w\.(avif|webp|jpe?g|png)$/i.test(p)) return false;
+      return true;
     });
   }
 
@@ -119,29 +126,34 @@ class OptimizeImagesGenerate {
     const hash = createHash('md5').update(buffer).digest('hex');
 
     // Get relative path from dist for manifest key
-    const relPath = imgPath.replace(`${distPath}/`, '/');
+    const relPath = imgPath.replace(`${this.distPath}/`, '/');
 
-    // Check disk cache
+    // Check disk cache: derivatives are copied back into dist from the
+    // cache directory (dist is wiped every production build, so checking
+    // dist alone made the cache permanently cold).
     if (diskCache[relPath] && diskCache[relPath].hash === hash) {
-      // Verify derivatives still exist
-      const allExist = diskCache[relPath].derivatives.every(d =>
-        existsSync(path.join(distPath, d.path))
-      );
-      if (allExist) {
+      const restored = await this.restoreDerivatives(diskCache[relPath], hash);
+      if (restored) {
         this.store.imageManifest[relPath] = diskCache[relPath];
         return { fromCache: true };
       }
     }
 
-    // Get image metadata
+    // Get image metadata.
+    // Auto-rotation (EXIF orientation) swaps the visible dimensions for
+    // orientations 5-8 (90°/270°) — use the VISUAL size everywhere.
     const metadata = await sharp(buffer).metadata();
-    const srcWidth = metadata.width;
-    const srcHeight = metadata.height;
+    const orientationSwaps = (metadata.orientation || 1) >= 5;
+    const srcWidth = orientationSwaps ? metadata.height : metadata.width;
+    const srcHeight = orientationSwaps ? metadata.width : metadata.height;
 
     // Determine which widths to generate (no upscaling)
     const fittingWidths = this.config.widths.filter(w => w <= srcWidth);
     // If no configured width fits, use the source width for format conversion
     const widths = fittingWidths.length > 0 ? fittingWidths : [srcWidth];
+
+    // Ensure the cache files directory exists before generating
+    await fs.mkdir(path.join(this.config.cache, 'files'), { recursive: true });
 
     const parsed = path.parse(imgPath);
     const baseName = parsed.name;
@@ -168,7 +180,9 @@ class OptimizeImagesGenerate {
         // Calculate proportional height
         const height = Math.round((width / srcWidth) * srcHeight);
 
-        let pipeline = sharp(buffer).resize(width, height, { fit: 'inside', withoutEnlargement: true });
+        // .rotate() with no args applies EXIF orientation and strips the
+        // tag, so portrait phone photos aren't resized sideways
+        let pipeline = sharp(buffer).rotate().resize(width, height, { fit: 'inside', withoutEnlargement: true });
 
         if (format === 'avif') pipeline = pipeline.avif({ quality });
         else if (format === 'webp') pipeline = pipeline.webp({ quality });
@@ -177,8 +191,12 @@ class OptimizeImagesGenerate {
 
         await pipeline.toFile(outPath);
 
+        // Keep a copy in the cache directory so the next build can
+        // restore it without re-encoding (dist gets wiped every build)
+        await fs.copyFile(outPath, this.cacheFilePath(hash, width, outExt));
+
         derivatives.push({
-          path: outPath.replace(`${distPath}`, '').replace(/\\/g, '/'),
+          path: outPath.replace(`${this.distPath}`, '').replace(/\\/g, '/'),
           format,
           width,
           height,
@@ -198,6 +216,36 @@ class OptimizeImagesGenerate {
     diskCache[relPath] = entry;
 
     return { fromCache: false };
+  }
+
+  /**
+   * Path of a cached derivative file for a given source hash + width
+   * @param {string} hash - Source image content hash
+   * @param {number} width - Derivative width
+   * @param {string} ext - Output extension (no dot)
+   * @returns {string}
+   */
+  cacheFilePath(hash, width, ext) {
+    return path.join(this.config.cache, 'files', `${hash}-${width}w.${ext}`);
+  }
+
+  /**
+   * Copy cached derivative files into dist for a cache-hit source image.
+   * @param {Object} entry - Disk cache manifest entry
+   * @param {string} hash - Source image content hash
+   * @returns {boolean} false if any derivative is missing from the cache
+   */
+  async restoreDerivatives(entry, hash) {
+    for (const d of entry.derivatives) {
+      const distFile = path.join(this.distPath, d.path);
+      if (existsSync(distFile)) continue;
+      const ext = path.extname(d.path).slice(1);
+      const cacheFile = this.cacheFilePath(hash, d.width, ext);
+      if (!existsSync(cacheFile)) return false;
+      await fs.mkdir(path.dirname(distFile), { recursive: true });
+      await fs.copyFile(cacheFile, distFile);
+    }
+    return true;
   }
 
 
