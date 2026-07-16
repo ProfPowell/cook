@@ -18,7 +18,6 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { JSDOM } from 'jsdom';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 
@@ -99,7 +98,10 @@ export function splitUrlSuffix(url) {
 export function rewriteHrefs(html, manifest) {
   if (!manifest || Object.keys(manifest).length === 0) return { html, rewrites: 0 };
 
-  const dom = new JSDOM(html);
+  // linkedom round-trips exactly what was parsed: fragments stay
+  // fragments (real JSDOM wrapped them in <html><head><body>, corrupting
+  // _fragment.html files consumed by SPA navigation).
+  const dom = Util.jsdom.dom({ src: html });
   const document = dom.window.document;
   let rewrites = 0;
 
@@ -120,8 +122,14 @@ export function rewriteHrefs(html, manifest) {
   document.querySelectorAll('script[src]').forEach(el => rewriteAttr(el, 'src'));
 
   if (rewrites === 0) return { html, rewrites: 0 };
-  return { html: dom.serialize(), rewrites };
+  return { html: Util.setSrc({ dom }), rewrites };
 }
+
+/**
+ * Matches ES module specifiers: `import x from '...'`, `export ... from '...'`,
+ * side-effect `import '...'`, and dynamic `import('...')`.
+ */
+const SPECIFIER_PATTERN = /((?:\bfrom|\bimport)\s*\(?\s*['"])([^'"]+)(['"])/g;
 
 
 // ============================================================================
@@ -129,7 +137,9 @@ export function rewriteHrefs(html, manifest) {
 // ============================================================================
 
 class FingerprintAssets {
-  constructor() {
+  constructor(opts = {}) {
+    // Optional per-call overrides (used by tests and custom pipelines)
+    this.distPath = opts.distPath || distPath;
     this.config = {
       enabled: false,
       hashLength: 8,
@@ -138,6 +148,7 @@ class FingerprintAssets {
       excludePaths: [],
       manifestPath: 'asset-manifest.json',
       ...fingerprintConfig,
+      ...(opts.fingerprint || {}),
     };
   }
 
@@ -157,7 +168,7 @@ class FingerprintAssets {
     const manifest = await this.fingerprintFiles(candidates);
 
     // Phase 2: Rewrite HTML references
-    const htmlFiles = (Util.getPaths(distPath, distPath, []) || [])
+    const htmlFiles = (Util.getPaths(this.distPath, this.distPath, []) || [])
       .filter(p => p.endsWith('.html'));
     let totalRewrites = 0;
     for (const htmlPath of htmlFiles) {
@@ -170,7 +181,7 @@ class FingerprintAssets {
     }
 
     // Phase 3: Write manifest
-    const manifestFsPath = path.join(distPath, this.config.manifestPath);
+    const manifestFsPath = path.join(this.distPath, this.config.manifestPath);
     await fs.writeFile(manifestFsPath, JSON.stringify(manifest, null, 2), 'utf-8');
 
     Logger.persist.success(
@@ -183,7 +194,7 @@ class FingerprintAssets {
    * Returns absolute paths.
    */
   async findCandidates() {
-    const all = Util.getPaths(distPath, distPath, []) || [];
+    const all = Util.getPaths(this.distPath, this.distPath, []) || [];
     const excludes = this.config.excludePaths.map(p => (p instanceof RegExp ? p : new RegExp(p)));
     return all.filter(p => {
       // Skip source maps in the candidate list — handled alongside their source.
@@ -203,8 +214,31 @@ class FingerprintAssets {
   async fingerprintFiles(candidates) {
     const manifest = {};
 
-    for (const absPath of candidates) {
-      const buffer = await fs.readFile(absPath);
+    // Read all candidates up front so we can order JS files by their
+    // import graph: a dependency must be hashed before its importers,
+    // because the importer's content embeds the dependency's hashed name.
+    // Otherwise an importer keeps its old hash when a dependency changes,
+    // and immutable caching serves a stale importer pointing at a dead file.
+    const contents = new Map();
+    for (const p of candidates) contents.set(p, await fs.readFile(p));
+    const ordered = this.orderByDependencies(candidates, contents);
+
+    for (const absPath of ordered) {
+      let buffer = contents.get(absPath);
+      let contentChanged = false;
+
+      // Rewrite import specifiers of already-fingerprinted dependencies
+      // BEFORE hashing, so this file's hash reflects theirs
+      if (absPath.endsWith('.js')) {
+        const { code, changed } = this.rewriteImportSpecifiers(
+          buffer.toString('utf-8'), absPath, manifest
+        );
+        if (changed) {
+          buffer = Buffer.from(code, 'utf-8');
+          contentChanged = true;
+        }
+      }
+
       const hash = computeHash(buffer, this.config.hashLength, this.config.algorithm);
 
       const dir = path.dirname(absPath);
@@ -224,6 +258,7 @@ class FingerprintAssets {
         await fs.rename(mapAbs, mapNewAbs);
         // Patch sourceMappingURL comment to point at the new map name
         const text = buffer.toString('utf-8');
+        contentChanged = false; // superseded by updatedContent below
         updatedContent = text.replace(
           /(sourceMappingURL=)([^\s*'"]+)/,
           (_, prefix) => `${prefix}${mapNewName}`
@@ -235,23 +270,108 @@ class FingerprintAssets {
       if (updatedContent !== null) {
         await fs.writeFile(newAbs, updatedContent, 'utf-8');
         await fs.unlink(absPath);
+      } else if (contentChanged) {
+        // Import specifiers were rewritten — write the updated content
+        await fs.writeFile(newAbs, buffer);
+        await fs.unlink(absPath);
       } else {
         await fs.rename(absPath, newAbs);
       }
 
       // Build manifest keys as web paths starting with `/`
-      const relOriginal = '/' + path.relative(distPath, absPath).split(path.sep).join('/');
-      const relNew = '/' + path.relative(distPath, newAbs).split(path.sep).join('/');
+      const relOriginal = '/' + path.relative(this.distPath, absPath).split(path.sep).join('/');
+      const relNew = '/' + path.relative(this.distPath, newAbs).split(path.sep).join('/');
       manifest[relOriginal] = relNew;
 
       if (mapNewName) {
-        const relMapOriginal = '/' + path.relative(distPath, mapAbs).split(path.sep).join('/');
-        const relMapNew = '/' + path.relative(distPath, path.join(dir, mapNewName)).split(path.sep).join('/');
+        const relMapOriginal = '/' + path.relative(this.distPath, mapAbs).split(path.sep).join('/');
+        const relMapNew = '/' + path.relative(this.distPath, path.join(dir, mapNewName)).split(path.sep).join('/');
         manifest[relMapOriginal] = relMapNew;
       }
     }
 
     return manifest;
+  }
+
+  /**
+   * Resolve an import specifier to a manifest key (absolute-from-dist web
+   * path), or null when it can't be fingerprinted (external URL, bare
+   * package specifier).
+   * @param {string} spec - Raw specifier from the source
+   * @param {string} absPath - File the specifier appears in
+   * @returns {string|null}
+   */
+  resolveSpecifierKey(spec, absPath) {
+    if (isExternalRef(spec)) return null;
+    const clean = splitUrlSuffix(spec).path;
+    if (clean.startsWith('/')) return clean;
+    if (clean.startsWith('./') || clean.startsWith('../')) {
+      const dirRel = path.dirname(path.relative(this.distPath, absPath));
+      const joined = path.normalize(path.join(dirRel, clean));
+      return '/' + joined.split(path.sep).join('/');
+    }
+    // Bare specifier (npm package / import map) — leave alone
+    return null;
+  }
+
+  /**
+   * Rewrite import/export/dynamic-import specifiers whose targets exist in
+   * the manifest. Fingerprinting only changes the basename, so the
+   * specifier's directory part is preserved as written.
+   * @param {string} code
+   * @param {string} absPath - File the code came from
+   * @param {Object} manifest
+   * @returns {{ code: string, changed: boolean }}
+   */
+  rewriteImportSpecifiers(code, absPath, manifest) {
+    let changed = false;
+    const out = code.replace(SPECIFIER_PATTERN, (match, pre, spec, post) => {
+      const key = this.resolveSpecifierKey(spec, absPath);
+      if (!key || !manifest[key]) return match;
+      const newBase = path.basename(manifest[key]);
+      const slashIdx = spec.lastIndexOf('/');
+      const newSpec = slashIdx === -1 ? newBase : spec.slice(0, slashIdx + 1) + newBase;
+      changed = true;
+      return `${pre}${newSpec}${post}`;
+    });
+    return { code: out, changed };
+  }
+
+  /**
+   * Order candidates so JS dependencies precede their importers
+   * (depth-first topological sort, cycle-tolerant).
+   * @param {string[]} candidates - Absolute paths
+   * @param {Map<string,Buffer>} contents
+   * @returns {string[]}
+   */
+  orderByDependencies(candidates, contents) {
+    const keyOf = p => '/' + path.relative(this.distPath, p).split(path.sep).join('/');
+    const byKey = new Map(candidates.map(p => [keyOf(p), p]));
+
+    const deps = new Map();
+    for (const p of candidates) {
+      const set = new Set();
+      if (p.endsWith('.js')) {
+        const code = contents.get(p).toString('utf-8');
+        for (const m of code.matchAll(SPECIFIER_PATTERN)) {
+          const key = this.resolveSpecifierKey(m[2], p);
+          const target = key && byKey.get(key);
+          if (target && target !== p) set.add(target);
+        }
+      }
+      deps.set(p, set);
+    }
+
+    const ordered = [];
+    const state = new Map();
+    const visit = (p) => {
+      if (state.has(p)) return;
+      state.set(p, true);
+      for (const d of deps.get(p)) visit(d);
+      ordered.push(p);
+    };
+    for (const p of candidates) visit(p);
+    return ordered;
   }
 
 
