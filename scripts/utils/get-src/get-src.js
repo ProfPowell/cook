@@ -106,11 +106,6 @@ async function getSrcConfig({fileName, excludeSrc = false }) {
   // Get and read the file to store its page source
   else file.src = await fs.readFile(fileName, 'utf-8');
 
-  // REMOVE COMMENTS
-  // Sanitize comments that have non-closing html elements in them. JSDOM will try to close it in the DOM
-  // but since there is no starting tag (it's in the comment) it will break the dom
-  file.src = removeCommentTags(file.src);
-
   // Return file info
   return file;
 }
@@ -186,25 +181,6 @@ async function getSrcImages(cb) {
   if (cb) cb(images);
 }
 
-
-// HELPER METHODS
-// -----------------------------
-
-/**
- * @description Remove < and > from comments since non-closed tags
- * will have the matching end tag added
- */
-function removeCommentTags(src) {
-  const commentsRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm;
-  const matches = src.match(commentsRegex);
-  if (!matches) return src;
-  let replaces;
-  matches.forEach(m => {
-    replaces = m.replace('<', '').replace('>', '');
-    src = src.replace(m, replaces);
-  });
-  return src;
-}
 
 // HELPER METHODS
 // -----------------------------
