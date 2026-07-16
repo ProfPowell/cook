@@ -1,7 +1,6 @@
 // IMPORTS
 // ----------------------------------
 import fs from 'node:fs';
-import merge from 'lodash.merge';
 import { pathToFileURL } from 'node:url';
 
 const cwd = process.cwd();
@@ -251,10 +250,35 @@ const defaultConfig = {
 
 // COMBINE CONFIGS
 // -----------------------------
-// NOTE: Using Lodash `merge` instead of `Object.assign` because,
-// there will be child objects and arrays, which would override
-// instead of combine with the default versions.
-const config = merge({}, defaultConfig, userConfig);
+
+/**
+ * Deep-merge user config over defaults.
+ * - Plain objects merge recursively (untouched default keys survive)
+ * - Arrays REPLACE the default wholesale — the user's list is exactly
+ *   what they wrote. (lodash.merge blended arrays index-by-index:
+ *   `formats: ['webp']` became ['webp','webp'], user excludePaths
+ *   silently deleted defaults, and arrays could never shrink.)
+ * - Everything else (scalars, RegExp, Date, functions) is assigned
+ * @param {Object} target - Mutated and returned
+ * @param {Object} source - User overrides
+ * @returns {Object}
+ */
+export function mergeConfigs(target, source) {
+  for (const key of Object.keys(source)) {
+    const sourceVal = source[key];
+    const targetVal = target[key];
+    const isPlainObject = (v) => v !== null && typeof v === 'object'
+      && !Array.isArray(v) && !(v instanceof RegExp) && !(v instanceof Date);
+    if (isPlainObject(sourceVal) && isPlainObject(targetVal)) {
+      mergeConfigs(targetVal, sourceVal);
+    } else {
+      target[key] = sourceVal;
+    }
+  }
+  return target;
+}
+
+const config = mergeConfigs(defaultConfig, userConfig);
 
 
 
