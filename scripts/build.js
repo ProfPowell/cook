@@ -25,7 +25,7 @@ import processMarkdown from './plugins/process-markdown.js';
 import repeatCollection from './plugins/repeat-collection.js';
 import replaceComponents from './plugins/replace-components.js';
 import applyTemplate from './plugins/apply-template.js';
-import escapeCodeBlocks from './plugins/escape-code-blocks.js';
+import escapeCodeBlocks, { restoreCodeBlocks } from './plugins/escape-code-blocks.js';
 import prerenderCodeBlocks from './plugins/prerender-code-blocks.js';
 import processHtmlFrontmatter from './plugins/process-html-frontmatter.js';
 import replaceInclude from './plugins/replace-include.js';
@@ -169,14 +169,8 @@ class Build {
       await minifySrc({file, disallowType: ['.json', '.webmanifest']});
 
       // Restore base64-encoded code-block content from escape-code-blocks plugin.
-      // Must run LAST — after all JSDOM-based plugins have finished processing.
-      if (file.src.includes('data-cook-esc')) {
-        file.src = file.src.replace(/<code-block([^>]*) data-cook-esc="([^"]+)"([^>]*)><\/code-block>/g,
-          (_, before, b64, after) => {
-            const decoded = Buffer.from(b64, 'base64').toString('utf-8');
-            return `<code-block${before}${after}>${decoded}</code-block>`;
-          });
-      }
+      // Must run LAST — after all DOM-based plugins have finished processing.
+      file.src = restoreCodeBlocks(file.src);
 
       // PLUGIN: Pre-render <code-block> with Declarative Shadow DOM
       // Runs after restore — code-block content is decoded and ready for highlighting.
