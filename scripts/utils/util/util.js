@@ -685,8 +685,12 @@ async function updatePage(file) {
 function validatePageChange() {
   // Page was changed when using localhost BrowserSync live reloading (`npm run dev`)
   const changedDevPage = process.env.DEV_CHANGED_PAGE;
-  // Was the changed page an include file?
-  const isInclude = changedDevPage && !!changedDevPage.match(/\/(include)|(template)/);
-  // Return true (valid) if it was a page change AND it wasn't an include file
-  return changedDevPage && !isInclude;
+  // Build-only files (includes, templates/layouts, components) are baked
+  // into other pages, so changing one must force a FULL rebuild — the
+  // single-page fast path would copy the file into dist and leave every
+  // dependent page stale. Match whole directory segments only: a PAGE
+  // named template-strings-demo.html is still a fast-path page change.
+  const isBuildOnly = changedDevPage && /\/(includes?|templates?|components?|layouts?)\//.test(changedDevPage);
+  // Return true (valid) if it was a page change AND it wasn't a build-only file
+  return changedDevPage && !isBuildOnly;
 }

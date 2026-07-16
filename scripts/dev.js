@@ -101,17 +101,25 @@ browserSync.emitter.on('init', () => {
 // Watch changes to `/src` files and run the build process to copy
 // to `/dist` equivalent. This way we can run livereload on `/dist` to
 // view replaced includes, and to avoid mutating `/src` files directly.
-watchFiles.forEach(path => {
+watchFiles.forEach(watchPath => {
   // Watch `/src` files for changes
-  browserSync.watch(`${srcPath}${path}`).on('change', file => {
-    // Store the changed file as an environment variable.
-    // Then when we run the build process below,
-    // we'll use this now-defined variable to dictate
-    // whether the whole build process is run, or just against
-    // this changed file.
-    process.env.DEV_CHANGED_PAGE = file;
-    // Run the build process
-    execSync(`NODE_ENV=development node "${buildScript}"`, {stdio: 'inherit'});
+  browserSync.watch(`${srcPath}${watchPath}`).on('change', file => {
+    // Run the build process.
+    // - DEV_CHANGED_PAGE tells the child build whether to run the whole
+    //   pipeline or just this changed file (see validatePageChange)
+    // - env is passed via the `env` option (inline VAR=x prefixes are
+    //   POSIX-only and broke Windows dev entirely)
+    // - a failed rebuild must NOT throw inside this handler: an uncaught
+    //   exception here killed the whole dev server on any build error
+    try {
+      execSync(`node "${buildScript}"`, {
+        stdio: 'inherit',
+        env: { ...process.env, NODE_ENV: 'development', DEV_CHANGED_PAGE: file },
+      });
+    } catch (err) {
+      console.error(chalk.red(`\n[dev] Rebuild failed for ${file} — fix the error and save again.`));
+      return;
+    }
     // Reload changed page
     const fileDist = file.replace(`${srcPath}/`, `${distPath}/`);
     browserSync.reload(fileDist);
