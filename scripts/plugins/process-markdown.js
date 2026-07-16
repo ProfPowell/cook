@@ -227,15 +227,16 @@ class ProcessMarkdown {
       return this.buildBasicHtml(pageData);
     }
 
-    // Replace template variables in layout
-    let html = layoutContent;
-
-    // Replace ${content} with the markdown-converted HTML
-    html = html.replace(/\$\{content\}/g, pageData.content);
-
-    // Replace other ${variable} placeholders with page data
-    html = html.replace(/\$\{([^}]+)\}/g, (match, key) => {
+    // Replace template variables in a single pass over the LAYOUT only.
+    // Every insertion goes through the callback: callback returns are
+    // inserted literally (no $-pattern semantics) and never rescanned,
+    // so markdown content — which legitimately contains ${...} and
+    // $-patterns in code samples — is never scanned for substitution.
+    return layoutContent.replace(/\$\{([^}]+)\}/g, (match, key) => {
       const trimmedKey = key.trim();
+
+      // ${content} is the markdown-converted HTML
+      if (trimmedKey === 'content') return pageData.content ?? '';
 
       // Check page data first
       if (pageData[trimmedKey] !== undefined) {
@@ -250,8 +251,6 @@ class ProcessMarkdown {
       // Leave unmatched placeholders as-is (for later processing)
       return match;
     });
-
-    return html;
   }
 
   /**
@@ -382,3 +381,5 @@ ${pageData.content}
 // EXPORT
 // -----------------------------
 export default ProcessMarkdown.export;
+// Named export for testing
+export { ProcessMarkdown };

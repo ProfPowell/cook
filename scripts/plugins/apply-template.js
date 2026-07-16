@@ -192,24 +192,20 @@ class ApplyTemplate {
    * @returns {string} Merged HTML
    */
   applyTemplate(template, pageData) {
-    let html = template;
-
-    // Replace ${content} first
-    html = html.replace(/\$\{content\}/g, pageData.content || '');
-
-    // Replace other ${var} placeholders with page data
-    // Leave unmatched ones for later processing (e.g., ${siteTitle} resolved by replaceTemplateStrings)
-    // Exception: unmatched ${slot:...} placeholders are removed (no content provided for that slot)
-    html = html.replace(/\$\{([^}]+)\}/g, (match, key) => {
+    // Single pass over the LAYOUT only, every insertion via callback.
+    // Callback returns are inserted literally (no $-pattern semantics)
+    // and String.replace never rescans replacements, so page content —
+    // which legitimately contains ${...} and $-patterns in code samples —
+    // is never scanned for substitution.
+    // Unmatched ${var} placeholders are left for replaceTemplateStrings;
+    // unfilled ${slot:...} placeholders are removed.
+    return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
       const trimmedKey = key.trim();
-      if (trimmedKey === 'content') return match; // Already replaced
+      if (trimmedKey === 'content') return pageData.content || '';
       if (pageData[trimmedKey] !== undefined) return pageData[trimmedKey];
-      // Remove unfilled slot placeholders rather than leaving them in output
       if (trimmedKey.startsWith('slot:')) return '';
       return match;
     });
-
-    return html;
   }
 
 
