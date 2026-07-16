@@ -2,8 +2,6 @@
 // -----------------------------
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import { existsSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
 
 // UTILS
 import Util, { runFileLoop, updatePage } from './utils/util/util.js';
@@ -60,15 +58,9 @@ const store = {
 // Get user's data config object. We pass it into plugins (when necessary)
 // so that additional data can be added to it from plugins instead of needing
 // to manually define everything from the start in `/config/data.js`
-// Note: We init as empty object if user didn't create a `data.js` config file
-const userDataPath = `${cwd}/config/data.js`;
-const userDataPathExists = existsSync(userDataPath);
-let data = {};
-if (userDataPathExists) {
-  const dataModule = await import(pathToFileURL(userDataPath));
-  const exported = dataModule.default || dataModule;
-  data = typeof exported === 'function' ? await exported() : exported;
-}
+// Note: Loaded via the shared user-data module so every consumer
+// (including get-src's getDynamicFiles) sees the SAME instance.
+import data from './utils/user-data/user-data.js';
 
 
 // BUILD

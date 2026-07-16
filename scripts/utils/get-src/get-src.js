@@ -6,25 +6,17 @@
 // IMPORTS
 // -----------------------------
 import fs from 'node:fs/promises';
-import { pathToFileURL } from 'node:url';
-import { existsSync } from 'node:fs';
 import Logger from '../logger/logger.js';
 import Util from '../util/util.js';
 
 // CONFIG
 import { includePaths, excludePaths, distPath, srcPath } from '../config/config.js';
 
-const cwd = process.cwd();
-
 // DATA STORE
-const userDataPath = `${cwd}/config/data.js`;
-const userDataPathExists = existsSync(userDataPath);
-let data = {};
-if (userDataPathExists) {
-  const dataModule = await import(pathToFileURL(userDataPath));
-  const exported = dataModule.default || dataModule;
-  data = typeof exported === 'function' ? await exported() : exported;
-}
+// Shared singleton — the SAME instance build.js passes to plugins, so
+// dynamic pages they add are visible here (a second independent load
+// would silently drop them when data.js exports a function)
+import data from '../user-data/user-data.js';
 
 
 // EXPORT
