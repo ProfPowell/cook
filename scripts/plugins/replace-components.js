@@ -113,6 +113,9 @@ class ReplaceComponents {
    */
   findComponents(document) {
     const components = [];
+    // Each element is processed at most once — a hyphenated tag that ALSO
+    // carries data-component must not be expanded twice.
+    const seen = new Set();
 
     // 1. Find custom elements (hyphenated tag names)
     // Custom elements must contain a hyphen per spec
@@ -122,6 +125,7 @@ class ReplaceComponents {
 
       // Custom element (contains hyphen)
       if (tagName.includes('-')) {
+        seen.add(el);
         components.push({
           element: el,
           type: 'custom-element',
@@ -134,6 +138,7 @@ class ReplaceComponents {
     // 2. Find elements with data-component attribute
     const dataComponents = document.querySelectorAll('[data-component]');
     for (const el of dataComponents) {
+      if (seen.has(el)) continue;
       const componentAttr = el.getAttribute('data-component');
       if (componentAttr) {
         components.push({
@@ -223,6 +228,14 @@ class ReplaceComponents {
    * @param {string} componentName - Component template filename
    */
   renderDsdComponent(element, template, name, componentName) {
+    // Idempotency: if the element already carries a declarative shadow
+    // template (already-processed output, e.g. a dev rebuild), skip it.
+    const hasShadowTemplate = Array.from(element.children).some(child =>
+      child.tagName && child.tagName.toLowerCase() === 'template'
+      && child.hasAttribute('shadowrootmode')
+    );
+    if (hasShadowTemplate) return;
+
     // Extract the <template shadowrootmode="..."> content via regex
     // (avoids JSDOM template parsing quirks with document fragments)
     const shadowMatch = template.match(
@@ -286,11 +299,17 @@ class ReplaceComponents {
     // Replace template variables with data (style-free HTML only)
     const renderedContent = this.renderTemplate(htmlTemplate, mergedData);
 
+    // Remember the element's current next sibling so we can tell whether
+    // the rendered content actually starts with an element — if it starts
+    // with text, nextElementSibling would point at a pre-existing sibling
+    // that must NOT receive the component's attributes.
+    const priorNextEl = element.nextElementSibling;
+
     // Insert rendered content and remove original element
     element.insertAdjacentHTML('afterend', renderedContent);
 
     // Transfer non-data attributes to the first valid replaced element
-    this.transferAttributes(element, type);
+    this.transferAttributes(element, type, priorNextEl);
 
     // Remove the original component element
     element.remove();
@@ -349,7 +368,12 @@ class ReplaceComponents {
 
     for (const attr of element.attributes) {
       const name = attr.name;
-      const value = attr.value;
+      // Attribute values arrive DOM-decoded (&quot; → ", &lt; → <) but are
+      // re-injected into template HTML via insertAdjacentHTML. Re-escape
+      // them so quotes can't truncate attributes and encoded markup can't
+      // become live elements. (Slot content is real HTML and is NOT
+      // escaped — see extractSlots.)
+      const value = this.escapeHtml(attr.value);
 
       // Skip data-component attribute itself
       if (name === 'data-component') continue;
@@ -370,6 +394,19 @@ class ReplaceComponents {
     data.tagName = element.tagName.toLowerCase();
 
     return data;
+  }
+
+  /**
+   * Escape HTML-special characters for safe re-injection into template HTML.
+   * @param {string} str - Raw (DOM-decoded) attribute value
+   * @returns {string}
+   */
+  escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   /**
@@ -509,9 +546,12 @@ class ReplaceComponents {
    * @param {Element} originalElement - The original component element
    * @param {string} type - Component type
    */
-  transferAttributes(originalElement, type) {
+  transferAttributes(originalElement, type, priorNextEl) {
     const nextEl = originalElement.nextElementSibling;
     if (!nextEl) return;
+    // Rendered content did not start with an element (text-only template):
+    // nextElementSibling is a pre-existing sibling — don't touch it.
+    if (nextEl === priorNextEl) return;
 
     // Attributes to skip
     const skipAttrs = ['data-component'];
