@@ -1,63 +1,38 @@
 /**
  * @file apply-template.test.js
- * @description Tests for the data-template HTML page layout system
+ * @description Tests the REAL apply-template plugin
+ * (scripts/plugins/apply-template.js) for the data-template HTML page
+ * layout system: template discovery, page-data extraction, and merge.
+ *
+ * Layouts are seeded into store.cachedLayouts so no disk I/O happens.
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
+import applyTemplate from '../scripts/plugins/apply-template.js';
+
 // ---------------------------------------------------------------------------
-// Replicate the core logic from apply-template.js for isolated testing
+// Helpers
 // ---------------------------------------------------------------------------
 
-function findTemplateName(src) {
-  const match = src.match(/<(?:html|body)\s[^>]*data-template="([^"]+)"/i);
-  return match ? match[1] : null;
+const DEFAULT_LAYOUT = `<!doctype html>
+<html lang="en">
+<head><title>\${title}</title><meta name="description" content="\${description}"></head>
+<body>
+<main>\${content}</main>
+</body>
+</html>`;
+
+function makeFile(src) {
+  return { ext: 'html', path: 'dist/index.html', name: 'index', src };
 }
 
-function extractPageData(src) {
-  const data = {};
-
-  const titleMatch = src.match(/<title>([^<]*)<\/title>/i);
-  if (titleMatch) data.title = titleMatch[1];
-
-  const descMatch = src.match(/<meta\s+name="description"\s+content="([^"]*)"/i);
-  if (descMatch) data.description = descMatch[1];
-
-  const templateElMatch = src.match(/<(?:html|body)\s([^>]*data-template="[^"]*"[^>]*)>/i);
-  if (templateElMatch) {
-    const attrs = templateElMatch[1];
-    const attrPattern = /data-(?!template)([a-z][a-z0-9-]*)="([^"]*)"/gi;
-    let attrMatch;
-    while ((attrMatch = attrPattern.exec(attrs)) !== null) {
-      const key = attrMatch[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-      data[key] = attrMatch[2];
-    }
-  }
-
-  const mainMatch = src.match(/<main[^>]*>([\s\S]*)<\/main>/i);
-  if (mainMatch) {
-    data.content = mainMatch[1].trim();
-  } else {
-    const bodyMatch = src.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-    if (bodyMatch) {
-      data.content = bodyMatch[1].trim();
-    }
-  }
-
-  return data;
-}
-
-function applyTemplate(template, pageData) {
-  let html = template;
-  html = html.replace(/\$\{content\}/g, pageData.content || '');
-  html = html.replace(/\$\{([^}]+)\}/g, (match, key) => {
-    const trimmedKey = key.trim();
-    if (trimmedKey === 'content') return match;
-    if (pageData[trimmedKey] !== undefined) return pageData[trimmedKey];
-    return match;
-  });
-  return html;
+/** Run the real plugin against a page source with the given layouts. */
+async function run(src, layouts = { default: DEFAULT_LAYOUT }) {
+  const file = makeFile(src);
+  await applyTemplate({ file, store: { cachedLayouts: layouts }, allowType: ['.html'] });
+  return file;
 }
 
 // ============================================================================
@@ -66,170 +41,191 @@ function applyTemplate(template, pageData) {
 
 describe('Apply Template Plugin', () => {
 
-  describe('findTemplateName', () => {
+  describe('template discovery (data-template)', () => {
 
-    it('should find data-template on <html>', () => {
-      const src = '<html data-template="default" lang="en"><head></head><body></body></html>';
-      assert.strictEqual(findTemplateName(src), 'default');
+    it('should find and apply data-template on <html>', async () => {
+      const file = await run(
+        '<html data-template="default" lang="en"><head><title>My Page</title></head><body><main><p>Content</p></main></body></html>'
+      );
+      assert.ok(file.src.includes('<!doctype html>'), 'layout applied');
+      assert.ok(file.src.includes('<title>My Page</title>'));
+      assert.ok(file.src.includes('<main><p>Content</p></main>'));
     });
 
-    it('should find data-template on <body>', () => {
-      const src = '<html><head></head><body data-template="product"></body></html>';
-      assert.strictEqual(findTemplateName(src), 'product');
+    it('should find and apply data-template on <body>', async () => {
+      const layouts = { product: '<div id="product-layout">${content}</div>' };
+      const file = await run(
+        '<html><head><title>P</title></head><body data-template="product"><main><p>Prod</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('id="product-layout"'));
+      assert.ok(file.src.includes('<p>Prod</p>'));
     });
 
-    it('should return null when no data-template exists', () => {
-      const src = '<html lang="en"><head></head><body></body></html>';
-      assert.strictEqual(findTemplateName(src), null);
+    it('should leave the page unchanged when no data-template exists', async () => {
+      const src = '<html lang="en"><head><title>Normal</title></head><body><main><p>Regular page</p></main></body></html>';
+      const file = await run(src);
+      assert.strictEqual(file.src, src);
     });
 
-    it('should handle data-template with other attributes around it', () => {
-      const src = '<html lang="en" data-template="default" class="no-js"><head></head><body></body></html>';
-      assert.strictEqual(findTemplateName(src), 'default');
+    it('should handle data-template with other attributes around it', async () => {
+      const file = await run(
+        '<html lang="en" data-template="default" class="no-js"><head><title>T</title></head><body><main><p>C</p></main></body></html>'
+      );
+      assert.ok(file.src.includes('<!doctype html>'));
+      assert.ok(file.src.includes('<title>T</title>'));
     });
 
-    it('should be case-insensitive for tag names', () => {
-      const src = '<HTML data-template="default"><HEAD></HEAD><BODY></BODY></HTML>';
-      assert.strictEqual(findTemplateName(src), 'default');
-    });
-  });
-
-  describe('extractPageData', () => {
-
-    it('should extract title from <head>', () => {
-      const src = `<html data-template="default">
-<head><title>My Page</title></head>
-<body><main><p>Content</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.title, 'My Page');
+    it('should be case-insensitive for tag names', async () => {
+      const file = await run(
+        '<HTML data-template="default"><HEAD><title>Caps</title></HEAD><BODY><main><p>C</p></main></BODY></HTML>'
+      );
+      assert.ok(file.src.includes('<!doctype html>'));
+      assert.ok(file.src.includes('<title>Caps</title>'));
     });
 
-    it('should extract meta description', () => {
-      const src = `<html data-template="default">
-<head><meta name="description" content="Page description"></head>
-<body><main><p>Content</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.description, 'Page description');
-    });
-
-    it('should extract content from <main>', () => {
-      const src = `<html data-template="default">
-<head><title>Test</title></head>
-<body><main><h1>Hello</h1><p>World</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.content, '<h1>Hello</h1><p>World</p>');
-    });
-
-    it('should fall back to <body> content when no <main>', () => {
-      const src = `<html data-template="default">
-<head><title>Test</title></head>
-<body><h1>Hello</h1></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.content, '<h1>Hello</h1>');
-    });
-
-    it('should extract custom data-* attributes as template variables', () => {
-      const src = `<html data-template="product" data-price="189" data-category="packs">
-<head><title>Test</title></head>
-<body><main><p>Content</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.price, '189');
-      assert.strictEqual(data.category, 'packs');
-    });
-
-    it('should convert kebab-case data attributes to camelCase', () => {
-      const src = `<html data-template="default" data-product-name="Trail Pack">
-<head><title>Test</title></head>
-<body><main><p>Content</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.productName, 'Trail Pack');
-    });
-
-    it('should not include data-template itself as a variable', () => {
-      const src = `<html data-template="default" data-author="Kim">
-<head><title>Test</title></head>
-<body><main><p>Content</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.template, undefined);
-      assert.strictEqual(data.author, 'Kim');
-    });
-
-    it('should handle title containing template variables', () => {
-      const src = `<html data-template="default">
-<head><title>Products — \${siteTitle}</title></head>
-<body><main><p>Content</p></main></body></html>`;
-      const data = extractPageData(src);
-      assert.strictEqual(data.title, 'Products — ${siteTitle}');
+    it('should leave the page unchanged when template name is not found in cache', async () => {
+      const src = '<html data-template="missing"><head><title>T</title></head><body><main><p>C</p></main></body></html>';
+      // Seed as null (the plugin caches misses as null)
+      const file = await run(src, { missing: null });
+      assert.strictEqual(file.src, src);
     });
   });
 
-  describe('applyTemplate', () => {
+  describe('page data extraction', () => {
 
-    const template = `<!doctype html>
-<html lang="en">
-<head><title>\${title}</title><meta name="description" content="\${description}"></head>
-<body>
-<main>\${content}</main>
-</body>
-</html>`;
-
-    it('should inject content into ${content} slot', () => {
-      const result = applyTemplate(template, {
-        title: 'My Page',
-        description: 'A page',
-        content: '<h1>Hello</h1>',
-      });
-      assert.ok(result.includes('<main><h1>Hello</h1></main>'));
+    it('should extract title from <head> into the layout', async () => {
+      const layouts = { default: '<h1>${title}</h1><main>${content}</main>' };
+      const file = await run(
+        '<html data-template="default"><head><title>My Page</title></head><body><main><p>C</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('<h1>My Page</h1>'));
     });
 
-    it('should replace title and description placeholders', () => {
-      const result = applyTemplate(template, {
-        title: 'My Page',
-        description: 'A page',
-        content: '<p>Hi</p>',
-      });
-      assert.ok(result.includes('<title>My Page</title>'));
-      assert.ok(result.includes('content="A page"'));
+    it('should extract meta description into the layout', async () => {
+      const layouts = { default: '<meta name="description" content="${description}"><main>${content}</main>' };
+      const file = await run(
+        '<html data-template="default"><head><meta name="description" content="Page description"></head><body><main><p>C</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('content="Page description"'));
     });
 
-    it('should leave unmatched placeholders for later processing', () => {
-      const result = applyTemplate(template, {
-        title: 'Test',
-        content: '<p>Hi</p>',
-      });
-      // description was not provided — should remain as ${description}
-      assert.ok(result.includes('${description}'));
+    it('should extract content from <main>', async () => {
+      const layouts = { default: '<main id="out">${content}</main>' };
+      const file = await run(
+        '<html data-template="default"><head><title>Test</title></head><body><main><h1>Hello</h1><p>World</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('<main id="out"><h1>Hello</h1><p>World</p></main>'));
     });
 
-    it('should handle empty content', () => {
-      const result = applyTemplate(template, {
-        title: 'Empty',
-        description: 'Nothing here',
-        content: '',
-      });
-      assert.ok(result.includes('<main></main>'));
+    it('should fall back to <body> content when no <main>', async () => {
+      const layouts = { default: '<main id="out">${content}</main>' };
+      const file = await run(
+        '<html data-template="default"><head><title>Test</title></head><body><h1>Hello</h1></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('<main id="out"><h1>Hello</h1></main>'));
     });
 
-    it('should handle multiple ${content} occurrences', () => {
-      const multiTemplate = '<div>${content}</div><aside>${content}</aside>';
-      const result = applyTemplate(multiTemplate, { content: 'X' });
-      assert.strictEqual(result, '<div>X</div><aside>X</aside>');
+    it('should extract custom data-* attributes as template variables', async () => {
+      const layouts = { default: '<p>Price: ${price}</p><p>Category: ${category}</p><main>${content}</main>' };
+      const file = await run(
+        '<html data-template="default" data-price="189" data-category="packs"><head><title>Test</title></head><body><main><p>C</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('Price: 189'));
+      assert.ok(file.src.includes('Category: packs'));
     });
 
-    it('should pass through custom data-* variables to template', () => {
-      const customTemplate = '<p>Price: ${price}</p>\n${content}';
-      const result = applyTemplate(customTemplate, {
-        price: '$189',
-        content: '<p>Details</p>',
-      });
-      assert.ok(result.includes('Price: $189'));
-      assert.ok(result.includes('<p>Details</p>'));
+    it('should convert kebab-case data attributes to camelCase', async () => {
+      const layouts = { default: '<h2>${productName}</h2><main>${content}</main>' };
+      const file = await run(
+        '<html data-template="default" data-product-name="Trail Pack"><head><title>Test</title></head><body><main><p>C</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('<h2>Trail Pack</h2>'));
+    });
+
+    it('should not include data-template itself as a variable', async () => {
+      const layouts = { default: '<p>${template}</p><p>${author}</p><main>${content}</main>' };
+      const file = await run(
+        '<html data-template="default" data-author="Kim"><head><title>Test</title></head><body><main><p>C</p></main></body></html>',
+        layouts
+      );
+      // ${template} has no value — stays literal for later processing
+      assert.ok(file.src.includes('<p>${template}</p>'));
+      assert.ok(file.src.includes('<p>Kim</p>'));
+    });
+
+    it('should keep template variables inside an extracted title literal', async () => {
+      const layouts = { default: '<title>${title}</title><main>${content}</main>' };
+      const file = await run(
+        '<html data-template="default"><head><title>Products — ${siteTitle}</title></head><body><main><p>C</p></main></body></html>',
+        layouts
+      );
+      // Insertions are literal and never rescanned — ${siteTitle} survives
+      assert.ok(file.src.includes('<title>Products — ${siteTitle}</title>'));
+    });
+  });
+
+  describe('template application', () => {
+
+    it('should inject content into the ${content} slot', async () => {
+      const file = await run(
+        '<html data-template="default"><head><title>My Page</title><meta name="description" content="A page"></head><body><main><h1>Hello</h1></main></body></html>'
+      );
+      assert.ok(file.src.includes('<main><h1>Hello</h1></main>'));
+    });
+
+    it('should replace title and description placeholders', async () => {
+      const file = await run(
+        '<html data-template="default"><head><title>My Page</title><meta name="description" content="A page"></head><body><main><p>Hi</p></main></body></html>'
+      );
+      assert.ok(file.src.includes('<title>My Page</title>'));
+      assert.ok(file.src.includes('content="A page"'));
+    });
+
+    it('should leave unmatched placeholders for later processing', async () => {
+      // Page has no meta description — layout keeps ${description}
+      const file = await run(
+        '<html data-template="default"><head><title>Test</title></head><body><main><p>Hi</p></main></body></html>'
+      );
+      assert.ok(file.src.includes('${description}'));
+    });
+
+    it('should handle empty content', async () => {
+      const file = await run(
+        '<html data-template="default"><head><title>Empty</title><meta name="description" content="Nothing here"></head><body><main></main></body></html>'
+      );
+      assert.ok(file.src.includes('<main></main>'));
+    });
+
+    it('should handle multiple ${content} occurrences', async () => {
+      const layouts = { default: '<div>${content}</div><aside>${content}</aside>' };
+      const file = await run(
+        '<html data-template="default"><head><title>T</title></head><body><main>X</main></body></html>',
+        layouts
+      );
+      assert.strictEqual(file.src, '<div>X</div><aside>X</aside>');
+    });
+
+    it('should insert custom data-* values containing $-patterns literally', async () => {
+      const layouts = { default: '<p>Price: ${price}</p>\n${content}' };
+      const file = await run(
+        '<html data-template="default" data-price="$189"><head><title>T</title></head><body><main><p>Details</p></main></body></html>',
+        layouts
+      );
+      assert.ok(file.src.includes('Price: $189'));
+      assert.ok(file.src.includes('<p>Details</p>'));
     });
   });
 
   describe('End-to-end flow', () => {
 
-    it('should transform a data-template page into a full page', () => {
+    it('should transform a data-template page into a full page', async () => {
       const sourcePage = `<html data-template="default">
 <head>
   <title>About Us — Gear Co</title>
@@ -258,39 +254,28 @@ describe('Apply Template Plugin', () => {
 </body>
 </html>`;
 
-      // Step 1: Find template name
-      const name = findTemplateName(sourcePage);
-      assert.strictEqual(name, 'default');
+      const file = await run(sourcePage, { default: layoutTemplate });
 
-      // Step 2: Extract page data
-      const pageData = extractPageData(sourcePage);
-      assert.strictEqual(pageData.title, 'About Us — Gear Co');
-      assert.strictEqual(pageData.description, 'About our company');
-      assert.ok(pageData.content.includes('<h1>About Us</h1>'));
-
-      // Step 3: Apply template
-      const result = applyTemplate(layoutTemplate, pageData);
-
-      // Verify final output
-      assert.ok(result.includes('<!doctype html>'));
-      assert.ok(result.includes('<title>About Us — Gear Co</title>'));
-      assert.ok(result.includes('content="About our company"'));
-      assert.ok(result.includes('<link rel="stylesheet" href="/styles.css">'));
-      assert.ok(result.includes('<header>Nav</header>'));
-      assert.ok(result.includes('<h1>About Us</h1>'));
-      assert.ok(result.includes('<footer>Footer</footer>'));
+      assert.ok(file.src.includes('<!doctype html>'));
+      assert.ok(file.src.includes('<title>About Us — Gear Co</title>'));
+      assert.ok(file.src.includes('content="About our company"'));
+      assert.ok(file.src.includes('<link rel="stylesheet" href="/styles.css">'));
+      assert.ok(file.src.includes('<header>Nav</header>'));
+      assert.ok(file.src.includes('<h1>About Us</h1>'));
+      assert.ok(file.src.includes('<footer>Footer</footer>'));
+      // The original page wrapper is gone
+      assert.ok(!file.src.includes('data-template'));
     });
 
-    it('should not transform pages without data-template', () => {
+    it('should not transform pages without data-template', async () => {
       const normalPage = `<!doctype html>
 <html lang="en">
 <head><title>Normal</title></head>
 <body><main><p>Regular page</p></main></body>
 </html>`;
 
-      const name = findTemplateName(normalPage);
-      assert.strictEqual(name, null);
-      // Plugin would exit early — page stays unchanged
+      const file = await run(normalPage);
+      assert.strictEqual(file.src, normalPage);
     });
   });
 });

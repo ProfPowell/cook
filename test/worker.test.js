@@ -1,68 +1,15 @@
 /**
  * @file worker.test.js
- * @description Integration tests for Cloudflare Worker routing and content negotiation
+ * @description Tests the REAL Cloudflare Worker (worker/index.js) for
+ * routing and content negotiation. Everything is driven through the
+ * worker's default-export fetch handler with a stubbed env.ASSETS —
+ * no internal helpers are re-implemented.
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
-// ---------------------------------------------------------------------------
-// Import the worker module. Its default export has a `fetch(request, env)`.
-// We also want to test the internal helpers, so we inline them here since
-// they aren't exported.  The integration tests exercise them through the
-// worker's fetch handler.
-// ---------------------------------------------------------------------------
-
-// Re-implement the three internal helpers so we can unit-test them directly.
-// These are intentionally kept as exact copies of worker/index.js.
-
-function negotiateFormat(accept, requestedWith) {
-  if (requestedWith.toLowerCase() === 'htmlstar') return 'fragment';
-  if (accept.includes('text/markdown')) return 'markdown';
-  if (accept.includes('application/json') && !accept.includes('text/html')) return 'json';
-  return 'page';
-}
-
-function rewritePath(pathname, format) {
-  const hasExtension = pathname.split('/').pop().includes('.');
-  const normalizedPath = hasExtension
-    ? pathname
-    : pathname.endsWith('/')
-      ? pathname
-      : pathname + '/';
-  const basePath = normalizedPath.replace(/\/$/, '') || '';
-
-  switch (format) {
-    case 'fragment':
-      return `${basePath}/_fragment.html`;
-    case 'markdown':
-      return `/md${basePath}/index.md`;
-    case 'json':
-      return `/api${basePath || '/index'}.json`;
-    default:
-      return pathname;
-  }
-}
-
-function addVaryHeader(response, format) {
-  const headers = new Headers(response.headers);
-  headers.set('Vary', 'Accept, X-Requested-With');
-  switch (format) {
-    case 'markdown':
-      headers.set('Content-Type', 'text/markdown; charset=utf-8');
-      break;
-    case 'json':
-      headers.set('Content-Type', 'application/json; charset=utf-8');
-      break;
-    case 'fragment':
-      headers.set('Content-Type', 'text/html; charset=utf-8');
-      break;
-  }
-  if (!headers.has('Cache-Control')) {
-    headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-  }
-  return new Response(response.body, { status: response.status, headers });
-}
+import worker from '../worker/index.js';
 
 // ---------------------------------------------------------------------------
 // Helpers for building mock env.ASSETS and requests
@@ -70,16 +17,20 @@ function addVaryHeader(response, format) {
 
 /**
  * Build a mock env.ASSETS that serves from a virtual file map.
- * Keys are pathname strings, values are response body strings.
+ * Keys are pathname strings; values are body strings or
+ * { body, headers } objects. Optionally records fetched pathnames.
  */
-function mockAssets(fileMap) {
+function mockAssets(fileMap, { record } = {}) {
   return {
     ASSETS: {
       async fetch(req) {
         const url = new URL(typeof req === 'string' ? req : req.url);
-        const body = fileMap[url.pathname];
-        if (body !== undefined) {
-          return new Response(body, { status: 200 });
+        if (record) record.push(url.pathname);
+        const entry = fileMap[url.pathname];
+        if (entry !== undefined) {
+          const body = typeof entry === 'string' ? entry : entry.body;
+          const headers = typeof entry === 'string' ? {} : (entry.headers || {});
+          return new Response(body, { status: 200, headers });
         }
         return new Response('Not Found', { status: 404 });
       },
@@ -89,133 +40,237 @@ function mockAssets(fileMap) {
 
 /** Build a Request with optional headers. */
 function makeRequest(pathname, headers = {}) {
-  const h = new Headers(headers);
-  return new Request(`https://example.com${pathname}`, { headers: h });
+  return new Request(`https://example.com${pathname}`, { headers: new Headers(headers) });
 }
-
-// Import the actual worker fetch handler
-const worker = (await import('../worker/index.js')).default;
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-describe('Content Negotiation', () => {
+describe('Content Negotiation (via worker.fetch)', () => {
 
-  describe('negotiateFormat', () => {
-    it('should return fragment for X-Requested-With: htmlstar', () => {
-      assert.strictEqual(negotiateFormat('', 'htmlstar'), 'fragment');
-    });
+  describe('format negotiation', () => {
 
-    it('should be case-insensitive for X-Requested-With', () => {
-      assert.strictEqual(negotiateFormat('', 'HtmlStar'), 'fragment');
-      assert.strictEqual(negotiateFormat('', 'HTMLSTAR'), 'fragment');
-    });
-
-    it('should return markdown for Accept: text/markdown', () => {
-      assert.strictEqual(negotiateFormat('text/markdown', ''), 'markdown');
-    });
-
-    it('should return json for explicit application/json without text/html', () => {
-      assert.strictEqual(negotiateFormat('application/json', ''), 'json');
-    });
-
-    it('should return page when Accept includes both application/json and text/html', () => {
-      assert.strictEqual(
-        negotiateFormat('text/html, application/json', ''),
-        'page'
+    it('should serve the fragment for X-Requested-With: htmlstar', async () => {
+      const env = mockAssets({ '/blog/post/_fragment.html': '<article>F</article>' });
+      const res = await worker.fetch(
+        makeRequest('/blog/post/', { 'X-Requested-With': 'htmlstar' }), env
       );
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(await res.text(), '<article>F</article>');
     });
 
-    it('should return page for default browser Accept header', () => {
-      assert.strictEqual(
-        negotiateFormat('text/html,application/xhtml+xml,*/*;q=0.8', ''),
-        'page'
+    it('should be case-insensitive for X-Requested-With', async () => {
+      for (const value of ['HtmlStar', 'HTMLSTAR']) {
+        const env = mockAssets({ '/blog/post/_fragment.html': '<article>F</article>' });
+        const res = await worker.fetch(
+          makeRequest('/blog/post/', { 'X-Requested-With': value }), env
+        );
+        assert.strictEqual(res.status, 200, `failed for ${value}`);
+        assert.strictEqual(await res.text(), '<article>F</article>', `failed for ${value}`);
+      }
+    });
+
+    it('should serve markdown for Accept: text/markdown', async () => {
+      const env = mockAssets({ '/md/blog/post/index.md': '# Hello' });
+      const res = await worker.fetch(
+        makeRequest('/blog/post/', { Accept: 'text/markdown' }), env
       );
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(await res.text(), '# Hello');
     });
 
-    it('should return page when no relevant headers are set', () => {
-      assert.strictEqual(negotiateFormat('', ''), 'page');
+    it('should serve json for explicit application/json without text/html', async () => {
+      const env = mockAssets({ '/api/blog/post.json': '{"title":"Post"}' });
+      const res = await worker.fetch(
+        makeRequest('/blog/post/', { Accept: 'application/json' }), env
+      );
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(JSON.parse(await res.text()), { title: 'Post' });
     });
 
-    it('should prioritise fragment over markdown when both headers present', () => {
-      assert.strictEqual(negotiateFormat('text/markdown', 'htmlstar'), 'fragment');
+    it('should serve the page when Accept includes both application/json and text/html', async () => {
+      const record = [];
+      const env = mockAssets({ '/blog/post/': '<h1>Page</h1>' }, { record });
+      const res = await worker.fetch(
+        makeRequest('/blog/post/', { Accept: 'text/html, application/json' }), env
+      );
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(await res.text(), '<h1>Page</h1>');
+      // No rewritten (/api/...) path was ever attempted
+      assert.deepStrictEqual(record, ['/blog/post/']);
+    });
+
+    it('should serve the page for a default browser Accept header', async () => {
+      const record = [];
+      const env = mockAssets({ '/blog/post/': '<h1>Page</h1>' }, { record });
+      const res = await worker.fetch(
+        makeRequest('/blog/post/', { Accept: 'text/html,application/xhtml+xml,*/*;q=0.8' }), env
+      );
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(await res.text(), '<h1>Page</h1>');
+      assert.deepStrictEqual(record, ['/blog/post/']);
+    });
+
+    it('should serve the page when no relevant headers are set', async () => {
+      const record = [];
+      const env = mockAssets({ '/blog/post/': '<h1>Page</h1>' }, { record });
+      const res = await worker.fetch(makeRequest('/blog/post/'), env);
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(record, ['/blog/post/']);
+    });
+
+    it('should prioritise fragment over markdown when both headers present', async () => {
+      const env = mockAssets({
+        '/blog/post/_fragment.html': '<article>F</article>',
+        '/md/blog/post/index.md': '# MD',
+      });
+      const res = await worker.fetch(
+        makeRequest('/blog/post/', { Accept: 'text/markdown', 'X-Requested-With': 'htmlstar' }),
+        env
+      );
+      assert.strictEqual(await res.text(), '<article>F</article>');
     });
   });
 
-  describe('rewritePath', () => {
+  describe('path rewriting', () => {
 
-    it('should rewrite fragment path for a nested page', () => {
-      assert.strictEqual(rewritePath('/blog/my-post/', 'fragment'), '/blog/my-post/_fragment.html');
+    async function firstFetchedPath(pathname, headers) {
+      const record = [];
+      const env = mockAssets({}, { record });
+      await worker.fetch(makeRequest(pathname, headers), env);
+      return record[0];
+    }
+
+    it('should rewrite fragment path for a nested page', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/blog/my-post/', { 'X-Requested-With': 'htmlstar' }),
+        '/blog/my-post/_fragment.html'
+      );
     });
 
-    it('should add trailing slash before rewriting fragment for path without one', () => {
-      assert.strictEqual(rewritePath('/blog/my-post', 'fragment'), '/blog/my-post/_fragment.html');
+    it('should add trailing slash before rewriting fragment for path without one', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/blog/my-post', { 'X-Requested-With': 'htmlstar' }),
+        '/blog/my-post/_fragment.html'
+      );
     });
 
-    it('should rewrite markdown path for a nested page', () => {
-      assert.strictEqual(rewritePath('/blog/my-post/', 'markdown'), '/md/blog/my-post/index.md');
+    it('should rewrite markdown path for a nested page', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/blog/my-post/', { Accept: 'text/markdown' }),
+        '/md/blog/my-post/index.md'
+      );
     });
 
-    it('should rewrite json path for a nested page', () => {
-      assert.strictEqual(rewritePath('/blog/my-post/', 'json'), '/api/blog/my-post.json');
+    it('should rewrite json path for a nested page', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/blog/my-post/', { Accept: 'application/json' }),
+        '/api/blog/my-post.json'
+      );
     });
 
-    it('should rewrite json path for root to /api/index.json', () => {
-      assert.strictEqual(rewritePath('/', 'json'), '/api/index.json');
+    it('should rewrite json path for root to /api/index.json', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/', { Accept: 'application/json' }),
+        '/api/index.json'
+      );
     });
 
-    it('should rewrite markdown path for root to /md/index.md', () => {
-      assert.strictEqual(rewritePath('/', 'markdown'), '/md/index.md');
+    it('should rewrite markdown path for root to /md/index.md', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/', { Accept: 'text/markdown' }),
+        '/md/index.md'
+      );
     });
 
-    it('should rewrite fragment path for root', () => {
-      assert.strictEqual(rewritePath('/', 'fragment'), '/_fragment.html');
+    it('should rewrite fragment path for root', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/', { 'X-Requested-With': 'htmlstar' }),
+        '/_fragment.html'
+      );
     });
 
-    it('should not rewrite for page format', () => {
-      assert.strictEqual(rewritePath('/about/', 'page'), '/about/');
+    it('should not rewrite for page format', async () => {
+      const record = [];
+      const env = mockAssets({ '/about/': '<p>About</p>' }, { record });
+      await worker.fetch(makeRequest('/about/'), env);
+      assert.deepStrictEqual(record, ['/about/']);
     });
 
-    it('should not add trailing slash for paths with file extensions', () => {
-      assert.strictEqual(rewritePath('/styles.css', 'page'), '/styles.css');
+    it('should not rewrite paths with file extensions for page format', async () => {
+      const record = [];
+      const env = mockAssets({ '/styles.css': 'body{}' }, { record });
+      const res = await worker.fetch(makeRequest('/styles.css'), env);
+      assert.strictEqual(res.status, 200);
+      assert.deepStrictEqual(record, ['/styles.css']);
+    });
+
+    it('should not double-slash rewrite for paths with trailing slash', async () => {
+      assert.strictEqual(
+        await firstFetchedPath('/blog/', { Accept: 'text/markdown' }),
+        '/md/blog/index.md'
+      );
+      assert.strictEqual(
+        await firstFetchedPath('/blog/', { Accept: 'application/json' }),
+        '/api/blog.json'
+      );
     });
   });
 });
 
-describe('Vary and Content-Type Headers', () => {
+describe('Vary and Content-Type Headers (via worker.fetch)', () => {
 
-  it('should set Vary header on all responses', () => {
-    const res = addVaryHeader(new Response('ok', { status: 200 }), 'page');
+  it('should set Vary header on all responses', async () => {
+    const env = mockAssets({ '/about/': '<p>About</p>' });
+    const res = await worker.fetch(makeRequest('/about/'), env);
     assert.strictEqual(res.headers.get('Vary'), 'Accept, X-Requested-With');
   });
 
-  it('should set Content-Type to text/markdown for markdown format', () => {
-    const res = addVaryHeader(new Response('ok', { status: 200 }), 'markdown');
+  it('should set Content-Type to text/markdown when the markdown variant is served', async () => {
+    const env = mockAssets({ '/md/docs/index.md': '# Docs' });
+    const res = await worker.fetch(makeRequest('/docs/', { Accept: 'text/markdown' }), env);
     assert.strictEqual(res.headers.get('Content-Type'), 'text/markdown; charset=utf-8');
   });
 
-  it('should set Content-Type to application/json for json format', () => {
-    const res = addVaryHeader(new Response('ok', { status: 200 }), 'json');
+  it('should set Content-Type to application/json when the json variant is served', async () => {
+    const env = mockAssets({ '/api/docs.json': '{}' });
+    const res = await worker.fetch(makeRequest('/docs/', { Accept: 'application/json' }), env);
     assert.strictEqual(res.headers.get('Content-Type'), 'application/json; charset=utf-8');
   });
 
-  it('should set Content-Type to text/html for fragment format', () => {
-    const res = addVaryHeader(new Response('ok', { status: 200 }), 'fragment');
+  it('should set Content-Type to text/html when the fragment variant is served', async () => {
+    const env = mockAssets({ '/docs/_fragment.html': '<main>D</main>' });
+    const res = await worker.fetch(
+      makeRequest('/docs/', { 'X-Requested-With': 'htmlstar' }), env
+    );
     assert.strictEqual(res.headers.get('Content-Type'), 'text/html; charset=utf-8');
   });
 
-  it('should not override existing Cache-Control', () => {
-    const original = new Response('ok', {
-      status: 200,
-      headers: { 'Cache-Control': 'no-store' },
+  it('should NOT stamp the negotiated Content-Type on a fallback response', async () => {
+    // REAL behavior: when the negotiated variant does not exist and the
+    // original file is served instead, its own Content-Type is preserved.
+    const env = mockAssets({
+      '/docs/': { body: '<html>page</html>', headers: { 'Content-Type': 'text/html; charset=utf-8' } },
     });
-    const res = addVaryHeader(original, 'page');
+    const res = await worker.fetch(makeRequest('/docs/', { Accept: 'text/markdown' }), env);
+    assert.strictEqual(res.status, 200);
+    const ct = res.headers.get('Content-Type') || '';
+    assert.ok(!ct.includes('text/markdown'), `HTML fallback mislabeled as ${ct}`);
+    assert.ok(ct.includes('text/html'), `expected text/html, got ${ct}`);
+  });
+
+  it('should not override existing Cache-Control', async () => {
+    const env = mockAssets({
+      '/about/': { body: 'ok', headers: { 'Cache-Control': 'no-store' } },
+    });
+    const res = await worker.fetch(makeRequest('/about/'), env);
     assert.strictEqual(res.headers.get('Cache-Control'), 'no-store');
   });
 
-  it('should add default Cache-Control when none exists', () => {
-    const res = addVaryHeader(new Response('ok', { status: 200 }), 'page');
+  it('should add default Cache-Control when none exists', async () => {
+    const env = mockAssets({ '/about/': 'ok' });
+    const res = await worker.fetch(makeRequest('/about/'), env);
     assert.strictEqual(
       res.headers.get('Cache-Control'),
       'public, max-age=60, stale-while-revalidate=300'
@@ -344,11 +399,6 @@ describe('Worker fetch Integration', () => {
       );
       assert.strictEqual(res.status, 200);
       assert.strictEqual(await res.text(), '<p>About</p>');
-    });
-
-    it('should not double-slash rewrite for paths with trailing slash', () => {
-      assert.strictEqual(rewritePath('/blog/', 'markdown'), '/md/blog/index.md');
-      assert.strictEqual(rewritePath('/blog/', 'json'), '/api/blog.json');
     });
   });
 });
