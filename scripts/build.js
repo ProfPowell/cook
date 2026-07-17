@@ -2,6 +2,8 @@
 // -----------------------------
 import chalk from 'chalk';
 import fs from 'fs-extra';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // UTILS
 import Util, { runFileLoop, updatePage } from './utils/util/util.js';
@@ -232,15 +234,49 @@ class Build {
 
 }
 
-// Run build
-(async () => {
-  try {
-    await new Build().init();
-  } catch (err) {
-    // Truly unrecoverable (config, dist creation, plugin crash outside
-    // the per-page contract): report clearly and fail the process.
-    console.error(chalk.bold.red('\n[build] Fatal error'));
-    console.error(err);
-    process.exit(1);
+/**
+ * Run one build. Exported so the dev server can rebuild IN-PROCESS —
+ * module imports, config, and template caches stay warm instead of
+ * paying a cold Node start per file save.
+ *
+ * Per-build state is reset here:
+ * - bundle groups and dynamic pages always (they accumulate per build)
+ * - template/include/component caches only when NOT a single-page
+ *   fast-path rebuild (a build-only file change means they're stale)
+ */
+export async function runBuild() {
+  const isSinglePageRebuild = Util.validatePageChange();
+  if (!isSinglePageRebuild) {
+    delete store.cachedIncludes;
+    delete store.cachedComponents;
+    delete store.cachedLayouts;
+    delete store.cachedInline;
   }
-})();
+  store.bundle = { css: {}, js: {} };
+  // Collections are fully rebuilt by processMarkdown every run — stale
+  // entries would otherwise accumulate (duplicate blog posts on the
+  // second in-process build)
+  delete store.collections;
+  if (data.dynamicPages) data.dynamicPages = [];
+
+  await new Build().init();
+}
+
+// Run the build when executed directly (`node scripts/build.js`,
+// `cook build`) — NOT when imported by the dev server or tests.
+const isMain = process.argv[1]
+  && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (isMain) {
+  (async () => {
+    try {
+      await runBuild();
+    } catch (err) {
+      // Truly unrecoverable (config, dist creation, plugin crash outside
+      // the per-page contract): report clearly and fail the process.
+      console.error(chalk.bold.red('\n[build] Fatal error'));
+      console.error(err);
+      process.exit(1);
+    }
+  })();
+}

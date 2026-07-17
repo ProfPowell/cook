@@ -2,13 +2,12 @@
 // -----------------------------
 import browserSyncLib from 'browser-sync';
 import chalk from 'chalk';
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const buildScript = path.resolve(__dirname, 'build.js');
+// In-process rebuilds: no cold Node process per save — module imports,
+// config, and (for single-page rebuilds) template caches stay warm
+import { runBuild } from './build.js';
 
 const browserSync = browserSyncLib.create('Dev Server');
 
@@ -101,27 +100,50 @@ browserSync.emitter.on('init', () => {
 // Watch changes to `/src` files and run the build process to copy
 // to `/dist` equivalent. This way we can run livereload on `/dist` to
 // view replaced includes, and to avoid mutating `/src` files directly.
-watchFiles.forEach(watchPath => {
-  // Watch `/src` files for changes
-  browserSync.watch(`${srcPath}${watchPath}`).on('change', file => {
-    // Run the build process.
-    // - DEV_CHANGED_PAGE tells the child build whether to run the whole
-    //   pipeline or just this changed file (see validatePageChange)
-    // - env is passed via the `env` option (inline VAR=x prefixes are
-    //   POSIX-only and broke Windows dev entirely)
-    // - a failed rebuild must NOT throw inside this handler: an uncaught
-    //   exception here killed the whole dev server on any build error
-    try {
-      execSync(`node "${buildScript}"`, {
-        stdio: 'inherit',
-        env: { ...process.env, NODE_ENV: 'development', DEV_CHANGED_PAGE: file },
-      });
-    } catch (err) {
-      console.error(chalk.red(`\n[dev] Rebuild failed for ${file} — fix the error and save again.`));
-      return;
-    }
+// REBUILD QUEUE
+// One rebuild at a time; a save during a rebuild queues the LATEST
+// change and runs once the current rebuild finishes.
+let building = false;
+let queuedFile = null;
+
+async function rebuild(file) {
+  if (building) {
+    queuedFile = file;
+    return;
+  }
+  building = true;
+
+  // DEV_CHANGED_PAGE tells the build whether to run the whole pipeline
+  // or just this changed file (see validatePageChange)
+  process.env.DEV_CHANGED_PAGE = file;
+  let ok = true;
+  try {
+    await runBuild();
+  } catch (err) {
+    // A failed rebuild must NOT take down the dev server
+    ok = false;
+    console.error(chalk.red(`\n[dev] Rebuild failed for ${file} — fix the error and save again.`));
+    console.error(err && err.message ? err.message : err);
+  } finally {
+    delete process.env.DEV_CHANGED_PAGE;
+    building = false;
+  }
+
+  if (ok) {
     // Reload changed page
     const fileDist = file.replace(`${srcPath}/`, `${distPath}/`);
     browserSync.reload(fileDist);
-  });
+  }
+
+  // Run the latest queued change, if any arrived mid-build
+  if (queuedFile) {
+    const next = queuedFile;
+    queuedFile = null;
+    rebuild(next);
+  }
+}
+
+watchFiles.forEach(watchPath => {
+  // Watch `/src` files for changes
+  browserSync.watch(`${srcPath}${watchPath}`).on('change', file => { rebuild(file); });
 });
