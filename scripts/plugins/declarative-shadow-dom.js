@@ -68,7 +68,7 @@ class DeclarativeShadowDom {
     if (!this.store._dsdManifest) return;
 
     // Parse HTML
-    const dom = Util.jsdom.dom({ src: this.file.src });
+    const dom = Util.fileDom(this.file);
     const document = dom.window.document;
 
     // Find all custom elements that have DSD templates
@@ -93,7 +93,7 @@ class DeclarativeShadowDom {
     }
 
     if (injected > 0) {
-      this.file.src = Util.setSrc({ dom });
+      Util.commitDom(this.file, dom);
       this.store._dsdStats.total += injected;
     }
   }

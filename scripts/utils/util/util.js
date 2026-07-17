@@ -26,6 +26,9 @@ const jsdom = {
   baseUrl: 'https://localhost',
   dom: newDOM,
   frag: newFrag,
+  // Number of full-document parses performed (observable in tests to
+  // guard the parse-once model against regressions)
+  parseCount: 0,
 }
 
 // STATIC CONFIG
@@ -62,6 +65,8 @@ export {
   encodeTag,
   escapeUrlString,
   fakePromise,
+  fileDom,
+  commitDom,
   getFileName,
   getFileParts,
   getFilePath,
@@ -98,6 +103,8 @@ export default {
   encodeTag,
   escapeUrlString,
   fakePromise,
+  fileDom,
+  commitDom,
   getFileName,
   getFileParts,
   getFilePath,
@@ -563,6 +570,7 @@ function isExtension(fileName, target) {
 function newDOM({src, options}) {
   // LinkeDOM's parseHTML returns { document, window, ... }
   // We wrap it to provide a compatible interface for existing plugins
+  jsdom.parseCount += 1;
   const parsed = parseHTML(src);
   return {
     window: { document: parsed.document },
@@ -580,6 +588,33 @@ function newFrag(src) {
   const { document } = parseHTML(`<body>${src}</body>`);
   // Return the body element as a fragment-like container
   return document.body;
+}
+
+/**
+ * @description Get the (shared, cached) DOM for a file. SourceFile
+ * instances expose a lazily-parsed cached document so consecutive DOM
+ * plugins share ONE parse; plain objects (tests, ad-hoc callers) get a
+ * fresh parse of file.src.
+ * @param {Object} file - SourceFile or plain {src} object
+ * @returns {Object} dom wrapper ({ window.document, serialize })
+ */
+function fileDom(file) {
+  if (typeof file.markDomDirty === 'function') return file.dom;
+  return jsdom.dom({ src: file.src });
+}
+
+/**
+ * @description Record that a plugin mutated the file's DOM. SourceFile
+ * defers serialization until file.src is next read; plain objects are
+ * serialized immediately (backward compatible).
+ * @param {Object} file - SourceFile or plain {src} object
+ * @param {Object} dom - The dom returned by fileDom(file)
+ * @param {Boolean} [changed=true] - Pass false when nothing was mutated
+ */
+function commitDom(file, dom, changed = true) {
+  if (!changed) return;
+  if (typeof file.markDomDirty === 'function') file.markDomDirty();
+  else file.src = setSrc({ dom });
 }
 
 /**

@@ -81,7 +81,7 @@ class Bundle {
     const { file } = this;
 
     // Make source traversable with JSDOM
-    const dom = Util.jsdom.dom({src: file.src});
+    const dom = Util.fileDom(file);
     const document = dom.window.document;
 
     // Find `<link>` or `<script>` tags with the `[data-bundle]` or `[bundle]` attributes
@@ -101,7 +101,7 @@ class Bundle {
     this.groupSrcAndInsertBundle(scripts, 'js');
 
     // Store updated file source
-    file.src = Util.setSrc({dom});
+    Util.commitDom(file, dom);
 
     // END LOGGING
     this.endAddLog();

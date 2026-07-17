@@ -67,7 +67,7 @@ class AutoComponents {
     await this.loadManifest();
 
     // Parse HTML for custom elements
-    const dom = Util.jsdom.dom({ src: this.file.src });
+    const dom = Util.fileDom(this.file);
     const document = dom.window.document;
 
     // Find all custom element tags in the document
@@ -99,7 +99,7 @@ class AutoComponents {
     }
 
     // Store updated file source
-    this.file.src = Util.setSrc({ dom });
+    Util.commitDom(this.file, dom);
   }
 
   /**

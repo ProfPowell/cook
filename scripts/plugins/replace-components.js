@@ -78,7 +78,7 @@ class ReplaceComponents {
     if (!allowed) return;
 
     // Store string source as traversable DOM
-    const dom = Util.jsdom.dom({ src: this.file.src });
+    const dom = Util.fileDom(this.file);
     const document = dom.window.document;
 
     // Find all components to replace
@@ -117,7 +117,7 @@ class ReplaceComponents {
     this.injectCollectedStyles(document);
 
     // Store updated file source
-    this.file.src = Util.setSrc({ dom });
+    Util.commitDom(this.file, dom);
 
     // END LOGGING
     this.endLog();

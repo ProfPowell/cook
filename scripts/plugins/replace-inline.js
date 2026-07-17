@@ -55,7 +55,7 @@ class ReplaceInline {
     const { file } = this;
 
     // Make source traversable with JSDOM
-    let dom = Util.jsdom.dom({src: file.src});
+    const dom = Util.fileDom(file);
 
     // Store all <link inline> and <scripts inline>
     const inlineLinkSelector = Util.getSelector(Util.attr.inline, 'link');
@@ -73,7 +73,7 @@ class ReplaceInline {
     await this.replaceScripts({scripts, file});
 
     // Store updated file source
-    file.src = Util.setSrc({dom});
+    Util.commitDom(file, dom);
 
     // END LOGGING
     this.endLog();

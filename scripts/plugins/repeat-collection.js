@@ -67,7 +67,7 @@ class RepeatCollection {
     if (!allowed) return;
 
     // Store string source as traversable DOM
-    const dom = Util.jsdom.dom({ src: this.file.src });
+    const dom = Util.fileDom(this.file);
     const document = dom.window.document;
 
     // Find TOP-LEVEL repeat elements only — nested data-repeat elements
@@ -86,7 +86,7 @@ class RepeatCollection {
     }
 
     // Store updated file source
-    this.file.src = Util.setSrc({ dom });
+    Util.commitDom(this.file, dom);
   }
 
   /**

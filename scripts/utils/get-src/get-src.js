@@ -8,6 +8,7 @@
 import fs from 'node:fs/promises';
 import Logger from '../logger/logger.js';
 import Util from '../util/util.js';
+import { SourceFile } from '../source-file/source-file.js';
 
 // CONFIG
 import { includePaths, excludePaths, distPath, srcPath } from '../config/config.js';
@@ -59,8 +60,6 @@ function getDynamicFiles(files) {
 async function getSrcConfig({fileName, excludeSrc = false }) {
   // Early Exit: No file name given
   if (!fileName) return;
-  // Init obj
-  let file = {};
 
   // Store if it is a dynamic page
   const isDynamic = typeof fileName !== 'string';
@@ -80,13 +79,10 @@ async function getSrcConfig({fileName, excludeSrc = false }) {
   }
 
 
-  // Store filename parts
-  let {ext,name,nameIfIndex} = Util.getFileParts(fileName);
-  file.ext = ext;
-  file.name = name;
-  file.nameIfIndex = nameIfIndex;
-  file.path = fileName;
-  if (isDynamic) file.isDynamic = true;
+  // Store filename parts on a SourceFile (lazy string/DOM sync — see
+  // scripts/utils/source-file/source-file.js)
+  const {ext,name,nameIfIndex} = Util.getFileParts(fileName);
+  const file = new SourceFile({ path: fileName, ext, name, nameIfIndex, isDynamic });
 
   // Early Exit: Return the file meta details but skip the source
   if (excludeSrc) return file;

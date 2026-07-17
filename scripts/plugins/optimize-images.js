@@ -285,8 +285,8 @@ class OptimizeImagesRewrite {
     const allowed = Util.isAllowedType(this.opts);
     if (!allowed) return;
 
-    // Parse HTML
-    const dom = Util.jsdom.dom({ src: this.file.src });
+    // Parse HTML (shared cached document — see Util.fileDom)
+    const dom = Util.fileDom(this.file);
     const document = dom.window.document;
 
     // Find all <img> tags
@@ -300,10 +300,8 @@ class OptimizeImagesRewrite {
       if (changed) rewrote++;
     }
 
-    // Only update source if we made changes
-    if (rewrote > 0) {
-      this.file.src = Util.setSrc({ dom });
-    }
+    // Only mark the document mutated if we made changes
+    Util.commitDom(this.file, dom, rewrote > 0);
   }
 
   /**

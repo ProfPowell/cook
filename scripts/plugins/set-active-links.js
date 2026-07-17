@@ -51,7 +51,7 @@ class SetActiveLinks {
     const { file } = this;
 
     // Make source traversable with JSDOM
-    let dom = Util.jsdom.dom({src: file.src});
+    const dom = Util.fileDom(file);
 
     // Find <a> tags and add active state
     // if their [href] matches the current page url
@@ -60,7 +60,7 @@ class SetActiveLinks {
     $links.forEach((link,i) => this.setActive({file, link}));
 
     // Store updated file source
-    file.src = Util.setSrc({dom});
+    Util.commitDom(file, dom);
 
     // END LOGGING
     this.endLog();

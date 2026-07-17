@@ -63,7 +63,7 @@ class ReplaceExternalLinkProtocol {
     const { file } = this;
 
     // Make source traversable with JSDOM
-    let dom = Util.jsdom.dom({src: file.src});
+    const dom = Util.fileDom(file);
 
     // Find <a>, <link>, and <script> tags
     const $link = dom.window.document.querySelectorAll('link');
@@ -77,7 +77,7 @@ class ReplaceExternalLinkProtocol {
     if ($script) $script.forEach(el => this.replaceMissingProtocol({file, el}));
 
     // Store updated file source
-    this.file.src = Util.setSrc({dom});
+    Util.commitDom(file, dom);
 
     // END LOGGING
     this.endLog();

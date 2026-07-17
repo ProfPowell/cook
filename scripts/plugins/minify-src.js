@@ -119,10 +119,8 @@ class MinifySrc {
     // complex inline code examples don't crash the entire build
     try {
       let out = await minifyHtml(src, this.minifyHtmlConfig);
-      // MINIFY INLINE CSS
-      out = this.minifyInlineStyles(out);
-      // MINIFY INLINE SCRIPTS
-      out = await this.minifyInlineScripts(out, label);
+      // MINIFY INLINE CSS + SCRIPTS (single parse for both)
+      out = await this.minifyInlineAssets(out, label);
       return out;
     } catch (err) {
       // Skip minification for this file — likely has unescaped code examples
@@ -189,34 +187,25 @@ class MinifySrc {
   }
 
   /**
-   * @description Minify inline `<style>` tag contents
-   * @param {String} src - The page source
-   * @returns {String}
-   * @private
-   */
-  minifyInlineStyles(src) {
-    const dom = Util.jsdom.dom({src});
-    const group = dom.window.document.querySelectorAll('style');
-    group.forEach(el => {
-      const content = el.textContent;
-      if (!content || !content.trim()) return;
-      el.textContent = this.minCss(content);
-    });
-    return Util.setSrc({dom});
-  }
-
-  /**
-   * @description Minify inline `<script>` tag contents (async for terser).
-   * Skips external scripts and non-JS types (JSON-LD, import maps, etc.)
+   * @description Minify inline `<style>` and `<script>` contents in a
+   * single parse. Skips external scripts and non-JS script types
+   * (JSON-LD, import maps, etc.)
    * @param {String} src - The page source
    * @param {String} [label] - File path for warning messages
    * @returns {String}
    * @private
    */
-  async minifyInlineScripts(src, label) {
+  async minifyInlineAssets(src, label) {
     const dom = Util.jsdom.dom({src});
-    const group = dom.window.document.querySelectorAll('script');
-    for (const el of group) {
+    const document = dom.window.document;
+
+    document.querySelectorAll('style').forEach(el => {
+      const content = el.textContent;
+      if (!content || !content.trim()) return;
+      el.textContent = this.minCss(content);
+    });
+
+    for (const el of document.querySelectorAll('script')) {
       // Only minify executable JavaScript
       const type = (el.getAttribute('type') || '').trim().toLowerCase();
       if (!JS_SCRIPT_TYPES.has(type)) continue;
@@ -226,6 +215,7 @@ class MinifySrc {
       if (!content || !content.trim()) continue;
       el.textContent = await this.minJs(content, { module: type === 'module', label });
     }
+
     return Util.setSrc({dom});
   }
 
