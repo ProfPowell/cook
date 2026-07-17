@@ -20,6 +20,7 @@ import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import Util from '../utils/util/util.js';
+import { renderTemplate } from '../utils/interpolate/interpolate.js';
 
 // Config
 import { srcPath, distPath } from '../utils/config/config.js';
@@ -192,19 +193,13 @@ class ApplyTemplate {
    * @returns {string} Merged HTML
    */
   applyTemplate(template, pageData) {
-    // Single pass over the LAYOUT only, every insertion via callback.
-    // Callback returns are inserted literally (no $-pattern semantics)
-    // and String.replace never rescans replacements, so page content —
-    // which legitimately contains ${...} and $-patterns in code samples —
-    // is never scanned for substitution.
-    // Unmatched ${var} placeholders are left for replaceTemplateStrings;
-    // unfilled ${slot:...} placeholders are removed.
-    return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
-      const trimmedKey = key.trim();
-      if (trimmedKey === 'content') return pageData.content || '';
-      if (pageData[trimmedKey] !== undefined) return pageData[trimmedKey];
-      if (trimmedKey.startsWith('slot:')) return '';
-      return match;
+    // Shared interpolator: single pass over the LAYOUT only, callback
+    // insertion (page content with $-patterns and ${...} in code samples
+    // is never scanned), unmatched vars deferred to replaceTemplateStrings,
+    // unfilled ${slot:...} removed. ${content} always resolves (empty
+    // string when the page produced none).
+    return renderTemplate(template, { ...pageData, content: pageData.content || '' }, {
+      removeUnmatchedSlots: true,
     });
   }
 

@@ -13,6 +13,7 @@ import { marked } from 'marked';
 import matter from 'gray-matter';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
+import { renderTemplate } from '../utils/interpolate/interpolate.js';
 
 // Config
 import { distPath, srcPath, markdown as markdownConfig } from '../utils/config/config.js';
@@ -227,29 +228,14 @@ class ProcessMarkdown {
       return this.buildBasicHtml(pageData);
     }
 
-    // Replace template variables in a single pass over the LAYOUT only.
-    // Every insertion goes through the callback: callback returns are
-    // inserted literally (no $-pattern semantics) and never rescanned,
-    // so markdown content — which legitimately contains ${...} and
-    // $-patterns in code samples — is never scanned for substitution.
-    return layoutContent.replace(/\$\{([^}]+)\}/g, (match, key) => {
-      const trimmedKey = key.trim();
-
-      // ${content} is the markdown-converted HTML
-      if (trimmedKey === 'content') return pageData.content ?? '';
-
-      // Check page data first
-      if (pageData[trimmedKey] !== undefined) {
-        return pageData[trimmedKey];
-      }
-
-      // Then check global data
-      if (this.data[trimmedKey] !== undefined) {
-        return this.data[trimmedKey];
-      }
-
-      // Leave unmatched placeholders as-is (for later processing)
-      return match;
+    // Shared interpolator: single pass over the LAYOUT only — markdown
+    // content (which legitimately contains ${...} and $-patterns in code
+    // samples) is never scanned for substitution. Page data wins over
+    // global data; ${content} always resolves.
+    return renderTemplate(layoutContent, {
+      ...this.data,
+      ...pageData,
+      content: pageData.content ?? '',
     });
   }
 

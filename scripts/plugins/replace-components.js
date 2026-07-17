@@ -33,6 +33,7 @@ import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import Util from '../utils/util/util.js';
+import { renderTemplate as interpolate } from '../utils/interpolate/interpolate.js';
 
 // Config
 import { distPath, srcPath, components as componentsConfig } from '../utils/config/config.js';
@@ -511,51 +512,15 @@ class ReplaceComponents {
   }
 
   /**
-   * Render template by replacing variables with data
+   * Render template by replacing variables with data.
+   * Delegates to the shared interpolator (single ${var} semantics
+   * across all plugins); unfilled ${slot:x} placeholders are removed.
    * @param {string} template - Template string
    * @param {Object} data - Data object
    * @returns {string} Rendered template
    */
   renderTemplate(template, data) {
-    // Replace ${slot:name} named slots (and ${slot} default)
-    // Also replace ${varName} with data values
-    // Supports nested: ${user.name}
-    return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
-      const trimmedKey = key.trim();
-
-      // Check data directly (handles "slot", "slot:name", and regular vars)
-      if (data[trimmedKey] !== undefined && data[trimmedKey] !== null) {
-        return data[trimmedKey];
-      }
-
-      // Handle nested properties (e.g., user.name) — but not slot:name (already checked)
-      if (trimmedKey.includes('.')) {
-        const value = this.getNestedValue(data, trimmedKey);
-        if (value !== undefined && value !== null) {
-          return value;
-        }
-      }
-
-      // Named slot not provided — remove the placeholder (empty string)
-      if (trimmedKey.startsWith('slot:')) {
-        return '';
-      }
-
-      // Keep the original ${var} if not found (allows for later processing)
-      return match;
-    });
-  }
-
-  /**
-   * Get nested value from object using dot notation
-   * @param {Object} obj - Source object
-   * @param {string} path - Dot-notation path
-   * @returns {*} Value or undefined
-   */
-  getNestedValue(obj, path) {
-    return path.split('.').reduce((current, key) => {
-      return current && current[key] !== undefined ? current[key] : undefined;
-    }, obj);
+    return interpolate(template, data, { removeUnmatchedSlots: true });
   }
 
   /**

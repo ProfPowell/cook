@@ -21,6 +21,7 @@
 // -----------------------------
 import chalk from 'chalk';
 import Util from '../utils/util/util.js';
+import { renderTemplate as interpolate, getNested } from '../utils/interpolate/interpolate.js';
 
 // Config
 import { repeat as repeatConfig } from '../utils/config/config.js';
@@ -271,54 +272,25 @@ class RepeatCollection {
   }
 
   /**
-   * Get a nested property value from an object
+   * Get a nested property value from an object (shared implementation)
    * @param {Object} obj - The object to search
    * @param {string} path - Dot-notation path (e.g., "collections.blog")
    * @returns {*} The value or undefined
    */
   getNestedValue(obj, path) {
-    if (!obj || !path) return undefined;
-
-    const parts = path.split('.');
-    let current = obj;
-
-    for (const part of parts) {
-      if (current === null || current === undefined) {
-        return undefined;
-      }
-      current = current[part];
-    }
-
-    return current;
+    return getNested(obj, path);
   }
 
   /**
-   * Render template string with data context
-   * Replaces ${varName} and ${item.property} with values
+   * Render template string with data context.
+   * Delegates to the shared interpolator (single ${var} semantics
+   * across all plugins; Dates and Arrays formatted for display).
    * @param {string} template - Template string
    * @param {Object} context - Data context
    * @returns {string} Rendered string
    */
   renderTemplate(template, context) {
-    return template.replace(/\$\{([^}]+)\}/g, (match, key) => {
-      const trimmedKey = key.trim();
-      const value = this.getNestedValue(context, trimmedKey);
-
-      if (value !== undefined && value !== null) {
-        // Handle Date objects
-        if (value instanceof Date) {
-          return value.toLocaleDateString();
-        }
-        // Handle arrays
-        if (Array.isArray(value)) {
-          return value.join(', ');
-        }
-        return String(value);
-      }
-
-      // Leave unmatched variables for later processing
-      return match;
-    });
+    return interpolate(template, context);
   }
 
   /**
