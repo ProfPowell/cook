@@ -2,7 +2,7 @@
 
 A static site build system with templating, bundling, and optimization features.
 
-**Version:** 2.0.0
+**Version:** 2.1.3 (canonical version lives in `package.json`)
 **License:** MIT
 **Node.js:** >=18.0.0
 
@@ -19,7 +19,15 @@ npm install
 npm run dev
 ```
 
-This builds the site locally and runs it at `localhost:3000`, using BrowserSync for live reloading.
+This builds the site locally and runs it at `localhost:3000`, using BrowserSync for live reloading. Rebuilds run in-process (no cold Node start per save), and a build error on one page is reported without stopping the dev server or the rest of the build.
+
+When installed as a package, the `cook` CLI is also available:
+
+```bash
+cook build          # Production build
+cook dev            # Build + live-reload dev server
+cook dev --port N   # Dev server on a custom port (default: 3000)
+```
 
 ### Project Structure
 
@@ -109,33 +117,53 @@ if (process.env.NODE_ENV === 'development') {
 }
 ```
 
+### Other Flags
+
+| Flag | Effect |
+|------|--------|
+| `LOGGER=true` | Verbose per-plugin logging (spinners, timings, per-file detail). Errors and warnings always print, with or without this flag. |
+| `MINIFY=false` | Skip HTML/CSS/JS minification in a production build (e.g. for a readable staging build). |
+| `BUNDLE=true` | Force CSS/JS bundling in development mode (normally production-only). |
+
 ---
 
 ## Build Process
 
-The build process performs the following steps:
+The build process performs the following steps, in this order:
 
 1. **Creates `/dist`** - Removes existing dist folder and recreates it
-2. **Copies `/src` to `/dist`** - All source files are copied (excludes `.md` files)
-3. **Processes Markdown** - Converts `.md` files to `.html` with front matter support
-4. **Runs custom-user `before` plugins** - Runs once before file processing
-5. **Loops through each allowed file**, modifying contents per environment rules:
-   * Runs any custom-user `default` plugins (all plugins run per file)
-   * Replaces ES6 template strings (`${}`) with data from config
-   * Repeats elements for each item in collections (`[data-repeat]`)
-   * Adds missing `http://` protocol to external links
-   * Replaces include placeholders (`[data-include]`) with target source
-   * Replaces custom elements and `[data-component]` elements with templates
+2. **Copies `/src` to `/dist`** - All source files are copied (excludes `.md` files and `buildOnlyPaths`)
+3. **Processes Markdown** - Converts `.md` files to `.html` with front matter support; groups pages into `collections.*` by directory
+4. **Generates image derivatives** - Responsive AVIF/WebP variants at configured widths, with a cross-build disk cache (`images` config)
+5. **Runs custom-user `before` plugins** - Runs once before file processing
+6. **Converts pages to directories** - `about.html` becomes `about/index.html` for extensionless URLs
+7. **Loops through each allowed file**, in this order per page:
+   * Parses YAML front matter from HTML pages
+   * Escapes `<code-block data-escape>` content (restored at the end of the loop)
+   * Runs any custom-user `default` plugins
+   * Applies layout templates (`[data-template]` attribute or front matter `layout`)
+   * Replaces include placeholders (`[data-include]`, `[include]`, `<include-file>`)
+   * Repeats elements for each item in collections (`[data-repeat]`, nesting supported)
+   * Replaces custom elements and `[data-component]` elements with templates (nesting supported; flat or Declarative Shadow DOM)
+   * Replaces ES6 template strings (`${}`) with front matter + global data
+   * Rewrites `<img>` to responsive `<picture>` elements
+   * Detects custom elements and manages component JS loading (`autoComponents` config)
+   * Pre-renders Declarative Shadow DOM from a manifest (`dsd` config)
+   * Adds missing `http://` protocol to `www.`/`cdn.` links
    * Replaces inline placeholders (`[data-inline]`) with external source (production only)
-   * Sets `<a>` tags with matching `[href]` as active (`class="active"`)
-   * Sets `<a>` tags with partial `[href]` match as active parent (`class="active-parent"`)
-   * Stores link/script files marked for bundling (`[bundle]`)
+   * Sets `<a>` tags whose `[href]` resolves to the current page as active (`class="active"`), ancestors as `class="active-parent"`
+   * Stores link/script files marked for bundling (`[data-bundle]`)
    * Minifies HTML, CSS, and JS source (production only)
-6. **Creates `sitemap.xml`** - Auto-generated in `/dist`
-7. **Creates bundled files** - `.css` and `.js` bundles are written
-8. **Runs custom-user `after` plugins** - Runs once after file processing
+8. **Generates fragments** - A sibling `_fragment.html` per page for SPA-style navigation (`fragments` config)
+9. **Generates formats** - Markdown copies under `/md/`, JSON under `/api/`, Atom feed, and `llms.txt` (`formats` config)
+10. **Creates `sitemap.xml`** - Auto-generated in `/dist` (fragments excluded)
+11. **Creates bundled files** - `.css` and `.js` bundles are written
+12. **Fingerprints assets** - Opt-in content-hash filenames with HTML and JS-import rewriting (`fingerprint` config)
+13. **Runs custom-user `after` plugins** - Runs once after file processing
 
-Many build settings can be customized in your project's `/config/main.js`.
+A page that fails during the loop is reported (with its path) and skipped; the rest of the site still builds, a failure summary prints at the end, and the process exits non-zero so CI catches it.
+
+Many build settings can be customized in your project's `/config/main.js` — see `scripts/utils/config/config.js` for every default. Note that array values in your config **replace** the defaults entirely.
 
 ---
 
