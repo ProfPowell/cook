@@ -39,6 +39,9 @@ import setActiveLinks from './plugins/set-active-links.js';
 // GET SOURCE
 import { getDynamicFiles, getSrcConfig, getSrcFiles } from './utils/get-src/get-src.js';
 
+// SHARED POST-LOOP PAGE SNAPSHOT
+import { collectSitePages } from './utils/site-pages/site-pages.js';
+
 // CONFIG
 // Combined user overrides on top of internal defaults
 import config, { plugins } from './utils/config/config.js';
@@ -199,11 +202,15 @@ class Build {
       }
     }
 
+    // SHARED PAGE SNAPSHOT: one dist walk + one parse per built page,
+    // consumed read-only by fragments and formats below
+    const sitePages = await collectSitePages();
+
     // PLUGIN: Generate content-only fragments for SPA navigation
-    await generateFragments();
+    await generateFragments({ pages: sitePages });
 
     // PLUGIN: Generate multi-format output (markdown, JSON, feed, llms.txt)
-    await generateFormats({store, data});
+    await generateFormats({store, data, pages: sitePages});
 
     // PLUGIN: Create `sitemap.xml` in the created `/dist` folder
     await generateSitemap();

@@ -22,8 +22,13 @@ import { distPath, fragments as fragmentsConfig } from '../utils/config/config.j
 // DEFINE
 // -----------------------------
 class GenerateFragments {
-  constructor() {
+  constructor(opts = {}) {
     this.total = 0;
+    // Optional per-call overrides
+    this.distPath = opts.distPath || distPath;
+    // Optional shared page snapshot (see scripts/utils/site-pages) —
+    // avoids re-walking dist and re-parsing every page
+    this.pages = opts.pages || null;
 
     // Merge defaults with user config
     this.config = {
@@ -50,12 +55,19 @@ class GenerateFragments {
     this.startLog();
 
     try {
-      // Get all index.html files in dist
-      const htmlFiles = Util.getPaths(distPath, distPath, []);
-      const indexFiles = htmlFiles.filter(f => f.endsWith('/index.html') || f === `${distPath}/index.html`);
+      if (this.pages) {
+        // Shared snapshot: pages are already read and parsed
+        for (const page of this.pages) {
+          await this.generateFragment(page.filePath, page.dom);
+        }
+      } else {
+        // Standalone: walk and parse ourselves
+        const htmlFiles = Util.getPaths(this.distPath, this.distPath, []);
+        const indexFiles = htmlFiles.filter(f => f.endsWith('/index.html') || f === `${this.distPath}/index.html`);
 
-      for (const filePath of indexFiles) {
-        await this.generateFragment(filePath);
+        for (const filePath of indexFiles) {
+          await this.generateFragment(filePath);
+        }
       }
     } catch (err) {
       Util.customWarn(err, 'generate-fragments.js (fragments skipped)');
@@ -68,13 +80,11 @@ class GenerateFragments {
   /**
    * Generate a fragment file for a single HTML page
    * @param {string} filePath - Path to the index.html file
+   * @param {Object} [sharedDom] - Pre-parsed document from the shared snapshot (read-only)
    */
-  async generateFragment(filePath) {
+  async generateFragment(filePath, sharedDom) {
     try {
-      const src = await fs.readFile(filePath, 'utf-8');
-
-      // Parse with JSDOM
-      const dom = Util.jsdom.dom({ src });
+      const dom = sharedDom || Util.jsdom.dom({ src: await fs.readFile(filePath, 'utf-8') });
       const document = dom.window.document;
 
       // Find the target element

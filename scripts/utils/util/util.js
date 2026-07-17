@@ -449,8 +449,14 @@ function getFilePath(path) {
  * @returns {Array} - An array of paths
  * @private
  */
-function getPaths(originalPath, path, ignorePattern, paths = []) {
+function getPaths(originalPath, path, ignorePattern, paths = [], compiledPatterns) {
   try {
+    // Compile exclusion patterns ONCE per walk (previously a new RegExp
+    // was constructed per pattern per file). The `g` flag is stripped:
+    // global regexes are stateful under .test() and misskip matches.
+    const patterns = compiledPatterns || (ignorePattern || []).map(p =>
+      p instanceof RegExp ? new RegExp(p.source, p.flags.replace('g', '')) : new RegExp(p)
+    );
     // Obtain a list of files and folders
     const files = readdirSync(path);
     files.forEach(file => {
@@ -461,18 +467,11 @@ function getPaths(originalPath, path, ignorePattern, paths = []) {
       // We won't do anything to it once it is copied to /dist
       // This is handy for `/dist/assets/scripts/vendor`, for example, since that is code likely already minified
       // and outside of the user's control
-      let allowed = true, pattern, match;
-      if (ignorePattern) {
-        ignorePattern.forEach(p => {
-          pattern = new RegExp(p, 'g');
-          match = currentFilePath.match(pattern);
-          if (match && match.length) allowed = false;
-        })
-      }
+      const allowed = !patterns.some(re => re.test(currentFilePath));
       // Include file to use in build process
       if (allowed) {
         if (fd.isDirectory()) {
-          paths = [...paths, ...getPaths(originalPath, currentFilePath, ignorePattern)];
+          getPaths(originalPath, currentFilePath, ignorePattern, paths, patterns);
         } else {
           paths.push(currentFilePath);
         }

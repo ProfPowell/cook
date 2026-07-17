@@ -26,9 +26,15 @@ import { distPath, srcPath, formats as formatsConfig } from '../utils/config/con
 // DEFINE
 // -----------------------------
 class GenerateFormats {
-  constructor({ store, data }) {
+  constructor({ store, data, pages, distPath: distPathOverride }) {
     this.store = store;
     this.data = data || {};
+    // Optional per-call overrides
+    this.distPath = distPathOverride || distPath;
+    // Optional shared page snapshot (see scripts/utils/site-pages) —
+    // avoids re-walking dist and re-parsing every page. Doms are shared
+    // and must be treated as read-only.
+    this.pages = pages || null;
     this.config = {
       markdown: true,
       json: true,
@@ -57,15 +63,19 @@ class GenerateFormats {
     this.startLog();
 
     try {
-      // Get all index.html files in dist (the actual pages)
-      const htmlFiles = Util.getPaths(distPath, distPath, []);
-      const indexFiles = htmlFiles
-        .filter(f => f.endsWith('/index.html') || f === `${distPath}/index.html`)
-        .filter(f => !f.includes('/404/'));
+      // Use the shared snapshot when provided; otherwise walk + parse
+      let pages = this.pages;
+      if (!pages) {
+        const htmlFiles = Util.getPaths(this.distPath, this.distPath, []);
+        const indexFiles = htmlFiles
+          .filter(f => f.endsWith('/index.html') || f === `${this.distPath}/index.html`);
+        pages = indexFiles.map(filePath => ({ filePath, urlPath: null, dom: null }));
+      }
+      pages = pages.filter(p => !p.filePath.includes('/404/'));
 
       // Process each page
-      for (const filePath of indexFiles) {
-        await this.processPage(filePath);
+      for (const page of pages) {
+        await this.processPage(page);
       }
 
       // Generate feed
@@ -75,12 +85,12 @@ class GenerateFormats {
 
       // Generate llms.txt
       if (this.config.llmsTxt) {
-        await this.generateLlmsTxt(indexFiles);
+        await this.generateLlmsTxt(pages);
       }
 
       // Generate llms-full.txt (complete documentation in one file)
       if (this.config.llmsFullTxt) {
-        await this.generateLlmsFullTxt(indexFiles);
+        await this.generateLlmsFullTxt(pages);
       }
     } catch (err) {
       Util.customWarn(err, 'generate-formats.js (formats skipped)');
@@ -92,13 +102,13 @@ class GenerateFormats {
 
   /**
    * Process a single page: generate markdown copy and JSON metadata
-   * @param {string} filePath - Path to the index.html file in dist
+   * @param {Object} page - { filePath, urlPath?, dom? } snapshot entry
    */
-  async processPage(filePath) {
+  async processPage(page) {
     // Get the URL path from the dist file path
     // e.g., dist/blog/my-post/index.html → /blog/my-post/
-    const relativePath = filePath.replace(distPath, '');
-    const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
+    const urlPath = page.urlPath
+      || page.filePath.replace(this.distPath, '').replace(/\/index\.html$/, '/').replace(/^$/, '/');
 
     // Try to find corresponding markdown source
     const mdSourcePath = this.findMarkdownSource(urlPath);
@@ -110,7 +120,7 @@ class GenerateFormats {
 
     // Generate JSON metadata
     if (this.config.json) {
-      await this.generateJsonMeta(filePath, urlPath, mdSourcePath);
+      await this.generateJsonMeta(page, urlPath, mdSourcePath);
     }
   }
 
@@ -146,8 +156,8 @@ class GenerateFormats {
       const content = await fs.readFile(mdSourcePath, 'utf-8');
       const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
       const outputPath = trimmedPath
-        ? path.resolve(`${distPath}/md/${trimmedPath}/index.md`)
-        : path.resolve(`${distPath}/md/index.md`);
+        ? path.resolve(`${this.distPath}/md/${trimmedPath}/index.md`)
+        : path.resolve(`${this.distPath}/md/index.md`);
 
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       await fs.writeFile(outputPath, content, 'utf-8');
@@ -163,10 +173,10 @@ class GenerateFormats {
    * @param {string} urlPath - URL path
    * @param {string|null} mdSourcePath - Path to markdown source if exists
    */
-  async generateJsonMeta(filePath, urlPath, mdSourcePath) {
+  async generateJsonMeta(page, urlPath, mdSourcePath) {
     try {
-      const src = await fs.readFile(filePath, 'utf-8');
-      const dom = Util.jsdom.dom({ src });
+      const dom = page.dom
+        || Util.jsdom.dom({ src: await fs.readFile(page.filePath, 'utf-8') });
       const document = dom.window.document;
 
       // Extract metadata from the HTML
@@ -198,7 +208,7 @@ class GenerateFormats {
 
       // Write JSON
       const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '') || 'index';
-      const outputPath = path.resolve(`${distPath}/api/${trimmedPath}.json`);
+      const outputPath = path.resolve(`${this.distPath}/api/${trimmedPath}.json`);
 
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       await fs.writeFile(outputPath, JSON.stringify(meta, null, 2), 'utf-8');
@@ -273,7 +283,7 @@ class GenerateFormats {
     xml += `</feed>
 `;
 
-    await fs.writeFile(path.resolve(`${distPath}/feed.xml`), xml, 'utf-8');
+    await fs.writeFile(path.resolve(`${this.distPath}/feed.xml`), xml, 'utf-8');
     this.stats.feed = true;
   }
 
@@ -283,11 +293,11 @@ class GenerateFormats {
    * @param {string[]} indexFiles - All index.html file paths
    * @returns {Array<{title: string, description: string, url: string, mdUrl: string|null, section: string|null}>}
    */
-  async collectPageMeta(indexFiles) {
+  async collectPageMeta(pageEntries) {
     const pages = [];
-    for (const filePath of indexFiles) {
-      const relativePath = filePath.replace(distPath, '');
-      const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
+    for (const page of pageEntries) {
+      const urlPath = page.urlPath
+        || page.filePath.replace(this.distPath, '').replace(/\/index\.html$/, '/').replace(/^$/, '/');
       const mdSource = this.findMarkdownSource(urlPath);
       const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
 
@@ -296,8 +306,8 @@ class GenerateFormats {
       let description = '';
       let section = null;
       try {
-        const src = await fs.readFile(filePath, 'utf-8');
-        const dom = Util.jsdom.dom({ src });
+        const dom = page.dom
+          || Util.jsdom.dom({ src: await fs.readFile(page.filePath, 'utf-8') });
         const doc = dom.window.document;
         const h1 = doc.querySelector('h1')?.textContent;
         const titleTag = doc.querySelector('title')?.textContent;
@@ -328,7 +338,7 @@ class GenerateFormats {
    * Enhanced with descriptions, section grouping, and AI instructions.
    * @param {string[]} indexFiles - All index.html file paths
    */
-  async generateLlmsTxt(indexFiles) {
+  async generateLlmsTxt(pageEntries) {
     const siteTitle = this.data.siteTitle || 'Site';
     const siteDescription = this.data.siteDescription || '';
     const siteUrl = this.data.siteUrl || '';
@@ -343,7 +353,7 @@ class GenerateFormats {
     }
 
     // Collect page metadata
-    const pages = await this.collectPageMeta(indexFiles);
+    const pages = await this.collectPageMeta(pageEntries);
     const mdPages = pages.filter(p => p.mdUrl);
 
     if (mdPages.length) {
@@ -393,7 +403,7 @@ class GenerateFormats {
       }
     }
 
-    await fs.writeFile(path.resolve(`${distPath}/llms.txt`), content, 'utf-8');
+    await fs.writeFile(path.resolve(`${this.distPath}/llms.txt`), content, 'utf-8');
     this.stats.llmsTxt = true;
   }
 
@@ -402,7 +412,7 @@ class GenerateFormats {
    * Ideal for bulk ingestion by IDE tools and AI systems.
    * @param {string[]} indexFiles - All index.html file paths
    */
-  async generateLlmsFullTxt(indexFiles) {
+  async generateLlmsFullTxt(pageEntries) {
     const siteTitle = this.data.siteTitle || 'Site';
     const siteDescription = this.data.siteDescription || '';
     const llmsInstructions = this.data.llmsInstructions || '';
@@ -416,9 +426,9 @@ class GenerateFormats {
     }
 
     // Collect pages and read their markdown content
-    for (const filePath of indexFiles) {
-      const relativePath = filePath.replace(distPath, '');
-      const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
+    for (const page of pageEntries) {
+      const urlPath = page.urlPath
+        || page.filePath.replace(this.distPath, '').replace(/\/index\.html$/, '/').replace(/^$/, '/');
       const mdSource = this.findMarkdownSource(urlPath);
       if (!mdSource) continue;
 
@@ -439,7 +449,7 @@ class GenerateFormats {
       } catch { /* skip unreadable files */ }
     }
 
-    await fs.writeFile(path.resolve(`${distPath}/llms-full.txt`), content, 'utf-8');
+    await fs.writeFile(path.resolve(`${this.distPath}/llms-full.txt`), content, 'utf-8');
     this.stats.llmsFullTxt = true;
   }
 

@@ -20,6 +20,22 @@ import { srcPath, distPath, minifyHtmlConfigCustom } from '../utils/config/confi
 // text/x-template, etc.) must be left untouched — terser rejects them.
 const JS_SCRIPT_TYPES = new Set(['', 'text/javascript', 'application/javascript', 'module']);
 
+// Content-keyed cache for minified inline JS/CSS. Sites repeat identical
+// inline snippets across pages (shared includes/components: analytics,
+// theme toggles, component styles) — minify each distinct snippet once
+// per build process instead of once per page. Bounded to avoid growth
+// in long-lived dev sessions.
+const MINIFY_CACHE_MAX = 500;
+const jsCache = new Map();
+const cssCache = new Map();
+function cacheGet(cache, key) {
+  return cache.get(key);
+}
+function cacheSet(cache, key, value) {
+  if (cache.size >= MINIFY_CACHE_MAX) cache.clear();
+  cache.set(key, value);
+}
+
 
 // DEFINE
 // -----------------------------
@@ -131,10 +147,15 @@ class MinifySrc {
   }
 
   async minJs(src, { module = false, label } = {}) {
+    const cacheKey = (module ? 'm:' : 's:') + src;
+    const cached = cacheGet(jsCache, cacheKey);
+    if (cached !== undefined) return cached;
     try {
       const config = module ? { ...this.minifyJsConfig, module: true } : this.minifyJsConfig;
       const result = await terser.minify(src, config);
-      return typeof result.code === 'string' ? result.code : src;
+      const out = typeof result.code === 'string' ? result.code : src;
+      cacheSet(jsCache, cacheKey, out);
+      return out;
     } catch (err) {
       // Invalid or non-standard JS: ship it unminified rather than
       // corrupting the file or killing the build.
@@ -144,10 +165,13 @@ class MinifySrc {
   }
 
   minCss(src) {
+    const cached = cacheGet(cssCache, src);
+    if (cached !== undefined) return cached;
     // Minify source
     let out = new CleanCSS(this.minifyCssConfig).minify(src).styles;
     // Replace '@import' calls with their inlined source
     out = this.replaceCssImports(out);
+    cacheSet(cssCache, src, out);
     // Return modified source
     return out;
   }

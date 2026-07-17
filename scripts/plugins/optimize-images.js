@@ -83,11 +83,19 @@ class OptimizeImagesGenerate {
     let generated = 0;
     let cached = 0;
 
-    for (const imgPath of imageFiles) {
-      const result = await this.processImage(imgPath, diskCache);
-      if (result.fromCache) cached++;
-      else generated++;
-    }
+    // Process images with bounded concurrency — sharp encodes on its
+    // own thread pool, so overlapping a few images cuts wall time
+    const CONCURRENCY = 4;
+    const queue = [...imageFiles];
+    const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+      while (queue.length) {
+        const imgPath = queue.shift();
+        const result = await this.processImage(imgPath, diskCache);
+        if (result.fromCache) cached++;
+        else generated++;
+      }
+    });
+    await Promise.all(workers);
 
     // Write updated disk cache
     await fs.writeFile(cacheManifestPath, JSON.stringify(diskCache, null, 2), 'utf-8');
