@@ -2,9 +2,9 @@
 
 A static site build system with templating, bundling, and optimization features.
 
-**Version:** 2.1.3 (canonical version lives in `package.json`)
+**Docs:** https://profpowell.github.io/cook/
 **License:** MIT
-**Node.js:** >=18.0.0
+**Node.js:** >=20.9.0
 
 [Getting Started](#getting-started) | [View/Run the site code](#viewrun-the-site-code) | [Environment Flags](#environment-flags) | [Build Process](#build-process) | [NPM Run Scripts](#npm-run-scripts)
 
@@ -159,7 +159,8 @@ The build process performs the following steps, in this order:
 10. **Creates `sitemap.xml`** - When `sitemap.url` is set, written to the site root (`/dist`, or `/dist/<siteRoot>`); fragments excluded
 11. **Creates bundled files** - `.css` and `.js` bundles are written
 12. **Fingerprints assets** - Opt-in content-hash filenames with HTML and JS-import rewriting (`fingerprint` config)
-13. **Runs custom-user `after` plugins** - Runs once after file processing
+13. **Applies `basePath`** - When set, prefixes root-relative URLs in built HTML for sub-path hosting (production only)
+14. **Runs custom-user `after` plugins** - Runs once after file processing
 
 A page that fails during the loop is reported (with its path) and skipped; the rest of the site still builds, a failure summary prints at the end, and the process exits non-zero so CI catches it.
 
@@ -198,6 +199,13 @@ export default {
   // For pages kept in src/pages and deployed from dist/pages, set 'pages'
   // so active links, the sitemap and formats use /docs/, not /pages/docs/.
   siteRoot: '',
+
+  // URL path the site is served under (default: '' = domain root).
+  // For a GitHub Pages project site at https://user.github.io/repo/ set
+  // '/repo': links stay written as '/docs/' and production builds output
+  // '/repo/docs/'. `cook dev` ignores it. Include the base path in
+  // absolute URLs you set yourself (sitemap.url, data.siteUrl).
+  basePath: '',
 
   // Sitemap: set url to enable (default: '' = no sitemap.xml)
   sitemap: {

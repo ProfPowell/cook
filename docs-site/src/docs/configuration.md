@@ -32,6 +32,17 @@ Cook works with zero configuration. When you need to customize behavior, create 
 
 Active links, the sitemap, and generated formats then use the URLs visitors see (`/docs/intro/`, not `/pages/docs/intro/`), and pages outside that folder are skipped.
 
+`basePath` is the URL path your site is served under (default `''`, the domain root). Set it when the site lives below the root of its domain, such as a GitHub Pages project site at `https://user.github.io/repo/`:
+
+<code-block language="javascript" label="config/main.js">export default {
+  basePath: '/repo',
+  sitemap: { url: 'https://user.github.io/repo' },
+};</code-block>
+
+Keep writing root-relative links as if the site were at `/` (`/docs/`, `/assets/css/site.css`). As the last built-in step of a production build, Cook prefixes them in every HTML page and fragment: `href`, `src`, `srcset`, `action`, `poster`, inline `url()` and import maps. Relative and absolute URLs, URLs already under the base path, and code shown as text are left alone. `cook dev` skips this step so the dev server still works at `/`.
+
+Absolute URLs come from values you configure, so put the base path in those yourself: `sitemap.url` and `siteUrl` in `config/data.js`. CSS and JS files are not rewritten; use relative paths for `url()` references in stylesheets.
+
 ### Components
 
 Configure the component directory, an optional tag prefix, and explicit element-to-file mappings. See [Components](/docs/components/) for full details.

@@ -43,6 +43,14 @@ const defaultConfig = {
   // `siteRoot: 'pages'`. Active links, the sitemap and the post-build page
   // snapshot then use the URLs visitors actually see (/docs/, not /pages/docs/).
   siteRoot: '',
+  // URL path the site is served under ('' = domain root). Set it for
+  // sub-path hosting such as a GitHub Pages project site
+  // (https://user.github.io/repo/ → `basePath: '/repo'`). Write links as
+  // usual ('/docs/'); production builds prefix root-relative URLs in the
+  // built HTML ('/repo/docs/'). `cook dev` ignores it and serves at "/".
+  // Include the base path in absolute URLs you configure yourself:
+  // `sitemap.url` and `data.siteUrl` ('https://user.github.io/repo').
+  basePath: '',
   // The URL domain to use for the `sitemap.xml` entries.
   // Set `sitemap.url` to enable: `sitemap.xml` is written to the site root
   // (`distPath`, or `distPath/siteRoot`). Left empty, no sitemap is written.
@@ -297,6 +305,7 @@ export default config;
 export const {
   activeLink,
   autoComponents,
+  basePath,
   buildOnlyPaths,
   bundle,
   components,

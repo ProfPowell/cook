@@ -17,28 +17,41 @@ Any HTTP server that can serve static files will work. Point it at `dist/` and y
 
 ## GitHub Pages
 
-Set up GitHub Pages by adding a build-and-deploy workflow. Configure the build command and output directory in your repository settings or in a workflow file.
+Build and deploy with a GitHub Actions workflow, then set **Settings > Pages > Source** to "GitHub Actions" so the workflow artifact is deployed directly.
 
 <code-block language="yaml" label=".github/workflows/deploy.yml">name: Deploy
 on:
   push:
     branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 jobs:
-  build-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
+          cache: npm
       - run: npm ci
       - run: npx cook build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - uses: actions/deploy-pages@v4</code-block>
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4</code-block>
 
-Set **Settings > Pages > Source** to "GitHub Actions" so the workflow artifact is deployed directly.
+A project site is served under the repository name (`https://user.github.io/repo/`), not the domain root. Set `basePath: '/repo'` so root-relative links and assets resolve; see [Configuration](/docs/configuration/). User sites (`user.github.io`) and custom domains are served at `/` and need no `basePath`.
 
 ## Cloudflare Pages
 

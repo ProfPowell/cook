@@ -10,6 +10,7 @@ import Util, { runFileLoop, updatePage } from './utils/util/util.js';
 
 // PLUGINS
 // -----------------------------
+import applyBasePath from './plugins/apply-base-path.js';
 import autoComponents from './plugins/auto-components.js';
 import { bundleAdd, bundleBuild } from './plugins/bundle.js';
 import copySrc from './plugins/copy-src.js';
@@ -223,6 +224,11 @@ class Build {
     // Must run after generateSitemap (HTML pages already exist) but before
     // user-defined `after` plugins so they see fingerprinted output.
     await fingerprintAssets();
+
+    // PLUGIN: Prefix root-relative URLs in built HTML with `basePath`
+    // (sub-path hosting, e.g. GitHub Pages project sites). Runs after every
+    // built-in post-loop plugin so they all work with plain root paths.
+    await applyBasePath();
 
     // CUSTOM PLUGINS: Run custom user plugins after file loop
     await customPlugins({store, data, plugins: plugins.after, log: 'After' });
