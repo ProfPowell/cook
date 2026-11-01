@@ -3,10 +3,13 @@ export default {
   srcPath: 'src',
   startPath: 'index.html',
 
+  // Served as a GitHub Pages project site: https://profpowell.github.io/cook/
+  basePath: '/cook',
+
   buildOnlyPaths: ['components', 'includes', 'layouts'],
 
   sitemap: {
-    url: 'https://cook-ssg.dev',
+    url: 'https://profpowell.github.io/cook',
     excludePaths: [/\/assets/, /^\/404.html/],
   },
 

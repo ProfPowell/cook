@@ -1,11 +1,16 @@
+import { readFileSync } from 'node:fs';
+
+// Version shown on the site tracks the cook-ssg package being documented
+const cookVersion = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf-8')).version;
+
 export default {
   siteTitle: 'Cook SSG',
   siteDescription: 'A platform-native static site generator. ES6 template literals for templating, custom elements for components, file-based routing by default.',
-  siteUrl: 'https://cook-ssg.dev',
+  siteUrl: 'https://profpowell.github.io/cook',
   year: new Date().getFullYear().toString(),
   githubUrl: 'https://github.com/ProfPowell/cook',
   npmUrl: 'https://www.npmjs.com/package/cook-ssg',
-  version: '2.0.0',
+  version: cookVersion,
 
   navItems: [
     { url: '/', label: 'Home' },
