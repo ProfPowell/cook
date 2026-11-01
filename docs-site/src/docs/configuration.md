@@ -24,6 +24,14 @@ Cook works with zero configuration. When you need to customize behavior, create 
 
 `srcPath` and `distPath` control where Cook reads source files and writes output. The defaults are `src` and `dist`. `startPath` sets the entry file for the dev server (default `index.html`).
 
+`siteRoot` names the subfolder of `distPath` that is served at `/` (default `''`, meaning `distPath` itself). Set it when your pages live in a subfolder you deploy on its own, for example `src/pages` built to `dist/pages` with `dist/pages` as your host's output directory:
+
+<code-block language="javascript" label="config/main.js">export default {
+  siteRoot: 'pages',
+};</code-block>
+
+Active links, the sitemap, and generated formats then use the URLs visitors see (`/docs/intro/`, not `/pages/docs/intro/`), and pages outside that folder are skipped.
+
 ### Components
 
 Configure the component directory, an optional tag prefix, and explicit element-to-file mappings. See [Components](/docs/components/) for full details.
@@ -66,7 +74,7 @@ Cook generates responsive AVIF/WebP derivatives and rewrites `<img>` to `<pictur
 
 ### Sitemap
 
-Set `sitemap.url` to auto-generate a `sitemap.xml` in the output directory. Paths matching `/assets/`, `/includes/`, and `/404.html` are excluded by default.
+Set `sitemap.url` to generate a `sitemap.xml` in the site root (`distPath`, or `distPath/siteRoot`). With no `sitemap.url`, no sitemap is written. Paths matching `/assets/`, `/includes/`, and `/404.html` are excluded by default.
 
 ### Bundle
 

@@ -9,7 +9,8 @@ import chalk from 'chalk';
 import Util from '../utils/util/util.js';
 
 // Config
-import { distPath, activeLink } from '../utils/config/config.js';
+import { distPath, activeLink, siteRoot } from '../utils/config/config.js';
+import { fileToUrlPath } from '../utils/site-root/site-root.js';
 
 
 // DEFINE
@@ -22,8 +23,10 @@ import { distPath, activeLink } from '../utils/config/config.js';
  * @property {Array} [obj.disallowType] - Disallowed file types (Opt-out)
  */
 class SetActiveLinks {
-  constructor({file, allowType, disallowType, excludePaths = []}) {
+  constructor({file, allowType, disallowType, excludePaths = [], siteRoot: siteRootOpt}) {
     this.opts = {file, allowType, disallowType, excludePaths};
+    // Per-call override (tests, custom pipelines); defaults to config
+    this.siteRoot = siteRootOpt ?? siteRoot;
     this.file = file;
     this.allowType = allowType;
     this.disallowType = disallowType;
@@ -81,6 +84,8 @@ class SetActiveLinks {
     // marked /company/about/ active on /legal/about/ and even matched
     // external links whose URL ended in the same segment.
     const pageUrl = this.normalizePagePath(file.path);
+    // Page outside the served root (siteRoot): no visitor URL to compare
+    if (pageUrl === null) return;
     const linkUrl = this.normalizeHref(link.getAttribute('href'));
     if (linkUrl === null) return;
     if (linkUrl === pageUrl) this.setActiveLink(link);
@@ -98,10 +103,9 @@ class SetActiveLinks {
    * @private
    */
   normalizePagePath(pagePath) {
-    let p = pagePath.startsWith(`${distPath}/`)
-      ? pagePath.slice(distPath.length)
-      : (pagePath.startsWith('/') ? pagePath : `/${pagePath}`);
-    return this.normalizeUrlPath(p);
+    // dist/pages/docs/index.html → /docs/ when siteRoot is 'pages'
+    const p = fileToUrlPath(pagePath, distPath, this.siteRoot);
+    return p === null ? null : this.normalizeUrlPath(p);
   }
 
   /**
@@ -146,6 +150,9 @@ class SetActiveLinks {
     if (isAttribute) link.setAttribute(`data-${Util.attr.active}`,'');
     // Or set as a class value
     else link.classList.add(Util.attr.active);
+    // The accessible marker for "this link is the current page". Keep an
+    // author-set value (e.g. aria-current="step").
+    if (!link.hasAttribute('aria-current')) link.setAttribute('aria-current', 'page');
     // Increment counter for display in terminal logging
     this.total.active += 1;
   }

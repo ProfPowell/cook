@@ -49,7 +49,7 @@ After all files are processed:
 
 1. **Fragments** -- generates `_fragment.html` files containing only the `&lt;main&gt;` content for SPA navigation
 2. **Formats** -- generates markdown, JSON, Atom feed, and llms.txt variants
-3. **Sitemap** -- creates `sitemap.xml` from all pages in `dist/`
+3. **Sitemap** -- when `sitemap.url` is set, creates `sitemap.xml` from all pages in the site root (`dist/`, or `dist/<siteRoot>/`)
 4. **Bundle build** -- writes the collected CSS/JS bundles to `dist/`
 5. **Custom plugins: after** -- runs any plugins registered in `plugins.after`
 

@@ -37,10 +37,17 @@ const defaultConfig = {
   srcPath: 'src',
   // The file to load in `srcPath` if not `index.html`
   startPath: 'index.html',
-  // The URL domain to use for the `sitemap.xml` entries
-  // Note: Enabling this auto-generates `sitemap.xml` in the `/dist` directory
+  // Subfolder of `distPath` that is served at "/" ('' = distPath itself).
+  // Set it when pages live in a subfolder you deploy on its own, e.g.
+  // src/pages → dist/pages with dist/pages as the host's output dir:
+  // `siteRoot: 'pages'`. Active links, the sitemap and the post-build page
+  // snapshot then use the URLs visitors actually see (/docs/, not /pages/docs/).
+  siteRoot: '',
+  // The URL domain to use for the `sitemap.xml` entries.
+  // Set `sitemap.url` to enable: `sitemap.xml` is written to the site root
+  // (`distPath`, or `distPath/siteRoot`). Left empty, no sitemap is written.
   sitemap: {
-    url: 'https://www.site.com',
+    url: '',
     // Exclude files from sitemap by adding the desired path regex
     // Defaults are: Any `/assets` or `/includes` paths, and the root `404.html`
     // excludePaths: [/\/assets/, /\/includes/, /^\/404.html/],
@@ -311,6 +318,7 @@ export const {
   repeat,
   replaceExternalLinkProtocol,
   sitemap,
+  siteRoot,
   srcPath,
   startPath,
   watch,

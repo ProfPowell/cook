@@ -8,7 +8,8 @@ import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 
 // CONFIG
-import { distPath, fragments, sitemap, srcPath } from '../utils/config/config.js';
+import { distPath, fragments, sitemap, siteRoot, srcPath } from '../utils/config/config.js';
+import { siteRootDir } from '../utils/site-root/site-root.js';
 
 
 // DEFINE
@@ -22,6 +23,9 @@ class GenerateSitemap {
     // Optional per-call overrides (used by tests and custom pipelines)
     this.distPath = opts.distPath || distPath;
     this.sitemap = opts.sitemap || sitemap;
+    // Served root: only pages a visitor can reach are listed, and
+    // sitemap.xml lands where it is served (/sitemap.xml)
+    this.rootDir = siteRootDir(this.distPath, opts.siteRoot ?? siteRoot);
     // SPA fragment filename — fragment files are content duplicates of
     // their parent page and must never be listed as URLs
     this.fragmentsFilename = (fragments && fragments.filename) || '_fragment.html';
@@ -56,7 +60,7 @@ class GenerateSitemap {
       // Build XML source
       let xmlSrc = this.buildXML(files);
       // Create `sitemap.xml` and write source to it
-      await fs.writeFile(`${this.distPath}/sitemap.xml`, xmlSrc);
+      await fs.writeFile(`${this.rootDir}/sitemap.xml`, xmlSrc);
     }
     catch (e) {
       Util.customWarn(e, 'Generate sitemap.xml (skipped)');
@@ -136,13 +140,13 @@ class GenerateSitemap {
     const allowedExt = ['html'];
     const excludedPaths = [];
     // Get files in `/dist`
-    let files = Util.getPaths(this.distPath, this.distPath, excludedPaths);
+    let files = Util.getPaths(this.rootDir, this.rootDir, excludedPaths);
     // Get only the allowed files by extension (.css, .html)
     files = files.filter(fileName => Util.isExtension(fileName, allowedExt));
     // Skip SPA fragment files (content duplicates of their parent page)
     files = files.filter(fileName => !fileName.endsWith(`/${this.fragmentsFilename}`));
     // Format for xml: Remove `/dist`
-    files = files.map(fileName => fileName.split(this.distPath)[1]);
+    files = files.map(fileName => fileName.slice(this.rootDir.length));
     // Format for xml: Remove `filename`
     files = files.map(fileName => this.formatDirPath(fileName));
     // Alphabetize files

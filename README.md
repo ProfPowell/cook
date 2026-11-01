@@ -151,12 +151,12 @@ The build process performs the following steps, in this order:
    * Pre-renders Declarative Shadow DOM from a manifest (`dsd` config)
    * Adds missing `http://` protocol to `www.`/`cdn.` links
    * Replaces inline placeholders (`[data-inline]`) with external source (production only)
-   * Sets `<a>` tags whose `[href]` resolves to the current page as active (`class="active"`), ancestors as `class="active-parent"`
+   * Sets `<a>` tags whose `[href]` resolves to the current page as active (`class="active"` plus `aria-current="page"`), ancestors as `class="active-parent"`
    * Stores link/script files marked for bundling (`[data-bundle]`)
    * Minifies HTML, CSS, and JS source (production only)
 8. **Generates fragments** - A sibling `_fragment.html` per page for SPA-style navigation (`fragments` config)
 9. **Generates formats** - Markdown copies under `/md/`, JSON under `/api/`, Atom feed, and `llms.txt` (`formats` config)
-10. **Creates `sitemap.xml`** - Auto-generated in `/dist` (fragments excluded)
+10. **Creates `sitemap.xml`** - When `sitemap.url` is set, written to the site root (`/dist`, or `/dist/<siteRoot>`); fragments excluded
 11. **Creates bundled files** - `.css` and `.js` bundles are written
 12. **Fingerprints assets** - Opt-in content-hash filenames with HTML and JS-import rewriting (`fingerprint` config)
 13. **Runs custom-user `after` plugins** - Runs once after file processing
@@ -194,7 +194,12 @@ export default {
   // Source directory (default: 'src')
   srcPath: 'src',
 
-  // Sitemap configuration
+  // Subfolder of distPath served at "/" (default: '' = distPath itself).
+  // For pages kept in src/pages and deployed from dist/pages, set 'pages'
+  // so active links, the sitemap and formats use /docs/, not /pages/docs/.
+  siteRoot: '',
+
+  // Sitemap: set url to enable (default: '' = no sitemap.xml)
   sitemap: {
     url: 'https://www.yoursite.com',
   },

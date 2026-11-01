@@ -16,7 +16,8 @@ import Util from '../utils/util/util.js';
 import Logger from '../utils/logger/logger.js';
 
 // Config
-import { distPath, fragments as fragmentsConfig } from '../utils/config/config.js';
+import { distPath, siteRoot, fragments as fragmentsConfig } from '../utils/config/config.js';
+import { siteRootDir } from '../utils/site-root/site-root.js';
 
 
 // DEFINE
@@ -26,6 +27,7 @@ class GenerateFragments {
     this.total = 0;
     // Optional per-call overrides
     this.distPath = opts.distPath || distPath;
+    this.siteRoot = opts.siteRoot ?? siteRoot;
     // Optional shared page snapshot (see scripts/utils/site-pages) —
     // avoids re-walking dist and re-parsing every page
     this.pages = opts.pages || null;
@@ -62,8 +64,9 @@ class GenerateFragments {
         }
       } else {
         // Standalone: walk and parse ourselves
-        const htmlFiles = Util.getPaths(this.distPath, this.distPath, []);
-        const indexFiles = htmlFiles.filter(f => f.endsWith('/index.html') || f === `${this.distPath}/index.html`);
+        const rootDir = siteRootDir(this.distPath, this.siteRoot);
+        const htmlFiles = Util.getPaths(rootDir, rootDir, []);
+        const indexFiles = htmlFiles.filter(f => f.endsWith('/index.html') || f === `${rootDir}/index.html`);
 
         for (const filePath of indexFiles) {
           await this.generateFragment(filePath);

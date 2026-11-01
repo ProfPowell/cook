@@ -20,17 +20,22 @@ import Util from '../utils/util/util.js';
 import Logger from '../utils/logger/logger.js';
 
 // Config
-import { distPath, srcPath, formats as formatsConfig } from '../utils/config/config.js';
+import { distPath, siteRoot, srcPath, formats as formatsConfig } from '../utils/config/config.js';
+import { siteRootDir, fileToUrlPath } from '../utils/site-root/site-root.js';
 
 
 // DEFINE
 // -----------------------------
 class GenerateFormats {
-  constructor({ store, data, pages, distPath: distPathOverride }) {
+  constructor({ store, data, pages, distPath: distPathOverride, siteRoot: siteRootOverride }) {
     this.store = store;
     this.data = data || {};
     // Optional per-call overrides
     this.distPath = distPathOverride || distPath;
+    this.siteRoot = siteRootOverride ?? siteRoot;
+    // Served root: pages are read from, and md/ api/ feed.xml llms*.txt
+    // written to, the folder visitors see as "/"
+    this.rootDir = siteRootDir(this.distPath, this.siteRoot);
     // Optional shared page snapshot (see scripts/utils/site-pages) —
     // avoids re-walking dist and re-parsing every page. Doms are shared
     // and must be treated as read-only.
@@ -66,9 +71,9 @@ class GenerateFormats {
       // Use the shared snapshot when provided; otherwise walk + parse
       let pages = this.pages;
       if (!pages) {
-        const htmlFiles = Util.getPaths(this.distPath, this.distPath, []);
+        const htmlFiles = Util.getPaths(this.rootDir, this.rootDir, []);
         const indexFiles = htmlFiles
-          .filter(f => f.endsWith('/index.html') || f === `${this.distPath}/index.html`);
+          .filter(f => f.endsWith('/index.html') || f === `${this.rootDir}/index.html`);
         pages = indexFiles.map(filePath => ({ filePath, urlPath: null, dom: null }));
       }
       pages = pages.filter(p => !p.filePath.includes('/404/'));
@@ -108,7 +113,7 @@ class GenerateFormats {
     // Get the URL path from the dist file path
     // e.g., dist/blog/my-post/index.html → /blog/my-post/
     const urlPath = page.urlPath
-      || page.filePath.replace(this.distPath, '').replace(/\/index\.html$/, '/').replace(/^$/, '/');
+      || fileToUrlPath(page.filePath, this.distPath, this.siteRoot);
 
     // Try to find corresponding markdown source
     const mdSourcePath = this.findMarkdownSource(urlPath);
@@ -156,8 +161,8 @@ class GenerateFormats {
       const content = await fs.readFile(mdSourcePath, 'utf-8');
       const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
       const outputPath = trimmedPath
-        ? path.resolve(`${this.distPath}/md/${trimmedPath}/index.md`)
-        : path.resolve(`${this.distPath}/md/index.md`);
+        ? path.resolve(`${this.rootDir}/md/${trimmedPath}/index.md`)
+        : path.resolve(`${this.rootDir}/md/index.md`);
 
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       await fs.writeFile(outputPath, content, 'utf-8');
@@ -208,7 +213,7 @@ class GenerateFormats {
 
       // Write JSON
       const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '') || 'index';
-      const outputPath = path.resolve(`${this.distPath}/api/${trimmedPath}.json`);
+      const outputPath = path.resolve(`${this.rootDir}/api/${trimmedPath}.json`);
 
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       await fs.writeFile(outputPath, JSON.stringify(meta, null, 2), 'utf-8');
@@ -283,7 +288,7 @@ class GenerateFormats {
     xml += `</feed>
 `;
 
-    await fs.writeFile(path.resolve(`${this.distPath}/feed.xml`), xml, 'utf-8');
+    await fs.writeFile(path.resolve(`${this.rootDir}/feed.xml`), xml, 'utf-8');
     this.stats.feed = true;
   }
 
@@ -297,7 +302,7 @@ class GenerateFormats {
     const pages = [];
     for (const page of pageEntries) {
       const urlPath = page.urlPath
-        || page.filePath.replace(this.distPath, '').replace(/\/index\.html$/, '/').replace(/^$/, '/');
+        || fileToUrlPath(page.filePath, this.distPath, this.siteRoot);
       const mdSource = this.findMarkdownSource(urlPath);
       const trimmedPath = urlPath.replace(/^\//, '').replace(/\/$/, '');
 
@@ -403,7 +408,7 @@ class GenerateFormats {
       }
     }
 
-    await fs.writeFile(path.resolve(`${this.distPath}/llms.txt`), content, 'utf-8');
+    await fs.writeFile(path.resolve(`${this.rootDir}/llms.txt`), content, 'utf-8');
     this.stats.llmsTxt = true;
   }
 
@@ -428,7 +433,7 @@ class GenerateFormats {
     // Collect pages and read their markdown content
     for (const page of pageEntries) {
       const urlPath = page.urlPath
-        || page.filePath.replace(this.distPath, '').replace(/\/index\.html$/, '/').replace(/^$/, '/');
+        || fileToUrlPath(page.filePath, this.distPath, this.siteRoot);
       const mdSource = this.findMarkdownSource(urlPath);
       if (!mdSource) continue;
 
@@ -449,7 +454,7 @@ class GenerateFormats {
       } catch { /* skip unreadable files */ }
     }
 
-    await fs.writeFile(path.resolve(`${this.distPath}/llms-full.txt`), content, 'utf-8');
+    await fs.writeFile(path.resolve(`${this.rootDir}/llms-full.txt`), content, 'utf-8');
     this.stats.llmsFullTxt = true;
   }
 

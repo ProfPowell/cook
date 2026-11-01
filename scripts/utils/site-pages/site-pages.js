@@ -11,17 +11,21 @@
 
 import { promises as fs } from 'node:fs';
 import Util from '../util/util.js';
-import { distPath as defaultDistPath } from '../config/config.js';
+import { distPath as defaultDistPath, siteRoot as defaultSiteRoot } from '../config/config.js';
+import { siteRootDir, fileToUrlPath } from '../site-root/site-root.js';
 
 /**
  * Collect all built index pages with their source and parsed document.
  * @param {string} [distPathArg] - Dist directory (defaults to config)
+ * @param {string} [siteRootArg] - Served subfolder of dist (defaults to config)
  * @returns {Promise<Array<{filePath: string, urlPath: string, src: string, dom: Object}>>}
  */
-export async function collectSitePages(distPathArg = defaultDistPath) {
-  const htmlFiles = Util.getPaths(distPathArg, distPathArg, []) || [];
+export async function collectSitePages(distPathArg = defaultDistPath, siteRootArg = defaultSiteRoot) {
+  // Walk only the served root: pages outside it have no visitor URL
+  const rootDir = siteRootDir(distPathArg, siteRootArg);
+  const htmlFiles = Util.getPaths(rootDir, rootDir, []) || [];
   const indexFiles = htmlFiles.filter(
-    f => f.endsWith('/index.html') || f === `${distPathArg}/index.html`
+    f => f.endsWith('/index.html') || f === `${rootDir}/index.html`
   );
 
   const pages = [];
@@ -29,8 +33,8 @@ export async function collectSitePages(distPathArg = defaultDistPath) {
     const src = await fs.readFile(filePath, 'utf-8');
     const dom = Util.jsdom.dom({ src });
     // dist/blog/my-post/index.html → /blog/my-post/
-    const relativePath = filePath.replace(distPathArg, '');
-    const urlPath = relativePath.replace(/\/index\.html$/, '/').replace(/^$/, '/');
+    // (dist/pages/blog/my-post/index.html with siteRoot: 'pages')
+    const urlPath = fileToUrlPath(filePath, distPathArg, siteRootArg);
     pages.push({ filePath, urlPath, src, dom });
   }
   return pages;
