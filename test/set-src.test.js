@@ -43,4 +43,22 @@ describe('setSrc: document structure preservation', () => {
     assert.ok(!/<html/i.test(out), `partial should not gain <html>, got: ${out}`);
     assert.match(out, /<nav><a href="\/">Home<\/a><\/nav>/);
   });
+
+  // Issue #58: linkedom always serialized <!DOCTYPE html>, so every page with
+  // the lowercase <!doctype html> that html-validate's doctype-style rule
+  // wants came out uppercase.
+  test('lowercase <!doctype html> survives the round trip', () => {
+    const out = roundTrip(`<!doctype html><html lang="en"><head><title>t</title></head><body><p>x</p></body></html>`);
+    assert.ok(out.startsWith('<!doctype html>'), out.slice(0, 40));
+  });
+
+  test('uppercase <!DOCTYPE html> is kept as written', () => {
+    const out = roundTrip(`<!DOCTYPE html><html><head><title>t</title></head><body></body></html>`);
+    assert.ok(out.startsWith('<!DOCTYPE html>'), out.slice(0, 40));
+  });
+
+  test('a page without a doctype does not gain one', () => {
+    const out = roundTrip(`<html lang="en"><head><title>t</title></head><body></body></html>`);
+    assert.ok(!/<!doctype/i.test(out), out.slice(0, 40));
+  });
 });

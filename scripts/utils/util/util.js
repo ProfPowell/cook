@@ -571,9 +571,16 @@ function newDOM({src, options}) {
   // We wrap it to provide a compatible interface for existing plugins
   jsdom.parseCount += 1;
   const parsed = parseHTML(src);
+  // linkedom always writes <!DOCTYPE html> (uppercase). Keep the doctype the
+  // author wrote (e.g. lowercase <!doctype html>, which HTML linters such as
+  // html-validate's doctype-style rule require) so output matches source.
+  const sourceDoctype = /^\s*(<!doctype\b[^>]*>)/i.exec(src)?.[1];
   return {
     window: { document: parsed.document },
-    serialize: () => parsed.document.toString(),
+    serialize: () => {
+      const out = parsed.document.toString();
+      return sourceDoctype ? out.replace(/^<!doctype\b[^>]*>/i, sourceDoctype) : out;
+    },
     _document: parsed.document,
   };
 }
