@@ -9,7 +9,6 @@ import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rimraf } from 'rimraf';
 
 // Get directory name in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -28,7 +27,7 @@ describe('Markdown Processing', async () => {
 
   before(async () => {
     // Clean up any previous test artifacts
-    await rimraf(fixturesDir);
+    await fs.rm(fixturesDir, { recursive: true, force: true });
 
     // Create test directories
     await fs.mkdir(srcDir, { recursive: true });
@@ -44,7 +43,7 @@ describe('Markdown Processing', async () => {
 
   after(async () => {
     // Clean up test fixtures
-    await rimraf(fixturesDir);
+    await fs.rm(fixturesDir, { recursive: true, force: true });
   });
 
   describe('Front Matter Parsing', () => {

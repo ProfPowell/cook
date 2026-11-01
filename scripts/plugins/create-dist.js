@@ -7,7 +7,6 @@
 // -----------------------------
 import chalk from 'chalk';
 import fs from 'fs-extra';
-import { rimraf } from 'rimraf';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 
@@ -32,7 +31,7 @@ class CreateDist {
     Logger.persist.header(`\nCreate /${distPath}`);
 
     // Remove `/dist` (fails silently if not there as that is the intended result)
-    rimraf.sync(distPath);
+    fs.rmSync(distPath, { recursive: true, force: true });
     // Make fresh '/dist' folder
     await fs.mkdir(distPath).catch(Util.customError);
 
