@@ -1,6 +1,6 @@
 {
   "name": "cook-ssg",
-  "version": "2.1.3",
+  "version": "2.2.0",
   "description": "Cook your static pages into a beautifully performing site. Static site generation the web platform way.",
   "type": "module",
   "bin": {
