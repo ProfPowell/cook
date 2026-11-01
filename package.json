@@ -15,12 +15,10 @@
   "files": [
     "bin/",
     "scripts/",
-    "patches/",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
-    "postinstall": "node patches/jsdom-fetch-fix.js",
     "build": "node scripts/build.js",
     "dev": "NODE_ENV=development npm run build && node scripts/dev.js",
     "dev:prod": "NODE_ENV=production npm run build && npx http-server ./dist -p 3000",
@@ -61,7 +59,6 @@
     "fs-extra": "^11.3.2",
     "gray-matter": "^4.0.3",
     "html-minifier-terser": "^7.2.0",
-    "jsdom": "^29.1.0",
     "linkedom": "^0.18.12",
     "lodash.clonedeep": "^4.5.0",
     "lodash.merge": "^4.6.2",
