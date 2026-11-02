@@ -16,6 +16,7 @@ import Util from '../utils/util/util.js';
 import { renderTemplate } from '../utils/interpolate/interpolate.js';
 
 // Config
+import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
 import { distPath, srcPath, markdown as markdownConfig } from '../utils/config/config.js';
 
 
@@ -323,37 +324,13 @@ ${pageData.content}
 
     for (const page of this.processedFiles) {
       if (page.collection) {
-        // Initialize collection array if needed
-        if (!this.store.collections[page.collection]) {
-          this.store.collections[page.collection] = [];
-        }
-
         // Add page to collection (without full content to save memory)
-        this.store.collections[page.collection].push({
-          title: page.title,
-          url: page.url,
-          slug: page.slug,
-          date: page.date,
-          description: page.description,
-          // Include any other front matter fields except content
-          ...Object.fromEntries(
-            Object.entries(page).filter(([key]) =>
-              !['content', 'sourcePath', 'outputPath', 'collection'].includes(key)
-            )
-          ),
-        });
+        addToCollection(this.store.collections, page.collection, toCollectionItem(page));
       }
     }
 
     // Sort collections by date (newest first)
-    for (const collectionName of Object.keys(this.store.collections)) {
-      this.store.collections[collectionName].sort((a, b) => {
-        if (!a._dateSort && !b._dateSort) return 0;
-        if (!a._dateSort) return 1;
-        if (!b._dateSort) return -1;
-        return b._dateSort - a._dateSort;
-      });
-    }
+    sortCollections(this.store.collections);
   }
 
   // EXPORT WRAPPER
