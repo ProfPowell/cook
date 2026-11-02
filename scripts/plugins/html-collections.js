@@ -113,10 +113,27 @@ export function htmlPageData(relPath, frontMatter, opts = {}) {
     url: htmlPageUrl(relPath, opts),
     slug,
     collection: htmlCollectionName(relPath, opts.siteRoot),
-    // Timezone-safe YYYY-MM-DD string for templates, like markdown pages
-    date: valid ? parsed.toISOString().split('T')[0] : (rawDate ? String(rawDate) : null),
+    date: templateDate(rawDate),
+    // Parsed Date is only for sorting
     _dateSort: valid ? parsed : null,
   };
+}
+
+/**
+ * Date string for templates, on the calendar day the author wrote.
+ * - YAML dates (gray-matter gives a UTC-midnight Date) → YYYY-MM-DD
+ * - Strings starting YYYY-MM-DD keep that day; converting through UTC
+ *   would move "2026-11-01T23:30:00-05:00" to 2026-11-02
+ * - Any other string is kept as written, like markdown pages
+ * @param {Date|string|undefined} rawDate
+ * @returns {string|null}
+ */
+function templateDate(rawDate) {
+  if (!rawDate) return null;
+  if (rawDate instanceof Date) return isNaN(rawDate) ? null : rawDate.toISOString().split('T')[0];
+  const str = String(rawDate);
+  const ymd = str.match(/^\d{4}-\d{2}-\d{2}/);
+  return ymd ? ymd[0] : str;
 }
 
 

@@ -55,6 +55,15 @@ describe('htmlPageData', () => {
       assert.ok(d._dateSort instanceof Date && !isNaN(d._dateSort));
     }
   });
+  test('date strings keep their written calendar day (no UTC shift)', () => {
+    // An evening post with a US offset is still that day, not tomorrow in UTC
+    assert.equal(htmlPageData('posts/a.html', { date: '2026-11-01T23:30:00-05:00' }, {}).date, '2026-11-01');
+    assert.equal(htmlPageData('posts/a.html', { date: '2026-11-01 09:00' }, {}).date, '2026-11-01');
+    // Non-ISO strings are kept as written, like markdown pages; still sortable
+    const d = htmlPageData('posts/a.html', { date: 'November 1, 2026' }, {});
+    assert.equal(d.date, 'November 1, 2026');
+    assert.ok(d._dateSort instanceof Date && !isNaN(d._dateSort));
+  });
   test('missing date is null', () => {
     const d = htmlPageData('posts/a.html', {}, {});
     assert.equal(d.date, null);

@@ -88,6 +88,7 @@ This page appears in `collections.blog` with URL `/blog/launch-day/`, sorted by 
 - Pages without frontmatter, pages in `buildOnlyPaths` folders, and pages matching `excludePaths` are left out.
 - `draft: true` in frontmatter keeps a page out of collections (the page itself is still built).
 - With `siteRoot` set, the collection is the first folder under that served folder: `src/pages/blog/x.html` with `siteRoot: 'pages'` joins `blog`.
+- Known limitation: Markdown pages do not follow `siteRoot` yet (they group by the first folder under `src`), so with `siteRoot` set, Markdown and HTML pages in the same folder land in different collections. Without `siteRoot` they merge.
 - It is off by default, so existing sites with HTML frontmatter are unchanged.
 
 ## Configuration
