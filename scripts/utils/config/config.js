@@ -104,6 +104,11 @@ const defaultConfig = {
   // Markdown: Convert .md files to HTML with front matter support
   // Markdown files in /src are converted to HTML in /dist
   // Front matter (YAML between ---) becomes template variables
+  // Collections from HTML pages: pages that start with YAML front matter
+  // join `collections.<first folder>` like markdown files do (opt-in).
+  collections: {
+    html: false,
+  },
   markdown: {
     // Default layout template to wrap content (null = basic HTML wrapper)
     layout: null,
@@ -308,6 +313,7 @@ export const {
   basePath,
   buildOnlyPaths,
   bundle,
+  collections,
   components,
   convertPageToDirectory,
   distPath,
