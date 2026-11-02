@@ -67,6 +67,14 @@ Control layouts, collections, and parser options for `.md` files. Set a default 
   },
 };</code-block>
 
+### Collections
+
+Markdown pages are grouped into `collections.<folder>` automatically. Set `collections.html` to group HTML pages that start with YAML frontmatter the same way (default `false`). See [Markdown: HTML pages in collections](/docs/markdown/).
+
+<code-block language="javascript" label="config/main.js">export default {
+  collections: { html: true },
+};</code-block>
+
 ### Images
 
 Cook generates responsive AVIF/WebP derivatives and rewrites `<img>` to `<picture>`. Customize widths, formats, quality, and caching.

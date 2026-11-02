@@ -134,6 +134,7 @@ The build process performs the following steps, in this order:
 1. **Creates `/dist`** - Removes existing dist folder and recreates it
 2. **Copies `/src` to `/dist`** - All source files are copied (excludes `.md` files and `buildOnlyPaths`)
 3. **Processes Markdown** - Converts `.md` files to `.html` with front matter support; groups pages into `collections.*` by directory
+   * With `collections: { html: true }`, HTML pages that start with YAML front matter join the same collections
 4. **Generates image derivatives** - Responsive AVIF/WebP variants at configured widths, with a cross-build disk cache (`images` config)
 5. **Runs custom-user `before` plugins** - Runs once before file processing
 6. **Converts pages to directories** - `about.html` becomes `about/index.html` for extensionless URLs
@@ -206,6 +207,10 @@ export default {
   // '/repo/docs/'. `cook dev` ignores it. Include the base path in
   // absolute URLs you set yourself (sitemap.url, data.siteUrl).
   basePath: '',
+
+  // HTML pages that start with YAML front matter join collections.<folder>
+  // like markdown files (default: false)
+  collections: { html: false },
 
   // Sitemap: set url to enable (default: '' = no sitemap.xml)
   sitemap: {
@@ -417,6 +422,7 @@ Generate repeated elements from arrays or collections. Perfect for blog listings
 **Data Sources:**
 - `collections.blog` - From markdown files in `/src/blog/`
 - `collections.docs` - From markdown files in `/src/docs/`
+- HTML pages with front matter in those folders too, when `collections: { html: true }` is set
 - `items` - From `/config/data.js`
 - Any array in your data configuration
 
