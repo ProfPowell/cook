@@ -133,6 +133,15 @@ const defaultConfig = {
     bundlePattern: /vanilla-breeze[^"']*\.js/,
   },
 
+  // Package Components: npm web-component packages (dependencies shipping a
+  // custom-elements.json) are copied to dist/<path>/<name>/ and loaded per page
+  // by a module script, only on pages that use their tags.
+  packageComponents: {
+    enabled: true,
+    exclude: ['vanilla-breeze', 'cook-ssg'],
+    path: 'assets/components',
+  },
+
   // Declarative Shadow DOM: Pre-render shadow DOM content for web components
   // Requires a DSD manifest (JSON mapping tag → shadow DOM HTML)
   // and VB components with: if (!this.shadowRoot) this.attachShadow({ mode: 'open' })
@@ -328,6 +337,7 @@ export const {
   inlineAttr,
   markdown,
   minifyHtmlConfigCustom,
+  packageComponents,
   plugins,
   pluginPath,
   repeat,

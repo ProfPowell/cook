@@ -25,6 +25,7 @@ import generateSitemap from './plugins/generate-sitemap-xml.js';
 import htmlCollections from './plugins/html-collections.js';
 import minifySrc from './plugins/minify-src.js';
 import { optimizeImagesGenerate, optimizeImagesRewrite } from './plugins/optimize-images.js';
+import { packageComponentsCopy, packageComponentsInject } from './plugins/package-components.js';
 import processMarkdown from './plugins/process-markdown.js';
 import repeatCollection from './plugins/repeat-collection.js';
 import replaceComponents from './plugins/replace-components.js';
@@ -98,6 +99,9 @@ class Build {
 
     // PLUGIN: Generate responsive image derivatives (AVIF/WebP at multiple widths)
     await optimizeImagesGenerate({store});
+
+    // PLUGIN: Copy npm web-component packages (with a custom-elements.json) into dist
+    await packageComponentsCopy({store});
 
     // CUSTOM PLUGINS: Run custom user plugins before file loop
     await customPlugins({store, data, plugins: plugins.before, log: 'Before' });
@@ -177,6 +181,9 @@ class Build {
 
       // PLUGIN: Auto-detect custom elements and manage VB JS loading
       await autoComponents({file, store, allowType: ['.html']});
+
+      // PLUGIN: Add a module script for npm component packages used on the page
+      await packageComponentsInject({file, store, allowType: ['.html']});
 
       // PLUGIN: Pre-render Declarative Shadow DOM for web components
       await declarativeShadowDom({file, store, allowType: ['.html']});

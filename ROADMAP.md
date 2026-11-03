@@ -21,6 +21,12 @@ These roadmap items are already implemented and were removed from the remaining 
 - Feed generation from collections
 - Build-time async data loading from `config/data.js`
 
+## Release Notes
+
+### 2.5.0 (2026-11-03)
+
+- `packageComponents` plugin: npm dependencies that ship a `custom-elements.json` get their built files copied to `dist/assets/components/<name>/` and a module script added only to pages that use their tags. On by default; see the Package Components docs.
+
 ## Near-Term Enhancements
 
 ### 1. HTML Layout Inheritance

@@ -68,3 +68,5 @@ When Cook-authored DSD components (see [Declarative Shadow DOM](/docs/dsd/)) hav
 | `cssOnly` | `[]` | Array of tag names that use CSS only |
 | `manifest` | `null` | Path to component manifest JSON (relative to dist) |
 | `bundlePattern` | `/vanilla-breeze[^"']*\.js/` | Regex to match VB bundle script tags for removal |
+
+For third-party web-component packages from npm, see [Package Components](/docs/package-components/).
