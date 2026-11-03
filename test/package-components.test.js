@@ -88,3 +88,58 @@ describe('package-components', () => {
     assert.doesNotMatch(await read('dist/uses/index.html'), /assets\/components/);
   });
 });
+
+describe('package-components with siteRoot', () => {
+  const scriptTag = (url) => new RegExp(
+    `<script (?:type="module" src="${url.replace(/[.\/]/g, '\\$&')}"|src="${url.replace(/[.\/]/g, '\\$&')}" type="module")></script>`
+  );
+  let rootTmp;
+  const rwrite = async (rel, content) => {
+    await fs.mkdir(path.dirname(path.join(rootTmp, rel)), { recursive: true });
+    await fs.writeFile(path.join(rootTmp, rel), content);
+  };
+  const rexists = (rel) => fs.access(path.join(rootTmp, rel)).then(() => true, () => false);
+
+  before(async () => {
+    rootTmp = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-pkgcomp-root-'));
+    await rwrite('config/main.js', `export default { siteRoot: 'pages' };\n`);
+    await rwrite('package.json', JSON.stringify({
+      name: 'site', version: '1.0.0',
+      dependencies: { 'x-widgets': '1.0.0', '@scope/widgets': '1.0.0' },
+    }));
+    await rwrite('node_modules/x-widgets/package.json', JSON.stringify({
+      name: 'x-widgets', version: '1.0.0', exports: { '.': { import: './dist/x.js' } },
+    }));
+    await rwrite('node_modules/x-widgets/custom-elements.json', JSON.stringify({
+      modules: [{ declarations: [{ tagName: 'x-one' }] }],
+    }));
+    await rwrite('node_modules/x-widgets/dist/x.js', `export {};\n`);
+    await rwrite('node_modules/@scope/widgets/package.json', JSON.stringify({
+      name: '@scope/widgets', version: '1.0.0', module: './lib/entry.js',
+    }));
+    await rwrite('node_modules/@scope/widgets/custom-elements.json', JSON.stringify({
+      modules: [{ declarations: [{ tagName: 'scoped-one' }] }],
+    }));
+    await rwrite('node_modules/@scope/widgets/lib/entry.js', `export {};\n`);
+    await rwrite('src/pages/uses.html', page('<x-one></x-one><scoped-one></scoped-one>'));
+    execFileSync(process.execPath, [COOK, 'build'], {
+      cwd: rootTmp, env: { ...process.env, NODE_ENV: 'production' }, stdio: 'pipe',
+    });
+  });
+
+  after(() => fs.rm(rootTmp, { recursive: true, force: true }));
+
+  test('package files are copied under the served root', async () => {
+    assert.ok(await rexists('dist/pages/assets/components/x-widgets/x.js'));
+    assert.ok(!(await rexists('dist/assets/components')));
+  });
+  test('the served page loads the package from /assets/components/...', async () => {
+    const html = await fs.readFile(path.join(rootTmp, 'dist/pages/uses/index.html'), 'utf-8');
+    assert.match(html, scriptTag('/assets/components/x-widgets/x.js'));
+  });
+  test('scoped packages keep their @scope directory', async () => {
+    assert.ok(await rexists('dist/pages/assets/components/@scope/widgets/entry.js'));
+    const html = await fs.readFile(path.join(rootTmp, 'dist/pages/uses/index.html'), 'utf-8');
+    assert.match(html, scriptTag('/assets/components/@scope/widgets/entry.js'));
+  });
+});

@@ -22,7 +22,8 @@ import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 
 // Config
-import { distPath, fingerprint as fingerprintConfig } from '../utils/config/config.js';
+import { distPath, siteRoot, fingerprint as fingerprintConfig } from '../utils/config/config.js';
+import { siteRootDir } from '../utils/site-root/site-root.js';
 
 
 // ============================================================================
@@ -140,6 +141,9 @@ class FingerprintAssets {
   constructor(opts = {}) {
     // Optional per-call overrides (used by tests and custom pipelines)
     this.distPath = opts.distPath || distPath;
+    this.siteRoot = opts.siteRoot ?? siteRoot;
+    // Web paths ("/assets/x.css") are relative to the folder served at "/"
+    this.rootDir = siteRootDir(this.distPath, this.siteRoot);
     this.config = {
       enabled: false,
       hashLength: 8,
@@ -168,7 +172,7 @@ class FingerprintAssets {
     const manifest = await this.fingerprintFiles(candidates);
 
     // Phase 2: Rewrite HTML references
-    const htmlFiles = (Util.getPaths(this.distPath, this.distPath, []) || [])
+    const htmlFiles = (Util.getPaths(this.rootDir, this.rootDir, []) || [])
       .filter(p => p.endsWith('.html'));
     let totalRewrites = 0;
     for (const htmlPath of htmlFiles) {
@@ -181,7 +185,7 @@ class FingerprintAssets {
     }
 
     // Phase 3: Write manifest
-    const manifestFsPath = path.join(this.distPath, this.config.manifestPath);
+    const manifestFsPath = path.join(this.rootDir, this.config.manifestPath);
     await fs.writeFile(manifestFsPath, JSON.stringify(manifest, null, 2), 'utf-8');
 
     Logger.persist.success(
@@ -194,7 +198,7 @@ class FingerprintAssets {
    * Returns absolute paths.
    */
   async findCandidates() {
-    const all = Util.getPaths(this.distPath, this.distPath, []) || [];
+    const all = Util.getPaths(this.rootDir, this.rootDir, []) || [];
     const excludes = this.config.excludePaths.map(p => (p instanceof RegExp ? p : new RegExp(p)));
     return all.filter(p => {
       // Skip source maps in the candidate list — handled alongside their source.
@@ -279,13 +283,13 @@ class FingerprintAssets {
       }
 
       // Build manifest keys as web paths starting with `/`
-      const relOriginal = '/' + path.relative(this.distPath, absPath).split(path.sep).join('/');
-      const relNew = '/' + path.relative(this.distPath, newAbs).split(path.sep).join('/');
+      const relOriginal = '/' + path.relative(this.rootDir, absPath).split(path.sep).join('/');
+      const relNew = '/' + path.relative(this.rootDir, newAbs).split(path.sep).join('/');
       manifest[relOriginal] = relNew;
 
       if (mapNewName) {
-        const relMapOriginal = '/' + path.relative(this.distPath, mapAbs).split(path.sep).join('/');
-        const relMapNew = '/' + path.relative(this.distPath, path.join(dir, mapNewName)).split(path.sep).join('/');
+        const relMapOriginal = '/' + path.relative(this.rootDir, mapAbs).split(path.sep).join('/');
+        const relMapNew = '/' + path.relative(this.rootDir, path.join(dir, mapNewName)).split(path.sep).join('/');
         manifest[relMapOriginal] = relMapNew;
       }
     }
@@ -306,7 +310,7 @@ class FingerprintAssets {
     const clean = splitUrlSuffix(spec).path;
     if (clean.startsWith('/')) return clean;
     if (clean.startsWith('./') || clean.startsWith('../')) {
-      const dirRel = path.dirname(path.relative(this.distPath, absPath));
+      const dirRel = path.dirname(path.relative(this.rootDir, absPath));
       const joined = path.normalize(path.join(dirRel, clean));
       return '/' + joined.split(path.sep).join('/');
     }
@@ -345,7 +349,7 @@ class FingerprintAssets {
    * @returns {string[]}
    */
   orderByDependencies(candidates, contents) {
-    const keyOf = p => '/' + path.relative(this.distPath, p).split(path.sep).join('/');
+    const keyOf = p => '/' + path.relative(this.rootDir, p).split(path.sep).join('/');
     const byKey = new Map(candidates.map(p => [keyOf(p), p]));
 
     const deps = new Map();

@@ -26,6 +26,7 @@ These roadmap items are already implemented and were removed from the remaining 
 ### 2.5.0 (2026-11-03)
 
 - `packageComponents` plugin: npm dependencies that ship a `custom-elements.json` get their built files copied to `dist/assets/components/<name>/` and a module script added only to pages that use their tags. On by default; see the Package Components docs.
+- Fingerprinting and package components honor `siteRoot`: web paths, the asset manifest and copied package files are relative to the served folder (e.g. `dist/pages`), so `/assets/...` references resolve and get rewritten.
 
 ## Near-Term Enhancements
 

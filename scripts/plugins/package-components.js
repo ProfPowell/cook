@@ -19,7 +19,9 @@ import path from 'node:path';
 import Util from '../utils/util/util.js';
 
 // Config
-import { distPath, packageComponents as packageComponentsConfig } from '../utils/config/config.js';
+import { distPath, siteRoot, packageComponents as packageComponentsConfig } from '../utils/config/config.js';
+
+import { siteRootDir } from '../utils/site-root/site-root.js';
 
 
 // HELPERS
@@ -74,7 +76,7 @@ function manifestTags(manifest) {
 
 // COPY (ONCE, PRE-LOOP)
 // -----------------------------
-export async function packageComponentsCopy({ store }) {
+export async function packageComponentsCopy({ store, siteRoot: siteRootOpt }) {
   const config = getConfig();
   store.packageComponentsMap = {};
   if (!config.enabled) return;
@@ -107,7 +109,7 @@ export async function packageComponentsCopy({ store }) {
     // Never copy the whole package root's parent or anything outside the package
     if (path.relative(pkgDir, entryDir).startsWith('..')) { skip('entry outside package'); continue; }
 
-    const target = path.join(cwd, distPath, urlBase, name);
+    const target = path.join(cwd, siteRootDir(distPath, siteRootOpt ?? siteRoot), urlBase, name);
     await fs.copy(entryDir, target);
 
     const rel = path.basename(entryAbs);
