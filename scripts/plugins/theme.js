@@ -131,12 +131,19 @@ export async function themeInject({ file, allowType }) {
   if (!setting) return;
   if (!Util.isAllowedType({ file, allowType })) return;
 
-  const plan = pageThemePlan(setting, file.frontMatter, file.path);
-  const warnings = [...plan.warnings];
   const dom = Util.fileDom(file);
   const document = dom.window.document;
   const html = document.documentElement;
-  const head = document.querySelector('head');
+  // Partials (no <html>) are not pages: leave them untouched
+  if (!html || html.tagName !== 'HTML') return;
+
+  const plan = pageThemePlan(setting, file.frontMatter, file.path);
+  const warnings = [...plan.warnings];
+  let head = document.querySelector('head');
+  if (!head) {
+    head = document.createElement('head');
+    html.insertBefore(head, html.firstChild);
+  }
 
   let htmlTheme = plan.html;
   let links = plan.links;
@@ -155,13 +162,13 @@ export async function themeInject({ file, allowType }) {
   setTheme(html, htmlTheme);
   html.setAttribute('data-theme-source', 'site');
 
-  if (head) {
+  {
     const sheets = [...document.querySelectorAll('link[rel~="stylesheet"]')];
     const present = new Set();
     for (const l of document.querySelectorAll('link')) {
-      present.add(`id:${l.getAttribute('data-vb-theme')}`);
-      present.add(`href:${l.getAttribute('href')}`);
+      if (l.hasAttribute('data-vb-theme')) present.add(`id:${l.getAttribute('data-vb-theme')}`);
     }
+    for (const l of sheets) present.add(`href:${l.getAttribute('href')}`);
     let anchor = sheets.filter(l => VB_CSS.test(l.getAttribute('href') || '')).pop() || null;
     for (const { id, href } of links) {
       if (present.has(`id:${id}`) || present.has(`href:${href}`)) continue;

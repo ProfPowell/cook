@@ -92,6 +92,49 @@ describe('config/theme.json', () => {
   });
 });
 
+describe('edge cases', () => {
+  let A;
+  before(async () => {
+    A = await project({
+      'config/main.js': 'export default {};\n',
+      'config/theme.json': JSON.stringify(S),
+      'src/snippet.html': '<div class="card">snippet</div>\n',
+      'src/nohead.html': '<!doctype html><html lang="en"><body><main>x</main></body></html>\n',
+      'src/preload.html': page('', '<main>x</main>', '<link rel="stylesheet" href="/v/vanilla-breeze.css"><link rel="preload" as="style" href="/v/themes/swiss.css">'),
+      'src/nomain.html': page('theme: retro-mine\nthemeScope: article', '<p>x</p>'),
+      'src/hostile.html': page('theme: \'x" onload="y\'\nthemeScope: sidebar'),
+    });
+  });
+
+  test('partial (no <html>) is left untouched', async () => {
+    const html = await fs.readFile(path.join(A.tmp, 'dist/snippet/index.html'), 'utf-8');
+    assert.doesNotMatch(html, /data-theme/);
+  });
+  test('no <head>: one is created for the links', async () => {
+    const d = await A.doc('dist/nohead/index.html');
+    assert.deepEqual(hrefs(d), ['/v/themes/swiss.css', '/assets/themes/vp-site.css']);
+    assert.equal(d.documentElement.getAttribute('data-theme'), 'swiss vp-site');
+  });
+  test('a preload with the same href does not suppress the stylesheet', async () => {
+    const d = await A.doc('dist/preload/index.html');
+    assert.deepEqual(hrefs(d), ['/v/vanilla-breeze.css', '/v/themes/swiss.css', '/assets/themes/vp-site.css']);
+  });
+  test('article scope without <article>/<main>: page scope and a warning', async () => {
+    const d = await A.doc('dist/nomain/index.html');
+    assert.equal(d.documentElement.getAttribute('data-theme'), 'retro-mine');
+    assert.equal(d.documentElement.getAttribute('data-mode'), 'light');
+    assert.match(A.output, /\[theme\].*nomain\/index\.html.*themeScope article/);
+  });
+  test('hostile front matter: ignored with one warning, site theme kept', async () => {
+    const d = await A.doc('dist/hostile/index.html');
+    assert.equal(d.documentElement.getAttribute('data-theme'), 'swiss vp-site');
+    assert.equal(d.querySelector('[onload]'), null);
+    const lines = A.output.split('\n').filter(l => /\[theme\].*hostile\/index\.html/.test(l));
+    assert.equal(lines.length, 1);
+    assert.deepEqual(hrefs(d), ['/v/vanilla-breeze.css', '/v/themes/swiss.css', '/assets/themes/vp-site.css', '/site.css']);
+  });
+});
+
 describe('main.js wins', () => {
   test('main.js theme over theme.json: no files, no links', async () => {
     const B = await project({

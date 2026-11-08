@@ -49,11 +49,12 @@ themeScope: page
 
 ## Stylesheet links
 
-Each theme with an entry in `files` becomes `<link rel="stylesheet" href="..." data-vb-theme="id">`. Cook inserts it right after the last stylesheet whose `href` matches `vanilla-breeze*.css`, so theme rules load after Vanilla Breeze. If the page has no Vanilla Breeze stylesheet, the links are appended to `<head>`. A theme whose `data-vb-theme` or `href` is already on the page is skipped.
+Each theme with an entry in `files` becomes `<link rel="stylesheet" href="..." data-vb-theme="id">`. Cook inserts it right after the last stylesheet whose `href` matches `vanilla-breeze*.css`, so theme rules load after Vanilla Breeze. If the page has no Vanilla Breeze stylesheet, the links are appended to `<head>`. A theme whose `data-vb-theme` or stylesheet `href` is already on the page is skipped. A page without a `<head>` gets one created. Theme URLs are rewritten with `basePath` and fingerprints like other root-relative links. Files without an `<html>` element (partials) are left alone.
 
 ## Limitations
 
 - With `themeScope: article` and `mode: auto`, Cook writes `data-mode` on the article only when a scheme is forced (by `modes` or the site `mode`). Otherwise the article shows its theme's default scheme.
+- Fragment navigation (`generateFragments`) swaps only `<main>`, so a page-scope theme applies only on a full page load.
 - Per-page themes apply to HTML pages with front matter. Markdown pages always get the site theme.
 
 ## Works with Vanilla Breeze
