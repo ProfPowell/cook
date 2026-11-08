@@ -48,3 +48,70 @@ test('normalizeThemeSetting rejects an unsafe name and filters files/modes', () 
   assert.deepEqual(setting.modes, {});
   assert.equal(setting.mode, 'auto');
 });
+
+test('prototype-named ids do not resolve to Object members', () => {
+  for (const id of ['constructor']) {
+    const p = pageThemePlan(S, { theme: id });
+    assert.deepEqual(p.links, []);
+    assert.equal(p.html.mode, null);
+    const hand = pageThemePlan({ name: 'swiss', mode: 'auto', adjust: null, files: {}, modes: {} }, { theme: id });
+    assert.deepEqual(hand.links, []);
+  }
+  const { setting } = normalizeThemeSetting({ name: 'swiss', files: { constructor: '/c.css' } });
+  assert.equal(pageThemePlan(setting, { theme: 'constructor' }).links[0].href, '/c.css');
+});
+test('non-string and hostile theme values are ignored', () => {
+  for (const v of [5, {}, ['a'], true, 'x" onload="y']) {
+    const p = pageThemePlan(S, { theme: v }, 'a.html');
+    assert.deepEqual(p.html.ids, ['swiss', 'vp-site']);
+    assert.equal(p.warnings.length, 1);
+  }
+});
+test('bad theme and bad scope give one combined warning with the [theme] prefix', () => {
+  const p = pageThemePlan(S, { theme: 'Retro!', themeScope: 'sidebar' }, 'src/a.html');
+  assert.equal(p.warnings.length, 1);
+  assert.match(p.warnings[0], /^\[theme\] src\/a\.html.*Retro!.*sidebar/);
+});
+test('article scope with the same theme as the site does not duplicate links', () => {
+  const p = pageThemePlan(S, { theme: 'swiss', themeScope: 'article' });
+  assert.deepEqual(p.scoped.ids, ['swiss']);
+  assert.deepEqual(p.links.map(l => l.id), ['swiss', 'vp-site']);
+});
+test('unsafe adjust, bad urls and bad modes are dropped with [theme] warnings', () => {
+  const { setting, warnings } = normalizeThemeSetting({ name: 'swiss', adjust: 'Bad!',
+    files: { a: '//evil.com/x.css', b: '/x y.css', c: '/a"b.css', d: 'https://ok.com/a.css', e: '/<x>.css' }, modes: { m: 'dim' } });
+  assert.equal(setting.adjust, null);
+  assert.deepEqual(Object.keys(setting.files), ['d']);
+  assert.equal(warnings.length, 6);
+  assert.ok(warnings.every(w => w.startsWith('[theme] ')));
+});
+test('camelCase prototype names fail the safe-id check and are ignored', () => {
+  for (const id of ['toString', 'valueOf', '__proto__']) {
+    const p = pageThemePlan(S, { theme: id });
+    assert.deepEqual(p.html.ids, ['swiss', 'vp-site']);
+    assert.equal(p.warnings.length, 1);
+  }
+});
+
+test('config.js theme export: theme.json, main.js wins, bad JSON gives undefined', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { execFileSync } = await import('node:child_process');
+  const cfg = new URL('../scripts/utils/config/config.js', import.meta.url).href;
+  const run = (setup) => {
+    const dir = mkdtempSync(join(tmpdir(), 'cook-theme-'));
+    mkdirSync(join(dir, 'config'));
+    setup(dir);
+    const out = execFileSync(process.execPath, ['--input-type=module', '-e',
+      `const m = await import(${JSON.stringify(cfg)}); console.log(JSON.stringify(m.theme ?? null));`],
+    { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return JSON.parse(out.trim().split('\n').pop());
+  };
+  assert.deepEqual(run(d => writeFileSync(join(d, 'config/theme.json'), '{"name":"swiss"}')), { name: 'swiss' });
+  assert.equal(run(d => writeFileSync(join(d, 'config/theme.json'), '{bad')), null);
+  assert.deepEqual(run(d => {
+    writeFileSync(join(d, 'config/theme.json'), '{"name":"swiss"}');
+    writeFileSync(join(d, 'config/main.js'), 'export default { theme: { name: "8bit" } };');
+  }), { name: '8bit' });
+});
