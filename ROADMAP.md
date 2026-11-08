@@ -23,6 +23,10 @@ These roadmap items are already implemented and were removed from the remaining 
 
 ## Release Notes
 
+### 2.6.0 (unreleased)
+
+- `theme` plugin: one site theme from `config/main.js` (`theme`) or `config/theme.json`, written as `data-theme` / `data-mode` (and `data-theme-source="site"`) on `<html>` plus the theme stylesheet links. HTML pages can override it with `theme` and `themeScope` front matter. No setting, no change in output. See the Site Theme docs.
+
 ### 2.5.0 (2026-11-03)
 
 - `packageComponents` plugin: npm dependencies that ship a `custom-elements.json` get their built files copied to `dist/assets/components/<name>/` and a module script added only to pages that use their tags. On by default; see the Package Components docs.

@@ -1,7 +1,13 @@
 /**
  * @file theme.js
- * @description Site theme setting and the per-page theme plan (pure functions).
+ * @description Site theme setting and the per-page theme plan (pure
+ * functions), plus themeInject, the per-page build step that writes
+ * data-theme / data-mode and the theme stylesheet links.
  */
+
+import chalk from 'chalk';
+import Util from '../utils/util/util.js';
+import { theme as themeConfig } from '../utils/config/config.js';
 
 const SAFE_ID = /^[a-z0-9-]+$/;
 const isSafeId = (v) => typeof v === 'string' && SAFE_ID.test(v);
@@ -92,4 +98,81 @@ export function pageThemePlan(setting, frontMatter = {}, pagePath = '') {
     if (has(setting.files, id) && typeof setting.files[id] === 'string') links.push({ id, href: setting.files[id] });
   }
   return { html, scoped, links, warnings };
+}
+
+
+// INJECT (PER PAGE)
+// -----------------------------
+const VB_CSS = /vanilla-breeze[^/]*\.css/;
+let cachedSetting;
+let settingReady = false;
+
+function getSetting() {
+  if (!settingReady) {
+    settingReady = true;
+    const { setting, warnings } = normalizeThemeSetting(themeConfig);
+    for (const w of warnings) console.log(chalk.yellow(w));
+    cachedSetting = setting;
+  }
+  return cachedSetting;
+}
+
+function setTheme(el, { ids, mode }) {
+  if (ids.length) el.setAttribute('data-theme', ids.join(' '));
+  if (mode) el.setAttribute('data-mode', mode);
+}
+
+/**
+ * Per page: theme attributes on <html> (or the article) and stylesheet links.
+ * Does nothing when there is no theme setting.
+ */
+export async function themeInject({ file, allowType }) {
+  const setting = getSetting();
+  if (!setting) return;
+  if (!Util.isAllowedType({ file, allowType })) return;
+
+  const plan = pageThemePlan(setting, file.frontMatter, file.path);
+  const warnings = [...plan.warnings];
+  const dom = Util.fileDom(file);
+  const document = dom.window.document;
+  const html = document.documentElement;
+  const head = document.querySelector('head');
+
+  let htmlTheme = plan.html;
+  let links = plan.links;
+  if (plan.scoped) {
+    const target = document.querySelector('article') || document.querySelector('main');
+    if (target) {
+      setTheme(target, plan.scoped);
+    } else {
+      warnings.push(`[theme] ${file.path}: no <article> or <main> for themeScope article; applied to the whole page`);
+      htmlTheme = plan.scoped;
+      links = plan.links.filter(l => plan.scoped.ids.includes(l.id));
+    }
+  }
+  for (const w of warnings) console.log(chalk.yellow(w));
+
+  setTheme(html, htmlTheme);
+  html.setAttribute('data-theme-source', 'site');
+
+  if (head) {
+    const sheets = [...document.querySelectorAll('link[rel~="stylesheet"]')];
+    const present = new Set();
+    for (const l of document.querySelectorAll('link')) {
+      present.add(`id:${l.getAttribute('data-vb-theme')}`);
+      present.add(`href:${l.getAttribute('href')}`);
+    }
+    let anchor = sheets.filter(l => VB_CSS.test(l.getAttribute('href') || '')).pop() || null;
+    for (const { id, href } of links) {
+      if (present.has(`id:${id}`) || present.has(`href:${href}`)) continue;
+      const link = document.createElement('link');
+      link.setAttribute('rel', 'stylesheet');
+      link.setAttribute('href', href);
+      link.setAttribute('data-vb-theme', id);
+      if (anchor) anchor.after(link);
+      else head.appendChild(link);
+      anchor = link;
+    }
+  }
+  Util.commitDom(file, dom);
 }

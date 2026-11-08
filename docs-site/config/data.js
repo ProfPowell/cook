@@ -44,6 +44,7 @@ export default {
       items: [
         { url: '/docs/auto-components/', label: 'Auto-Components' },
         { url: '/docs/package-components/', label: 'Package Components' },
+        { url: '/docs/theme/', label: 'Site Theme' },
         { url: '/docs/dsd/', label: 'Declarative Shadow DOM' },
         { url: '/docs/fragments/', label: 'Fragments' },
         { url: '/docs/multi-format/', label: 'Multi-Format Output' },

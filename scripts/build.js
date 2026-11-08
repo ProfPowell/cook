@@ -25,6 +25,7 @@ import generateSitemap from './plugins/generate-sitemap-xml.js';
 import htmlCollections from './plugins/html-collections.js';
 import minifySrc from './plugins/minify-src.js';
 import { optimizeImagesGenerate, optimizeImagesRewrite } from './plugins/optimize-images.js';
+import { themeInject } from './plugins/theme.js';
 import { packageComponentsCopy, packageComponentsInject } from './plugins/package-components.js';
 import processMarkdown from './plugins/process-markdown.js';
 import repeatCollection from './plugins/repeat-collection.js';
@@ -184,6 +185,9 @@ class Build {
 
       // PLUGIN: Add a module script for npm component packages used on the page
       await packageComponentsInject({file, store, allowType: ['.html']});
+
+      // PLUGIN: Site theme: data-theme/data-mode on <html> (or the article) and theme stylesheet links, from `theme` config
+      await themeInject({file, allowType: ['.html']});
 
       // PLUGIN: Pre-render Declarative Shadow DOM for web components
       await declarativeShadowDom({file, store, allowType: ['.html']});

@@ -32,6 +32,8 @@ Cook works with zero configuration. When you need to customize behavior, create 
 
 Active links, the sitemap, and generated formats then use the URLs visitors see (`/docs/intro/`, not `/pages/docs/intro/`), and pages outside that folder are skipped. Asset fingerprinting (manifest keys and `asset-manifest.json`) and package components (copied to `<siteRoot>/assets/components/`) use the same served folder.
 
+The `theme` setting gives every page one Vanilla Breeze theme; see [Site Theme](/docs/theme/).
+
 `basePath` is the URL path your site is served under (default `''`, the domain root). Set it when the site lives below the root of its domain, such as a GitHub Pages project site at `https://user.github.io/repo/`:
 
 <code-block language="javascript" label="config/main.js">export default {
