@@ -147,3 +147,8 @@ watchFiles.forEach(watchPath => {
   // Watch `/src` files for changes
   browserSync.watch(`${srcPath}${watchPath}`).on('change', file => { rebuild(file); });
 });
+
+// config/theme.json lives outside /src; Vanilla Press rewrites it on Apply.
+// A change forces a full rebuild so every page picks up the new theme.
+const themeJson = `${process.cwd()}/config/theme.json`;
+browserSync.watch(themeJson).on('change', file => { rebuild(file); }).on('add', file => { rebuild(file); });

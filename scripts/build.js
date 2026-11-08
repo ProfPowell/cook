@@ -25,7 +25,7 @@ import generateSitemap from './plugins/generate-sitemap-xml.js';
 import htmlCollections from './plugins/html-collections.js';
 import minifySrc from './plugins/minify-src.js';
 import { optimizeImagesGenerate, optimizeImagesRewrite } from './plugins/optimize-images.js';
-import { themeInject } from './plugins/theme.js';
+import { themeInject, resetThemeCache } from './plugins/theme.js';
 import { packageComponentsCopy, packageComponentsInject } from './plugins/package-components.js';
 import processMarkdown from './plugins/process-markdown.js';
 import repeatCollection from './plugins/repeat-collection.js';
@@ -282,6 +282,7 @@ export async function runBuild() {
     delete store.cachedLayouts;
     delete store.cachedInline;
   }
+  resetThemeCache();
   store.bundle = { css: {}, js: {} };
   // Collections are fully rebuilt by processMarkdown every run — stale
   // entries would otherwise accumulate (duplicate blog posts on the

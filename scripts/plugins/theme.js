@@ -7,7 +7,7 @@
 
 import chalk from 'chalk';
 import Util from '../utils/util/util.js';
-import { theme as themeConfig } from '../utils/config/config.js';
+import { getTheme } from '../utils/config/config.js';
 
 const SAFE_ID = /^[a-z0-9-]+$/;
 const isSafeId = (v) => typeof v === 'string' && SAFE_ID.test(v);
@@ -107,10 +107,16 @@ const VB_CSS = /vanilla-breeze[^/]*\.css/;
 let cachedSetting;
 let settingReady = false;
 
+/** Forget the cached setting; called at the start of every build. */
+export function resetThemeCache() {
+  settingReady = false;
+  cachedSetting = undefined;
+}
+
 function getSetting() {
   if (!settingReady) {
     settingReady = true;
-    const { setting, warnings } = normalizeThemeSetting(themeConfig);
+    const { setting, warnings } = normalizeThemeSetting(getTheme());
     for (const w of warnings) console.log(chalk.yellow(w));
     cachedSetting = setting;
   }

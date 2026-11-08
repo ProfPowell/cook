@@ -54,7 +54,7 @@ Each theme with an entry in `files` becomes `<link rel="stylesheet" href="..." d
 ## Limitations
 
 - With `themeScope: article` and `mode: auto`, Cook writes `data-mode` on the article only when a scheme is forced (by `modes` or the site `mode`). Otherwise the article shows its theme's default scheme.
-- Fragment navigation (`generateFragments`) swaps only `<main>`, so a page-scope theme applies only on a full page load.
+- Fragment navigation (`generateFragments`) swaps only `<main>`, so a page theme (page or article scope) applies only on a full page load: its stylesheet is not loaded when only `<main>` is swapped.
 - Per-page themes apply to HTML pages with front matter. Markdown pages always get the site theme.
 
 ## Works with Vanilla Breeze

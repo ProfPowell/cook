@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseHTML } from 'linkedom';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -158,5 +158,33 @@ describe('no setting', () => {
     const html = await fs.readFile(path.join(C.tmp, 'dist/plain/index.html'), 'utf-8');
     assert.doesNotMatch(html, /data-theme/);
     assert.doesNotMatch(html, /data-vb-theme/);
+  });
+});
+
+describe('config/theme.json re-read between builds', () => {
+  test('two builds in one process pick up a rewritten theme.json', async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-theme-'));
+    tmps.push(tmp);
+    const w = async (rel, c) => { await fs.mkdir(path.dirname(path.join(tmp, rel)), { recursive: true }); await fs.writeFile(path.join(tmp, rel), c); };
+    await w('config/main.js', 'export default {};\n');
+    await w('config/theme.json', JSON.stringify({ name: 'swiss', files: { swiss: '/v/themes/swiss.css' } }));
+    await w('src/plain.html', page(''));
+    const runner = path.join(tmp, 'twice.mjs');
+    const build = pathToFileURL(path.resolve(__dirname, '..', 'scripts', 'build.js')).href;
+    await w('twice.mjs', `import fs from 'node:fs';
+const { runBuild } = await import(${JSON.stringify(build)});
+await runBuild();
+const first = fs.readFileSync('dist/plain/index.html', 'utf8');
+fs.writeFileSync('config/theme.json', JSON.stringify({ name: '8bit', files: { '8bit': '/v/themes/8bit.css' } }));
+await runBuild();
+const second = fs.readFileSync('dist/plain/index.html', 'utf8');
+console.log('RESULT' + JSON.stringify({ first, second }));
+`);
+    const r = spawnSync(process.execPath, [runner], { cwd: tmp, env: { ...process.env, NODE_ENV: 'production' }, encoding: 'utf-8' });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const { first, second } = JSON.parse(r.stdout.split('RESULT')[1]);
+    const theme = (h) => parseHTML(h).document.documentElement.getAttribute('data-theme');
+    assert.equal(theme(first), 'swiss');
+    assert.equal(theme(second), '8bit');
   });
 });

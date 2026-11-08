@@ -93,7 +93,7 @@ test('camelCase prototype names fail the safe-id check and are ignored', () => {
   }
 });
 
-test('config.js theme export: theme.json, main.js wins, bad JSON gives undefined', async () => {
+test('config.js getTheme(): theme.json, main.js wins, bad JSON gives undefined', async () => {
   const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
@@ -104,7 +104,7 @@ test('config.js theme export: theme.json, main.js wins, bad JSON gives undefined
     mkdirSync(join(dir, 'config'));
     setup(dir);
     const out = execFileSync(process.execPath, ['--input-type=module', '-e',
-      `const m = await import(${JSON.stringify(cfg)}); console.log(JSON.stringify(m.theme ?? null));`],
+      `const m = await import(${JSON.stringify(cfg)}); console.log(JSON.stringify(m.getTheme() ?? null));`],
     { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     return JSON.parse(out.trim().split('\n').pop());
   };

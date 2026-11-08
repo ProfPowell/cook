@@ -18,16 +18,22 @@ if (userConfigPathExists) {
 }
 
 // config/theme.json (written by Vanilla Press); main.js `theme` wins when defined
-let themeFromFile;
 const themeJsonPath = `${cwd}/config/theme.json`;
-if (fs.existsSync(themeJsonPath)) {
+
+/**
+ * The site theme setting. Re-read on every call so a long-lived process
+ * (`cook dev`) sees config/theme.json rewrites; main.js `theme` stays as loaded.
+ */
+function getTheme() {
+  if (userConfig.theme !== undefined) return userConfig.theme;
+  if (!fs.existsSync(themeJsonPath)) return undefined;
   try {
-    themeFromFile = JSON.parse(fs.readFileSync(themeJsonPath, 'utf8'));
+    return JSON.parse(fs.readFileSync(themeJsonPath, 'utf8'));
   } catch (err) {
     console.log(chalk.yellow(`[theme] config/theme.json: ${err.message}`));
+    return undefined;
   }
 }
-const theme = userConfig.theme !== undefined ? userConfig.theme : themeFromFile;
 
 
 // DEFINE DEFAULT CONFIG
@@ -329,7 +335,7 @@ const config = mergeConfigs(defaultConfig, userConfig);
 export default config;
 
 // Named exports for destructuring imports
-export { theme };
+export { getTheme };
 export const {
   activeLink,
   autoComponents,
