@@ -2,6 +2,7 @@
 // ----------------------------------
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import chalk from 'chalk';
 
 const cwd = process.cwd();
 
@@ -15,6 +16,18 @@ if (userConfigPathExists) {
   const userConfigModule = await import(pathToFileURL(userConfigPath));
   userConfig = userConfigModule.default || userConfigModule;
 }
+
+// config/theme.json (written by Vanilla Press); main.js `theme` wins when defined
+let themeFromFile;
+const themeJsonPath = `${cwd}/config/theme.json`;
+if (fs.existsSync(themeJsonPath)) {
+  try {
+    themeFromFile = JSON.parse(fs.readFileSync(themeJsonPath, 'utf8'));
+  } catch (err) {
+    console.log(chalk.yellow(`[theme] config/theme.json: ${err.message}`));
+  }
+}
+const theme = userConfig.theme !== undefined ? userConfig.theme : themeFromFile;
 
 
 // DEFINE DEFAULT CONFIG
@@ -316,6 +329,7 @@ const config = mergeConfigs(defaultConfig, userConfig);
 export default config;
 
 // Named exports for destructuring imports
+export { theme };
 export const {
   activeLink,
   autoComponents,
