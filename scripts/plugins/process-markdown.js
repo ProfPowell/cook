@@ -17,6 +17,7 @@ import { renderTemplate } from '../utils/interpolate/interpolate.js';
 
 // Config
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
+import { isProgramFile } from './programs.js';
 import { distPath, srcPath, markdown as markdownConfig } from '../utils/config/config.js';
 
 
@@ -111,7 +112,7 @@ class ProcessMarkdown {
     const entries = Util.getPaths(dir, dir, []);
 
     for (const entry of entries) {
-      if (entry.endsWith('.md')) {
+      if (entry.endsWith('.md') && !isProgramFile(entry, srcPath)) {
         files.push(entry);
       }
     }

@@ -139,6 +139,17 @@ export function isInProgram(relPath) {
   return parts.length >= 3 && areaPaths.includes(parts[0]);
 }
 
+/**
+ * Is filePath (as the build passes see it, e.g. `dist/demos/x/y.html`) inside a
+ * program folder? baseDir is the directory the path is relative to (dist, src).
+ * @param {string} filePath
+ * @param {string} baseDir
+ */
+export function isProgramFile(filePath, baseDir) {
+  if (!areaPaths.length || typeof filePath !== 'string') return false;
+  return isInProgram(path.relative(baseDir, filePath).split(path.sep).join('/'));
+}
+
 /** Set `programs` and `programAreas` on the data store. */
 export async function programsData({ data }) {
   const { areas, programs, warnings } = load();
@@ -150,4 +161,25 @@ export async function programsData({ data }) {
   const byArea = Object.create(null);
   for (const a of areas) byArea[a.path] = shown.filter(p => p.area === a.path);
   data.programAreas = byArea;
+}
+
+const SANDBOX_RULE = 'Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-pointer-lock allow-modals';
+
+/**
+ * Cloudflare Pages / Netlify `_headers` text: the site's own rules, then a
+ * sandbox block for each sandboxed program (listed or not), in program order.
+ * @param {Array<{area: string, slug: string, sandbox?: boolean}>} programs
+ * @param {string|null} existing - The site's own `_headers` text, if any
+ * @returns {string|null} null when no program is sandboxed
+ */
+export function programHeaders(programs, existing) {
+  const sandboxed = (programs || []).filter(p => p.sandbox === true);
+  if (!sandboxed.length) return null;
+  const blocks = sandboxed.map(p => `/${p.area}/${p.slug}/*\n  ${SANDBOX_RULE}\n`).join('\n');
+  return existing ? `${existing}\n${blocks}` : blocks;
+}
+
+/** Valid programs (listed and unlisted) from the current config. */
+export function allPrograms() {
+  return load().programs;
 }

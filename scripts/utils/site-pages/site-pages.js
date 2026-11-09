@@ -13,6 +13,7 @@ import { promises as fs } from 'node:fs';
 import Util from '../util/util.js';
 import { distPath as defaultDistPath, siteRoot as defaultSiteRoot } from '../config/config.js';
 import { siteRootDir, fileToUrlPath } from '../site-root/site-root.js';
+import { isProgramFile } from '../../plugins/programs.js';
 
 /**
  * Collect all built index pages with their source and parsed document.
@@ -25,7 +26,7 @@ export async function collectSitePages(distPathArg = defaultDistPath, siteRootAr
   const rootDir = siteRootDir(distPathArg, siteRootArg);
   const htmlFiles = Util.getPaths(rootDir, rootDir, []) || [];
   const indexFiles = htmlFiles.filter(
-    f => f.endsWith('/index.html') || f === `${rootDir}/index.html`
+    f => (f.endsWith('/index.html') || f === `${rootDir}/index.html`) && !isProgramFile(f, rootDir)
   );
 
   const pages = [];

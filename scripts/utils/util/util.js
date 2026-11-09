@@ -746,7 +746,7 @@ function validatePageChange() {
   // dependent page stale. Match whole directory segments only: a PAGE
   // named template-strings-demo.html is still a fast-path page change.
   const isBuildOnly = changedDevPage && (/\/(includes?|templates?|components?|layouts?)\//.test(changedDevPage)
-    || /\/config\/theme\.json$/.test(changedDevPage));
+    || /\/config\/(theme|programs)\.json$/.test(changedDevPage));
   // Return true (valid) if it was a page change AND it wasn't a build-only file
   return changedDevPage && !isBuildOnly;
 }

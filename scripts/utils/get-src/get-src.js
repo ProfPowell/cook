@@ -8,6 +8,7 @@
 import fs from 'node:fs/promises';
 import Logger from '../logger/logger.js';
 import Util from '../util/util.js';
+import { isProgramFile } from '../../plugins/programs.js';
 import { SourceFile } from '../source-file/source-file.js';
 
 // CONFIG
@@ -116,7 +117,8 @@ async function getSrcFiles() {
   const isValidPageChange = Util.validatePageChange();
   if (isValidPageChange) {
     const getDistVersionOfChangedPage = process.env.DEV_CHANGED_PAGE.replace(srcPath, distPath);
-    files = [getDistVersionOfChangedPage];
+    // A file inside a program folder is only copied (copySrc), never built
+    files = isProgramFile(getDistVersionOfChangedPage, distPath) ? [] : [getDistVersionOfChangedPage];
   }
   // FULL BUILD
   // Otherwise, find all allowed files, loop through them, and run the build plugins on them
@@ -134,6 +136,8 @@ async function getSrcFiles() {
     files = Util.getPaths(distPath, distPath, excludedPaths);
     // Get only the allowed files by extension (.css, .html)
     files = files.filter(fileName => manualAllow(fileName, userAllowedPaths) || Util.isExtension(fileName, allowedExt));
+    // Program folders ship untouched
+    files = files.filter(fileName => !isProgramFile(fileName, distPath));
     // Move known include files to the front of the array, so they are ideally built first
     // before being replaced in other page files.
     files = files.sort((a,b) => {
@@ -164,7 +168,7 @@ async function getSrcImages(cb) {
   // Get images in `/dist`
   let images = Util.getPaths(distPath, distPath, excludedPaths);
   // Get only the allowed images by extension (.css, .html)
-  images = images.filter(fileName => Util.isExtension(fileName, allowedExt));
+  images = images.filter(fileName => Util.isExtension(fileName, allowedExt) && !isProgramFile(fileName, distPath));
   // Run tasks on matched images
   if (cb) cb(images);
 }

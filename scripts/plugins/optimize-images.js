@@ -24,6 +24,7 @@ import Util from '../utils/util/util.js';
 
 // Config
 import { distPath, images as imagesConfig } from '../utils/config/config.js';
+import { isProgramFile } from './programs.js';
 
 
 // ============================================================================
@@ -113,6 +114,7 @@ class OptimizeImagesGenerate {
     const allPaths = Util.getPaths(dir, dir, []);
     if (!allPaths) return [];
     return allPaths.filter(p => {
+      if (isProgramFile(p, dir)) return false;
       const ext = path.extname(p).toLowerCase();
       if (!rasterExts.includes(ext)) return false;
       // Skip our own generated derivatives (foo-320w.webp) — rescanning

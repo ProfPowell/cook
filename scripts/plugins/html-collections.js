@@ -34,6 +34,7 @@ import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
 import { normalizeSiteRoot } from '../utils/site-root/site-root.js';
+import { isInProgram } from './programs.js';
 
 // Config
 import {
@@ -174,6 +175,7 @@ export default async function htmlCollections({
   let collected = 0;
   for (const file of files) {
     const relPath = path.relative(srcPath, file).split(path.sep).join('/');
+    if (isInProgram(relPath)) continue;
     if (buildOnlyPaths.some(dir => relPath === dir || relPath.startsWith(`${dir}/`))) continue;
 
     const distFile = `${distPath}/${relPath}`;

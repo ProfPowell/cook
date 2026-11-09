@@ -10,6 +10,7 @@ import Util from '../utils/util/util.js';
 // CONFIG
 import { distPath, fragments, sitemap, siteRoot, srcPath } from '../utils/config/config.js';
 import { siteRootDir } from '../utils/site-root/site-root.js';
+import { isProgramFile } from './programs.js';
 
 
 // DEFINE
@@ -145,6 +146,8 @@ class GenerateSitemap {
     files = files.filter(fileName => Util.isExtension(fileName, allowedExt));
     // Skip SPA fragment files (content duplicates of their parent page)
     files = files.filter(fileName => !fileName.endsWith(`/${this.fragmentsFilename}`));
+    // Program folders are not site pages
+    files = files.filter(fileName => !isProgramFile(fileName, this.rootDir));
     // Format for xml: Remove `/dist`
     files = files.map(fileName => fileName.slice(this.rootDir.length));
     // Format for xml: Remove `filename`

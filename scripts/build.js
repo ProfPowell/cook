@@ -25,7 +25,7 @@ import generateSitemap from './plugins/generate-sitemap-xml.js';
 import htmlCollections from './plugins/html-collections.js';
 import minifySrc from './plugins/minify-src.js';
 import { optimizeImagesGenerate, optimizeImagesRewrite } from './plugins/optimize-images.js';
-import { programsData } from './plugins/programs.js';
+import { programsData, programHeaders, allPrograms, loadProgramAreas } from './plugins/programs.js';
 import { themeInject, resetThemeCache } from './plugins/theme.js';
 import { packageComponentsCopy, packageComponentsInject } from './plugins/package-components.js';
 import processMarkdown from './plugins/process-markdown.js';
@@ -49,7 +49,8 @@ import { collectSitePages } from './utils/site-pages/site-pages.js';
 
 // CONFIG
 // Combined user overrides on top of internal defaults
-import config, { plugins } from './utils/config/config.js';
+import config, { plugins, distPath, siteRoot } from './utils/config/config.js';
+import { siteRootDir } from './utils/site-root/site-root.js';
 
 const cwd = process.cwd();
 
@@ -84,6 +85,9 @@ class Build {
 
     // Show init message
     console.log(`${ chalk.blue('\n[Build]') } ${ chalk.blue.bold('`npm run build`') }`);
+
+    // Program areas must be known before any pass runs (copySrc is first)
+    loadProgramAreas();
 
     // PLUGIN: Create `/dist` if not already made
     await createDist();
@@ -250,6 +254,15 @@ class Build {
     // (sub-path hosting, e.g. GitHub Pages project sites). Runs after every
     // built-in post-loop plugin so they all work with plain root paths.
     await applyBasePath();
+
+    // Sandboxed programs: `_headers` rules (Cloudflare Pages, Netlify) appended
+    // to the site's own `_headers`, which copySrc already placed in dist.
+    if (!Util.validatePageChange()) {
+      const headersFile = path.join(siteRootDir(distPath, siteRoot), '_headers');
+      const existing = fs.existsSync(headersFile) ? fs.readFileSync(headersFile, 'utf-8') : null;
+      const headers = programHeaders(allPrograms(), existing);
+      if (headers !== null) fs.writeFileSync(headersFile, headers);
+    }
 
     // CUSTOM PLUGINS: Run custom user plugins after file loop
     await customPlugins({store, data, plugins: plugins.after, log: 'After' });

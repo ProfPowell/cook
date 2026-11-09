@@ -8,6 +8,8 @@ import path from 'node:path';
 // In-process rebuilds: no cold Node process per save — module imports,
 // config, and (for single-page rebuilds) template caches stay warm
 import { runBuild } from './build.js';
+import fs from 'fs-extra';
+import { loadProgramAreas, isProgramFile } from './plugins/programs.js';
 
 const browserSync = browserSyncLib.create('Dev Server');
 
@@ -112,6 +114,21 @@ async function rebuild(file) {
     return;
   }
   building = true;
+
+  // A change inside a program folder is copied as is: no page build
+  loadProgramAreas();
+  if (isProgramFile(file, srcPath)) {
+    const fileDist = file.replace(`${srcPath}/`, `${distPath}/`);
+    try {
+      await fs.copy(file, fileDist);
+      browserSync.reload(fileDist);
+    } catch (err) {
+      console.error(chalk.red(`\n[dev] Could not copy ${file}: ${err && err.message ? err.message : err}`));
+    }
+    building = false;
+    if (queuedFile) { const next = queuedFile; queuedFile = null; rebuild(next); }
+    return;
+  }
 
   // DEV_CHANGED_PAGE tells the build whether to run the whole pipeline
   // or just this changed file (see validatePageChange)

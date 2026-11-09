@@ -13,6 +13,7 @@ import Logger from '../utils/logger/logger.js';
 import Spinner from '../utils/spinner/spinner.js';
 import Timer from '../utils/timer/timer.js';
 import { convertPageToDirectory, distPath } from '../utils/config/config.js';
+import { isProgramFile } from './programs.js';
 import { getSrcConfig } from '../utils/get-src/get-src.js';
 
 const cwd = process.cwd();
@@ -98,6 +99,9 @@ class CreateDirFromFile {
     // Early Exit: File type not allowed
     const allowed = utils.isAllowedType({file, allowType, disallowType});
     if (!allowed) return;
+
+    // Early Exit: program folders ship untouched
+    if (isProgramFile(fileName, distPath)) return;
 
     // Early Exit: Do not create directory if current file is an index.html page
     if (file.name === 'index') return;

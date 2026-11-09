@@ -24,6 +24,7 @@ import Util from '../utils/util/util.js';
 // Config
 import { distPath, siteRoot, fingerprint as fingerprintConfig } from '../utils/config/config.js';
 import { siteRootDir } from '../utils/site-root/site-root.js';
+import { isProgramFile } from './programs.js';
 
 
 // ============================================================================
@@ -173,7 +174,7 @@ class FingerprintAssets {
 
     // Phase 2: Rewrite HTML references
     const htmlFiles = (Util.getPaths(this.rootDir, this.rootDir, []) || [])
-      .filter(p => p.endsWith('.html'));
+      .filter(p => p.endsWith('.html') && !isProgramFile(p, this.rootDir));
     let totalRewrites = 0;
     for (const htmlPath of htmlFiles) {
       const original = await fs.readFile(htmlPath, 'utf-8');
@@ -203,6 +204,7 @@ class FingerprintAssets {
     return all.filter(p => {
       // Skip source maps in the candidate list — handled alongside their source.
       if (p.endsWith('.map')) return false;
+      if (isProgramFile(p, this.rootDir)) return false;
       const ext = path.extname(p);
       if (!this.config.types.includes(ext)) return false;
       if (excludes.some(r => r.test(p))) return false;

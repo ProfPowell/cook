@@ -35,6 +35,7 @@ import { siteRootDir } from '../utils/site-root/site-root.js';
 
 // Config
 import { basePath as basePathConfig, distPath, siteRoot } from '../utils/config/config.js';
+import { isProgramFile } from './programs.js';
 
 
 // ============================================================================
@@ -174,7 +175,7 @@ class ApplyBasePath {
     Logger.persist.header(`\nApply basePath ${this.basePath}`);
 
     const rootDir = siteRootDir(this.distPath, this.siteRoot);
-    const htmlFiles = (Util.getPaths(rootDir, rootDir, []) || []).filter(p => p.endsWith('.html'));
+    const htmlFiles = (Util.getPaths(rootDir, rootDir, []) || []).filter(p => p.endsWith('.html') && !isProgramFile(p, rootDir));
 
     let files = 0;
     let total = 0;

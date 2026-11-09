@@ -10,6 +10,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
+import { isProgramFile } from './programs.js';
 
 // Config
 import { buildOnlyPaths, distPath, srcPath } from '../utils/config/config.js';
@@ -63,6 +64,8 @@ class CopySrc {
         if (pattern.test(src)) return false;
       }
     }
+    // Program folders ship untouched: every file, markdown included
+    if (isProgramFile(src, srcPath)) return true;
     // Skip directories (allow them to be traversed, filtering happens on files/subdirs)
     if (fs.lstatSync(src).isDirectory()) return true;
     // ---
