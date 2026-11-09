@@ -136,6 +136,49 @@ describe('program folders ship untouched', () => {
   });
 });
 
+describe('a colliding area still protects its program folders (R10)', () => {
+  let tmp, out;
+  before(async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-programs-collide-'));
+    tmps.push(tmp);
+    const files = {
+      'config/main.js': "export default { fingerprint: { enabled: true }, sitemap: { url: 'https://example.com' } };\n",
+      'config/programs.json': JSON.stringify({
+        areas: [{ path: 'programs', title: 'Programs' }],
+        programs: [{ area: 'programs', slug: 'toy', title: 'Toy', sandbox: true, listed: true }],
+      }),
+      'src/index.html': '<!doctype html><html><head><title>Home</title></head><body><main>home</main></body></html>\n',
+      'src/programs/README.md': '# Programs\n\nA page of its own in the area folder.\n',
+    };
+    for (const [rel, c] of Object.entries(PROGRAM)) files[`src/programs/toy/${rel.replace(/\/demos\/plasma\//g, '/programs/toy/')}`] = c;
+    await write(tmp, files);
+    const r = spawnSync(process.execPath, [COOK, 'build'], {
+      cwd: tmp, env: { ...process.env, NODE_ENV: 'production' }, encoding: 'utf-8',
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    out = r.stdout + r.stderr;
+  });
+
+  test('the [programs] warning is printed', () => {
+    assert.match(out, /\[programs\] area "programs" ignored/);
+  });
+
+  test('program files are byte-identical in dist, none added', async () => {
+    const srcFiles = await walk(path.join(tmp, 'src/programs/toy'));
+    assert.deepEqual(await walk(path.join(tmp, 'dist/programs/toy')), srcFiles);
+    for (const rel of srcFiles) {
+      const a = await fs.readFile(path.join(tmp, 'src/programs/toy', rel));
+      const b = await fs.readFile(path.join(tmp, 'dist/programs/toy', rel));
+      assert.ok(a.equals(b), `${rel} changed`);
+    }
+  });
+
+  test('_headers has the sandbox rule for its sandboxed program', async () => {
+    const h = await fs.readFile(path.join(tmp, 'dist/_headers'), 'utf-8');
+    assert.ok(h.includes(`/programs/toy/*\n  ${SANDBOX}`), h);
+  });
+});
+
 describe('programHeaders', () => {
   const progs = [
     { area: 'demos', slug: 'a', sandbox: true },

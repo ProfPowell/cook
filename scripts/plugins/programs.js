@@ -27,11 +27,16 @@ export function normalizePrograms(raw, { srcEntries = [], buildOnlyPaths: buildO
   const warnings = [];
   const areas = [];
   const programs = [];
-  if (!isObj(raw)) return { areas, programs, warnings };
+  // A slug-shaped area that collides with a page folder (R10): no programs data, but its
+  // subfolders stay program folders (untouched) and its sandboxed cards keep their rule.
+  const protectedAreas = [];
+  const protectedPrograms = [];
+  if (!isObj(raw)) return { areas, programs, warnings, protectedAreas, protectedPrograms };
 
   const taken = new Set(srcEntries);
   const buildOnlySet = new Set(buildOnly.map(p => String(p).replace(/^\/+|\/+$/g, '')));
   const byPath = Object.create(null);
+  const protectedByPath = Object.create(null);
 
   for (const a of Array.isArray(raw.areas) ? raw.areas : []) {
     const p = isObj(a) ? a.path : undefined;
@@ -39,8 +44,15 @@ export function normalizePrograms(raw, { srcEntries = [], buildOnlyPaths: buildO
     if (!isSlug(p)) why = 'use one lowercase segment (a-z, 0-9, hyphens)';
     else if (RESERVED_AREAS.includes(p)) why = 'that name is reserved';
     else if (buildOnlySet.has(p)) why = 'it is a buildOnlyPaths entry';
-    else if (taken.has(p)) why = 'the site already has a page or folder with that name';
-    else if (byPath[p]) why = 'duplicate area';
+    else if (byPath[p] || protectedByPath[p]) why = 'duplicate area';
+    else if (taken.has(p)) {
+      const area = { path: p, sandbox: a.sandbox === true };
+      protectedByPath[p] = area;
+      protectedAreas.push(area);
+      warnings.push(`${TAG}area ${JSON.stringify(p)} ignored: the site already has a page or folder with that name `
+        + '(no programs data for it; its subfolders still ship untouched as program folders)');
+      continue;
+    }
     if (why) {
       warnings.push(`${TAG}area ${JSON.stringify(p)} ignored: ${why}`);
       continue;
@@ -53,6 +65,15 @@ export function normalizePrograms(raw, { srcEntries = [], buildOnlyPaths: buildO
   const seen = new Set();
   for (const c of Array.isArray(raw.programs) ? raw.programs : []) {
     const label = isObj(c) ? `${c.area}/${c.slug}` : JSON.stringify(c);
+    if (isObj(c) && protectedByPath[c.area]) {
+      if (isSlug(c.slug) && !seen.has(label)) {
+        seen.add(label);
+        protectedPrograms.push({
+          area: c.area, slug: c.slug, sandbox: typeof c.sandbox === 'boolean' ? c.sandbox : protectedByPath[c.area].sandbox,
+        });
+      }
+      continue;
+    }
     if (!isObj(c) || !byPath[c.area]) {
       warnings.push(`${TAG}program ${label} ignored: unknown area`);
       continue;
@@ -76,7 +97,7 @@ export function normalizePrograms(raw, { srcEntries = [], buildOnlyPaths: buildO
       hasIndex: !!hasIndex(c.area, c.slug),
     });
   }
-  return { areas, programs, warnings };
+  return { areas, programs, warnings, protectedAreas, protectedPrograms };
 }
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : Infinity);
@@ -118,9 +139,12 @@ function load() {
 
 let areaPaths = [];
 
+/** Every area whose subfolders are program folders: the valid ones and the colliding ones (R10). */
+const protectedPaths = ({ areas, protectedAreas }) => [...areas, ...protectedAreas].map(a => a.path);
+
 /** Compute the area list for this build (programsData calls it). */
 export function loadProgramAreas() {
-  areaPaths = load().areas.map(a => a.path);
+  areaPaths = protectedPaths(load());
   return areaPaths;
 }
 
@@ -152,8 +176,9 @@ export function isProgramFile(filePath, baseDir) {
 
 /** Set `programs` and `programAreas` on the data store. */
 export async function programsData({ data }) {
-  const { areas, programs, warnings } = load();
-  areaPaths = areas.map(a => a.path);
+  const loaded = load();
+  const { areas, programs, warnings } = loaded;
+  areaPaths = protectedPaths(loaded);
   for (const w of warnings) console.log(chalk.yellow(w));
   const shown = sortPrograms(programs.filter(p => p.listed === true && p.hasIndex))
     .map(({ hasIndex, ...card }) => card);
@@ -179,7 +204,11 @@ export function programHeaders(programs, existing) {
   return existing ? `${existing}\n${blocks}` : blocks;
 }
 
-/** Valid programs (listed and unlisted) from the current config. */
+/**
+ * Programs (listed and unlisted) from the current config, for `_headers`: the valid ones,
+ * then those in a colliding area (R10), whose sandbox rule must still be written.
+ */
 export function allPrograms() {
-  return load().programs;
+  const { programs, protectedPrograms } = load();
+  return [...programs, ...protectedPrograms];
 }

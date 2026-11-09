@@ -31,6 +31,8 @@ An area path is one lowercase segment (a-z, 0-9, hyphens). Cook ignores an area,
 - it is a `buildOnlyPaths` entry;
 - the site already uses the name for something else, such as a file or a folder that holds pages of its own (a blog).
 
+A colliding area (the last case) is still protected: Cook leaves it out of `programs` and `programAreas` and prints the warning, but its subfolders still count as program folders and ship untouched, and its sandboxed programs still get their `_headers` rule. Pages directly in the area folder (`src/blog/post.html`) build as usual. A program never loses its protection, or its sandbox, because a page appeared next to it. To list the area's cards again, move those pages out of the folder.
+
 ## config/programs.json
 
 <code-block language="json" label="config/programs.json">{
@@ -95,7 +97,7 @@ Inside a program folder, Cook does none of this:
 - fragments, or adding it to the sitemap, feed or `llms.txt`;
 - converting Markdown (a `README.md` is copied as is).
 
-This is built in, not an `excludePaths` setting. Every build pass that copies or walks files checks "is this path inside a program folder". The check covers files from `src/<area>/<slug>/` down, in the areas Cook accepted.
+This is built in, not an `excludePaths` setting. Every build pass that copies or walks files checks "is this path inside a program folder". The check covers files from `src/<area>/<slug>/` down, in the areas Cook accepted and in colliding areas (see [Areas](#areas)).
 
 In `cook dev`, saving a file inside a program copies that one file and rebuilds no page.
 
