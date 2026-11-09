@@ -25,6 +25,7 @@ import generateSitemap from './plugins/generate-sitemap-xml.js';
 import htmlCollections from './plugins/html-collections.js';
 import minifySrc from './plugins/minify-src.js';
 import { optimizeImagesGenerate, optimizeImagesRewrite } from './plugins/optimize-images.js';
+import { programsData } from './plugins/programs.js';
 import { themeInject, resetThemeCache } from './plugins/theme.js';
 import { packageComponentsCopy, packageComponentsInject } from './plugins/package-components.js';
 import processMarkdown from './plugins/process-markdown.js';
@@ -97,6 +98,9 @@ class Build {
     // `collections: { html: true }`). Pre-loop so data-repeat and the feed
     // see every page; merges with markdown collections.
     await htmlCollections({store, data});
+
+    // PLUGIN: Programs: `programs` / `programAreas` data from config/programs.json
+    await programsData({data});
 
     // PLUGIN: Generate responsive image derivatives (AVIF/WebP at multiple widths)
     await optimizeImagesGenerate({store});

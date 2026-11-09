@@ -35,6 +35,20 @@ function getTheme() {
   }
 }
 
+// config/programs.json (written by Vanilla Press): areas of hand-written programs and their cards
+const programsJsonPath = `${cwd}/config/programs.json`;
+
+/** The programs config. Re-read on every call, like getTheme. */
+function getPrograms() {
+  if (!fs.existsSync(programsJsonPath)) return undefined;
+  try {
+    return JSON.parse(fs.readFileSync(programsJsonPath, 'utf8'));
+  } catch (err) {
+    console.log(chalk.yellow(`[programs] config/programs.json: ${err.message}`));
+    return undefined;
+  }
+}
+
 
 // DEFINE DEFAULT CONFIG
 // -----------------------------
@@ -335,7 +349,7 @@ const config = mergeConfigs(defaultConfig, userConfig);
 export default config;
 
 // Named exports for destructuring imports
-export { getTheme };
+export { getTheme, getPrograms };
 export const {
   activeLink,
   autoComponents,
