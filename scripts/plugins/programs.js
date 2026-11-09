@@ -91,14 +91,12 @@ function sortPrograms(list) {
   });
 }
 
-// Names in src/ that an area path may not reuse. A page `demos.html` next to
-// the area folder `demos/` is the area's list page, so it does not count; a
-// folder holding pages of its own (a blog) does.
+// Names in src/ that an area path may not reuse. A page `demos.html|md` is the
+// area's list page (with or without the `demos/` folder yet), so it does not
+// count; a folder holding pages of its own (a blog) does, as does any other file.
 function readSrcEntries(dir) {
   let ents;
   try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return []; }
-  const strip = (n) => n.replace(/\.(html|md)$/, '');
-  const dirs = new Set(ents.filter(e => e.isDirectory()).map(e => e.name));
   const holdsPages = (name) => {
     try {
       return fs.readdirSync(path.join(dir, name), { withFileTypes: true })
@@ -108,10 +106,7 @@ function readSrcEntries(dir) {
   const out = new Set();
   for (const e of ents) {
     if (e.isDirectory()) { if (holdsPages(e.name)) out.add(e.name); }
-    else if (/\.(html|md)$/.test(e.name)) {
-      const n = strip(e.name);
-      if (!dirs.has(n) || holdsPages(n)) out.add(n);
-    } else out.add(e.name);
+    else if (!/\.(html|md)$/.test(e.name)) out.add(e.name);
   }
   return [...out];
 }

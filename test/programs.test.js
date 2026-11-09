@@ -144,3 +144,48 @@ describe('programs build data', () => {
     assert.equal(document.querySelector('#all').textContent, '4');
   });
 });
+
+describe('programs area collisions (build level)', () => {
+  const list = '<!doctype html><html><head><title>D</title></head><body><ul>\n<li data-repeat="programAreas.AREA as p"><a href="${p.url}">${p.title}</a></li>\n</ul></body></html>\n';
+  async function build(files, area) {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-prog-'));
+    tmps.push(tmp);
+    const all = {
+      'config/main.js': 'export default {};\n',
+      'config/programs.json': JSON.stringify({ areas: [{ path: area, title: 'A' }], programs: [card({ area, slug: 'one', title: 'One' })] }),
+      [`src/${area}.html`]: list.replace('AREA', area),
+      ...files,
+    };
+    for (const [rel, content] of Object.entries(all)) {
+      await fs.mkdir(path.dirname(path.join(tmp, rel)), { recursive: true });
+      await fs.writeFile(path.join(tmp, rel), content);
+    }
+    const r = spawnSync(process.execPath, [COOK, 'build'], { cwd: tmp, env: { ...process.env, NODE_ENV: 'production' }, encoding: 'utf-8' });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const html = await fs.readFile(path.join(tmp, `dist/${area}/index.html`), 'utf-8');
+    return { out: r.stdout + r.stderr, items: parseHTML(html).document.querySelectorAll('li a[href^="/"]').length };
+  }
+  const prog = { 'src/blog/one/index.html': '<p>x</p>' };
+
+  for (const [name, extra] of [['.html', 'x.html'], ['.md', 'x.md']]) {
+    test(`folder with its own ${name} page collides`, async () => {
+      const r = await build({ ...prog, [`src/blog/${extra}`]: 'page' }, 'blog');
+      assert.match(r.out, /\[programs\] area "blog" ignored/);
+      assert.equal(r.items, 0);
+    });
+  }
+
+  test('folder with only index.html and programs is accepted', async () => {
+    const r = await build({ ...prog, 'src/blog/index.html': '<p>area page</p>' }, 'blog');
+    assert.doesNotMatch(r.out, /\[programs\]/);
+    assert.equal(r.items, 1);
+  });
+
+  for (const ext of ['html', 'md']) {
+    test(`list page .${ext} alone (no folder yet) is accepted with an empty list`, async () => {
+      const r = await build(ext === 'html' ? {} : { 'src/blog.md': '# list' }, 'blog');
+      assert.doesNotMatch(r.out, /\[programs\]/);
+      assert.equal(r.items, 0);
+    });
+  }
+});
