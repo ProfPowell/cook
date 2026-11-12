@@ -104,12 +104,12 @@ Inside `main`, `header`, `nav`, `aside`, `footer`, a child's body, slot template
 | Content | the `content` placeholder, exactly once, inside `main` (base) or the child body |
 | Slot | a `slot:name` placeholder, alone inside its parent element |
 | Text | `h1` to `h6`, `p`, `small`, `figcaption`, `blockquote`, holding text, fields and `a`, `strong`, `em`, `span`, `time`, `br`, `img`, `abbr`, `code` |
-| Image | `img`, `picture` with `source`, or a `figure` around them |
+| Image | `img`, `picture` with `source`, or a `figure` around them, with an optional `figcaption` |
 | Container | a Vanilla Breeze `layout-*` element, or `div`, `section`, `article`, `header`, `footer`, `nav`, `aside` carrying `data-layout` (sectioning elements need no attribute) |
 | List | any block with `data-repeat="source \| limit:N as item"`, such as a container, a `ul` or an `li` in a menu (see below); Cook clones the element it sits on, and its fields are `item.x` |
 | Menu | `ul`, `ol` or `menu` of `li` items |
 | Include | an empty `<div data-include="/includes/x.html"></div>` |
-| Component | any custom element (hyphenated tag), kept as written |
+| Component | any custom element (hyphenated tag), kept as written; it may carry `data-repeat`, and its attributes can use the item's fields |
 | Comment | an HTML comment |
 
 Any block may carry `id`, `class`, `role`, `lang`, `aria-*`, `data-*`, `data-if` and `data-unless`.
@@ -135,6 +135,14 @@ An unknown field is an error, so typos are caught. The known fields are:
   layouts: { fields: ['ogImage'] },
 };</code-block>
 
+### Keeping layouts out of dist
+
+Layouts, includes and components are used during the build, not served. List them in `buildOnlyPaths` so they stay out of `dist/`:
+
+<code-block language="javascript" label="config/main.js">export default {
+  buildOnlyPaths: ['components', 'includes', 'layouts'],
+};</code-block>
+
 ### Includes as fragments
 
 An include is checked as a format-1 fragment only when its first line is `<!-- layout-fragment -->`. Without that line it is a free-form include and is never checked, so existing includes keep working.
@@ -145,8 +153,9 @@ An include is checked as a format-1 fragment only when its first line is `<!-- l
 
 The command checks every file in `src/layouts` and `src/includes` and prints `file:line: problem` for each problem. A layout is only "editable" when it and every parent above it follow format 1.
 
-- It exits 1 when any layout with an info block, or any marked fragment, has a problem, when a child's parent is missing or the chain has a cycle, or when `config/data.js` or `config/main.js` throws while loading.
-- Plain layouts are listed as plain and never fail the check.
+- It exits 1 when any layout with an info block, or any marked fragment, has a problem (for a layout with an info block, a missing parent or a cycle in its chain counts), or when `config/data.js` or `config/main.js` throws while loading.
+- Plain layouts are listed as plain and never fail the check, even when their parent is missing or their chain has a cycle.
+- It ends with a summary line: `N layouts, M includes: X editable, Y plain, Z with problems`.
 - A site with no `config/data.js` is fine. A `config/data.js` that throws fails the check, because the field names come from it.
 
 The same checker is available to your own tools as a module:
