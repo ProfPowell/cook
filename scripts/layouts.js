@@ -9,4 +9,5 @@ export { checkLayout } from './utils/layouts/check.js';
 export { listLayouts, loadSiteNames } from './utils/layouts/list.js';
 export { parseLayout } from './utils/layouts/tree.js';
 export { serializeLayout } from './utils/layouts/serialize.js';
+export { layoutUsage } from './utils/layouts/usage.js';
 export { FORMAT, PAGE_LAYOUTS, DOCUMENT_FIELDS } from './utils/layouts/vocabulary.js';

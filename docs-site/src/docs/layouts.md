@@ -162,3 +162,34 @@ The same checker is available to your own tools as a module:
 
 <code-block language="javascript" label="cook-ssg/layouts">import { checkLayout, listLayouts, FORMAT } from 'cook-ssg/layouts';
 const { layouts, includes, problems } = await listLayouts(process.cwd());</code-block>
+
+
+## For tool authors
+
+`cook-ssg/layouts` also exports what a layout editor needs. Everything here reads and returns plain data and never changes the build.
+
+### The layout tree
+
+`parseLayout(source, { fields, lists })` turns a layout file that follows format 1 into a tree, and `serializeLayout(tree)` writes the tree back as a layout file. Parsing the result again gives the same tree. The tree's shape is described at the top of `scripts/utils/layouts/tree.js`.
+
+- A layout that doesn't follow the format is not parsed; `parseLayout` reports the problems instead, the same ones `cook check-layouts` prints.
+- A component's inner HTML, an inline script or style, and a comment between blocks survive a round trip. A correct layout holding something the tree has no place for is refused with a problem, never opened with that part lost.
+
+<code-block language="javascript" label="Edit a layout">import { parseLayout, serializeLayout } from 'cook-ssg/layouts';
+const parsed = parseLayout(source, { fields, lists });
+// change the tree, then:
+const next = serializeLayout(parsed.tree);</code-block>
+
+### Where a layout is used
+
+`layoutUsage(siteDir)` says which pages use which layouts, so a tool can show "Used by 3 pages" before an edit.
+
+<code-block language="javascript" label="Layout usage">import { layoutUsage } from 'cook-ssg/layouts';
+const { pages, layouts } = await layoutUsage(process.cwd());
+// pages.post   -> ['src/blog/hello.md', 'src/about.html']
+// layouts.base -> ['post', 'page']</code-block>
+
+- `pages[name]` lists the paths, relative to the site, of pages in `src/` that use the layout `name`: through a front matter `layout:` (HTML or markdown), through the `markdown.layout` default in `config/main.js` for a markdown page with none, or through `data-template` on `<html>` or `<body>`.
+- `layouts[name]` lists the layouts whose `data-template` names `name`, that is, the layouts built on it.
+- Files in `src/layouts`, `src/includes`, `src/components` and program folders are not pages and are skipped.
+- It never throws. A file it can't read, or a `config/main.js` that fails to load, is skipped.
