@@ -1,0 +1,15 @@
+---
+title: Home
+description: A Cook site with Vanilla Breeze layouts.
+layout: page
+---
+<p>${siteTagline}</p>
+<section aria-labelledby="posts-heading">
+  <h2 id="posts-heading">Posts</h2>
+  <ul>
+    <li data-repeat="collections.posts as post">
+      <a href="${post.url}">${post.title}</a>
+      <time datetime="${post.date}">${post.date}</time>
+    </li>
+  </ul>
+</section>

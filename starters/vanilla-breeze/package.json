@@ -1,0 +1,20 @@
+{
+  "name": "vanilla-breeze-cook-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Cook site with Vanilla Breeze layouts (layout format 1)",
+  "type": "module",
+  "engines": { "node": ">=20.9.0" },
+  "scripts": {
+    "vendor": "node scripts/vendor-vb.js",
+    "prebuild": "npm run vendor",
+    "build": "NODE_ENV=production cook build",
+    "predev": "npm run vendor",
+    "dev": "cook dev",
+    "check": "cook check-layouts"
+  },
+  "dependencies": {
+    "cook-ssg": "^2.8.0",
+    "vanilla-breeze": "^0.6.0"
+  }
+}

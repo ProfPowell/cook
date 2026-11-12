@@ -1,0 +1,21 @@
+<body data-template="base" data-page-layout="article">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Blog post", "description": "A dated article with an optional featured image and sidebar.",
+    "slots": { "aside": { "label": "Sidebar" } } }
+  </script>
+  <article>
+    <h1>${title}</h1>
+    <p data-if="date"><time datetime="${date}">${date}</time></p>
+    <p data-if="author">By <span>${author}</span></p>
+    <p data-if="tags">Tagged: <span>${tags}</span></p>
+    <figure data-if="image"><img src="${image}" alt="${imageAlt}"></figure>
+    ${content}
+  </article>
+  <template slot="aside">${slot:aside}</template>
+  <template slot="head">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${description}">
+    <meta property="og:image" data-if="image" content="${image}">
+  </template>
+</body>

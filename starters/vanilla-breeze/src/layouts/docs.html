@@ -1,0 +1,11 @@
+<body data-template="base" data-page-layout="sidebar-left">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Docs", "description": "A documentation page with a section menu on the left.",
+    "slots": { "nav": { "label": "Section menu" } } }
+  </script>
+  <article>
+    <h1>${title}</h1>
+    ${content}
+  </article>
+  <template slot="nav">${slot:nav}</template>
+</body>

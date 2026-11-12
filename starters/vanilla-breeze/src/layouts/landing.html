@@ -1,0 +1,11 @@
+<body data-template="base" data-page-layout="landing">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Landing page", "description": "A hero, free content, and a call to action.",
+    "slots": { "hero": { "label": "Hero" }, "cta": { "label": "Call to action" } } }
+  </script>
+  <section data-if="slot:hero" data-layout="hero">${slot:hero}</section>
+  <layout-stack>
+    ${content}
+  </layout-stack>
+  <section data-if="slot:cta" data-layout="cta">${slot:cta}</section>
+</body>
