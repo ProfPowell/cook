@@ -1,0 +1,11 @@
+<body data-template="base" data-page-layout="stack">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Landing", "description": "A promotional page: a hero, the content, a band of highlights and a closing call to action.",
+    "slots": { "hero": { "label": "Hero" }, "highlights": { "label": "Highlights" }, "cta": { "label": "Call to action" } } }
+  </script>
+  <section class="hero" data-if="slot:hero">${slot:hero}</section>
+  ${content}
+  <section class="highlights" data-if="slot:highlights">${slot:highlights}</section>
+  <section class="cta" data-if="slot:cta">${slot:cta}</section>
+  <template slot="footer"><p>© Thomas A. Powell</p></template>
+</body>

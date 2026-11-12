@@ -1,0 +1,14 @@
+<body data-template="base" data-page-layout="sidebar-left">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Guide", "description": "Documentation or a course page: a section menu in a left column beside the content.",
+    "slots": { "nav": { "label": "Section menu" } } }
+  </script>
+  <article>
+    <h1>${title}</h1>
+    <p class="standfirst" data-if="description">${description}</p>
+    ${content}
+    <p class="updated" data-if="updated">Updated <time datetime="${updated}">${updated}</time></p>
+  </article>
+  <template slot="nav">${slot:nav}</template>
+  <template slot="footer"><p>© Thomas A. Powell</p></template>
+</body>

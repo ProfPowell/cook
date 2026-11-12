@@ -1,0 +1,13 @@
+<body data-template="base" data-page-layout="holy-grail">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Reference", "description": "Three columns: a section menu on the left, the content, and notes on the right. Empty columns fold away.",
+    "slots": { "nav": { "label": "Section menu" }, "aside": { "label": "Notes" } } }
+  </script>
+  <article>
+    <h1>${title}</h1>
+    ${content}
+  </article>
+  <template slot="nav">${slot:nav}</template>
+  <template slot="aside">${slot:aside}</template>
+  <template slot="footer"><p>© Thomas A. Powell</p></template>
+</body>

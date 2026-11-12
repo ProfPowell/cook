@@ -13,16 +13,18 @@ import {
 } from './vocabulary.js';
 
 // `${…}` placeholders, including `${{…}}` so expressions are caught
-const PLACEHOLDER = /\$\{([^}]*)\}/g;
-const PLAIN_KEY = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
-const SLOT_KEY = /^slot:([\w-]+)$/;
+export const PLACEHOLDER = /\$\{([^}]*)\}/g;
+export const PLAIN_KEY = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
+export const SLOT_KEY = /^slot:([\w-]+)$/;
 // "source | pipe:arg as item[, index]" (same grammar as repeat-collection)
-const REPEAT = /^(.+?)\s+as\s+(\w+)(?:\s*,\s*(\w+))?$/;
+export const REPEAT = /^(.+?)\s+as\s+(\w+)(?:\s*,\s*(\w+))?$/;
 const PIPE = /^(limit|offset)\s*:\s*\d+$/;
 const PAGE_LAYOUT_FIELD = '${pageLayout}';
 
-const tagOf = (el) => el.tagName.toLowerCase();
-const isBlank = (node) => node.nodeType === 8 || (node.nodeType === 3 && !node.textContent.trim());
+export const tagOf = (el) => el.tagName.toLowerCase();
+export const isBlank = (node) => node.nodeType === 8 || (node.nodeType === 3 && !node.textContent.trim());
+/** An include block: an empty `<div data-include>`. */
+export const isIncludeElement = (el) => tagOf(el) === 'div' && el.hasAttribute('data-include');
 
 /**
  * Best-effort scan for slots and fields, used for every layout (plain or
@@ -380,7 +382,7 @@ class Checker {
   }
 
   isInclude(el) {
-    return tagOf(el) === 'div' && el.hasAttribute('data-include');
+    return isIncludeElement(el);
   }
 
   include(el, ctx) {

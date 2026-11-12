@@ -1,0 +1,19 @@
+<body data-template="base" data-page-layout="article">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Long read", "description": "A single narrow reading column for long posts: title, standfirst, featured image, no sidebar.", "slots": {} }
+  </script>
+  <article>
+    <header>
+      <h1>${title}</h1>
+      <p class="standfirst" data-if="description">${description}</p>
+      <p data-if="date"><time datetime="${date}">${date}</time></p>
+    </header>
+    <figure class="featured-image" data-if="image"><img src="${image}" alt="${imageAlt}"></figure>
+    ${content}
+  </article>
+  <template slot="head">
+    <link rel="alternate" type="application/atom+xml" title="Thomas A. Powell" href="/feed.xml">
+    <meta property="og:image" content="${ogImageUrl}" data-if="image">
+  </template>
+  <template slot="footer"><p><a href="/">All posts</a> · <a href="/feed.xml">Feed</a></p></template>
+</body>

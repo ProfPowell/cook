@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Site base", "description": "Head, site header and footer shared by every layout. Children choose the page structure.", "abstract": true,
+    "slots": { "head": { "label": "Head" }, "nav": { "label": "Section menu" }, "aside": { "label": "Sidebar" }, "footer": { "label": "Footer" } } }
+  </script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} · ${siteTitle}</title>
+  <meta name="description" content="${description}" data-if="description">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+  ${slot:head}
+</head>
+<body data-page-layout="${pageLayout}">
+  <header>
+    <nav aria-label="Site">
+      <ul>
+        <li><a href="/">Thomas A. Powell</a></li>
+        <li><a href="/programs/">Programs</a></li>
+      </ul>
+    </nav>
+  </header>
+  <nav aria-label="Section" data-if="slot:nav">${slot:nav}</nav>
+  <main id="main">${content}</main>
+  <aside data-if="slot:aside">${slot:aside}</aside>
+  <footer>${slot:footer}</footer>
+</body>
+</html>
