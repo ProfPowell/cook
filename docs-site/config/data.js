@@ -49,6 +49,7 @@ export default {
         { url: '/docs/fragments/', label: 'Fragments' },
         { url: '/docs/multi-format/', label: 'Multi-Format Output' },
         { url: '/docs/images/', label: 'Image Optimization' },
+        { url: '/docs/layouts/', label: 'Layout Format' },
       ],
     },
     {

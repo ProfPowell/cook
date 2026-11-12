@@ -23,6 +23,13 @@ These roadmap items are already implemented and were removed from the remaining 
 
 ## Release Notes
 
+### 2.8.0 (unreleased)
+
+- Layout inheritance: a layout whose `<html>` or `<body>` has `data-template` is built on a parent (depth 5, cycles are build errors), for HTML and Markdown pages. Slots are forwarded explicitly.
+- `data-if` / `data-unless` conditional sections, at layout time, per `data-repeat` item and in a last pass over the page.
+- Layout format 1: an info block (`<script type="application/json" data-layout-info>`, stripped from output), the `cook-ssg/layouts` module and `cook check-layouts`. See the Layout Format docs.
+- Sites that use none of this build byte-identically.
+
 ### 2.6.0 (unreleased)
 
 - `theme` plugin: one site theme from `config/main.js` (`theme`) or `config/theme.json`, written as `data-theme` / `data-mode` (and `data-theme-source="site"`) on `<html>` plus the theme stylesheet links. HTML pages can override it with `theme` and `themeScope` front matter. No setting, no change in output. See the Site Theme docs.
@@ -34,9 +41,9 @@ These roadmap items are already implemented and were removed from the remaining 
 
 ## Near-Term Enhancements
 
-### 1. HTML Layout Inheritance
+### 1. HTML Layout Inheritance (shipped in 2.8.0)
 
-Extend layout support beyond markdown pages so regular HTML pages can opt into full-page wrappers through a page-level layout directive.
+Layouts can be built on other layouts with `data-template` on `<html>` or `<body>`, for HTML and Markdown pages. 2.8.0 also adds `data-if` / `data-unless` sections, the format-1 layout checker (`cook-ssg/layouts`, `cook check-layouts`) and info-block stripping. See the Layout Format docs.
 
 ### 2. Named Slots for Components
 
