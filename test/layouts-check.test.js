@@ -223,6 +223,19 @@ describe('checkLayout', () => {
     assert.match(result.problems[0].message, /<table>/);
   });
 
+  test('data-repeat on li and on text blocks', () => {
+    const li = '<nav><ul><li data-repeat="collections.blog | limit:3 as post"><a href="${post.url}">${post.title}</a></li></ul></nav>';
+    const ok = checkLayout(base({ body: `<main>\${content}${li}</main>` }));
+    assert.deepEqual(ok.problems, []);
+
+    const sibling = checkLayout(base({ body: `<main>\${content}<ul><li data-repeat="collections.blog | limit:3 as post">x</li><li>\${post.title}</li></ul></main>` }));
+    assert.equal(sibling.ok, false);
+    assert.ok(hasProblem(sibling, '"post.title"'));
+
+    const p = checkLayout(base({ body: '<main>${content}<p data-repeat="links as l">${l.label}</p></main>' }), { lists: ['links'] });
+    assert.deepEqual(p.problems, []);
+  });
+
   test('list', () => {
     const list = '<ul data-repeat="collections.blog | limit:3 as post"><li>${post.title}</li></ul>';
     const ok = checkLayout(base({ body: `<main>\${content}${list}</main>` }));

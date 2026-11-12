@@ -101,6 +101,13 @@ describe('starter: build', () => {
     assert.match(html, /<footer/);
   });
 
+  test('site nav: one ul, one li per navItems entry', async () => {
+    const html = await read(tmp, 'posts/hello/index.html');
+    const nav = html.match(/<nav aria-label="Site">[\s\S]*?<\/nav>/)[0];
+    assert.equal((nav.match(/<ul/g) || []).length, 1);
+    assert.equal((nav.match(/<li/g) || []).length, 3);
+  });
+
   test('docs: sidebar-left with its nav', async () => {
     const html = await read(tmp, 'docs/start/index.html');
     assert.match(html, /data-page-layout="sidebar-left"/);

@@ -106,8 +106,8 @@ Inside `main`, `header`, `nav`, `aside`, `footer`, a child's body, slot template
 | Text | `h1` to `h6`, `p`, `small`, `figcaption`, `blockquote`, holding text, fields and `a`, `strong`, `em`, `span`, `time`, `br`, `img`, `abbr`, `code` |
 | Image | `img`, `picture` with `source`, or a `figure` around them |
 | Container | a Vanilla Breeze `layout-*` element, or `div`, `section`, `article`, `header`, `footer`, `nav`, `aside` carrying `data-layout` (sectioning elements need no attribute) |
-| List | a container or `ul`, `ol`, `menu` with `data-repeat="source \| limit:N as item"`; its fields are `item.x` |
-| Menu | `ul`, `ol` or `menu` of `li` items, without `data-repeat` |
+| List | any block with `data-repeat="source \| limit:N as item"`, such as a container, a `ul` or an `li` in a menu (see below); Cook clones the element it sits on, and its fields are `item.x` |
+| Menu | `ul`, `ol` or `menu` of `li` items |
 | Include | an empty `<div data-include="/includes/x.html"></div>` |
 | Component | any custom element (hyphenated tag), kept as written |
 | Comment | an HTML comment |
@@ -115,6 +115,10 @@ Inside `main`, `header`, `nav`, `aside`, `footer`, a child's body, slot template
 Any block may carry `id`, `class`, `role`, `lang`, `aria-*`, `data-*`, `data-if` and `data-unless`.
 
 A base layout's `<body>` has `data-page-layout` set to one of `stack`, `sidebar-left`, `sidebar-right`, `holy-grail`, `app-shell`, `dashboard`, `article`, `landing` (or empty), or to the `pageLayout` variable so a child can choose. Its children are `header`, `nav` (at most two), exactly one `main`, `aside`, `footer` and includes. `<head>` holds only `meta`, `link`, `title`, `script`, `style` and `base`.
+
+<code-block language="html" label="A repeated li">&lt;nav&gt;&lt;ul&gt;
+  &lt;li data-repeat="navItems | limit:12 as item"&gt;&lt;a href="&#36;{item.href}"&gt;&#36;{item.label}&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;&lt;/nav&gt;</code-block>
 
 List sources are `collections.<name>`, `programs`, `programAreas.<area>` and top-level arrays in `config/data.js`.
 

@@ -1,6 +1,6 @@
 <!-- layout-fragment -->
 <nav aria-label="Site">
-  <ul data-repeat="navItems | limit:12 as item">
-    <li><a href="${item.href}">${item.label}</a></li>
+  <ul>
+    <li data-repeat="navItems | limit:12 as item"><a href="${item.href}">${item.label}</a></li>
   </ul>
 </nav>

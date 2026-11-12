@@ -58,6 +58,7 @@ function scanSource(html) {
 class Checker {
   constructor(html, parsed, { fields, lists }) {
     this.html = html;
+    this.repeatRead = new WeakSet();
     this.parsed = parsed;
     this.document = parsed.document;
     this.kind = parsed.kind;
@@ -328,6 +329,14 @@ class Checker {
   block(el, ctx) {
     const name = tagOf(el);
 
+    // data-repeat clones whatever element it sits on, so any block may carry it
+    // (containers, menus and layout elements read it themselves).
+    if (el.hasAttribute('data-repeat') && !name.includes('-') && !MENU_ELEMENTS.includes(name)
+        && !CONTAINER_ELEMENTS.includes(name) && !(LAYOUT_WRAPPERS.includes(name) && el.hasAttribute('data-layout'))) {
+      ctx = this.repeatScope(el, ctx);
+      this.repeatRead.add(el);
+    }
+
     if (name.includes('-')) {
       if (LAYOUT_ELEMENTS.includes(name)) {
         const inner = this.repeatScope(el, ctx);
@@ -392,8 +401,10 @@ class Checker {
         this.checkHandlers(node);
         this.problem(node, `<${tagOf(node)}> can't be inside <${tagOf(el)}> (a menu holds only <li> items)`);
       } else {
-        this.checkAttrs(node, inner);
-        this.mixed(node, inner);
+        const item = this.repeatScope(node, inner);
+        this.repeatRead.add(node);
+        this.checkAttrs(node, item);
+        this.mixed(node, item);
       }
     }
   }
@@ -553,6 +564,7 @@ class Checker {
         continue;
       }
       if (handled.includes(lower)) continue;
+      if (lower === 'data-repeat' && this.repeatRead.has(el)) continue;
       if (lower === 'data-repeat') {
         this.problem(el, `<${name}> can't repeat (data-repeat goes on a container or a ul/ol/menu)`);
         continue;
