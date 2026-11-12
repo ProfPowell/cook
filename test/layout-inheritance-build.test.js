@@ -82,3 +82,37 @@ describe('layout inheritance in a build', () => {
     assert.match(html, /<aside><\/aside>/);
   });
 });
+
+describe('a broken layout chain on a markdown page fails the build', () => {
+  let dir, result;
+  before(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-layouts-deep-'));
+    const files = {
+      'config/main.js': 'export default {};\n',
+      'src/layouts/l6.html': '<html><body>${content}</body></html>\n',
+      'src/blog/deep.md': '---\nlayout: l1\ntitle: Deep\n---\nBody.\n',
+      'src/blog/fine.md': '---\nlayout: l2\ntitle: Fine\n---\nBody.\n',
+    };
+    for (let i = 1; i <= 5; i++) files[`src/layouts/l${i}.html`] = `<body data-template="l${i + 1}">\${content}</body>\n`;
+    for (const [rel, content] of Object.entries(files)) {
+      await fs.mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+      await fs.writeFile(path.join(dir, rel), content);
+    }
+    result = spawnSync(process.execPath, [COOK, 'build'], {
+      cwd: dir, env: { ...process.env, NODE_ENV: 'production' }, encoding: 'utf-8',
+    });
+  });
+  after(async () => { if (dir) await fs.rm(dir, { recursive: true, force: true }); });
+
+  test('cook build exits non-zero and names the chain', () => {
+    const output = result.stdout + result.stderr;
+    assert.notEqual(result.status, 0, output);
+    assert.ok(output.includes('Layout chain too deep (more than 5): l1 → l2 → l3 → l4 → l5 → l6'), output);
+    assert.ok(output.includes('deep.md'), output);
+  });
+
+  test('the other markdown page still builds', async () => {
+    const html = await fs.readFile(path.join(dir, 'dist/blog/fine/index.html'), 'utf-8');
+    assert.match(html, /<p>Body.<\/p>/);
+  });
+});

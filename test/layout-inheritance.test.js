@@ -10,7 +10,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { renderLayout, extractSlots } from '../scripts/utils/layouts/render.js';
+import { renderLayout, extractSlots, stripInfo } from '../scripts/utils/layouts/render.js';
 import applyTemplate from '../scripts/plugins/apply-template.js';
 
 const INFO_BASE = '<script type="application/json" data-layout-info>{"format":1,"label":"Base","slots":{"aside":{"label":"Sidebar"},"head":{}}}</script>';
@@ -212,6 +212,53 @@ describe('Review Focus 1: page content is never layout structure', () => {
     const out = await renderLayout('post', { title: 'T', content: '${title} <template slot="aside">no</template>', 'slot:aside': '${content}' }, { loadLayout: loader(LAYOUTS) });
     assert.ok(out.includes('<h1>T</h1>\n    ${title} <template slot="aside">no</template>'), out);
     assert.match(out, /<aside>\$\{content\}<\/aside>/);
+  });
+});
+
+describe('fix round 1', () => {
+  it('stripInfo stops at the info script\'s own </script>', () => {
+    const head = '<head>\n  <script type="application/json" data-layout-info>{}</script><meta charset="utf-8">\n  <title>${title}</title>\n  <script src="/a.js"></script>\n</head>';
+    assert.equal(stripInfo(head), '<head>\n  <meta charset="utf-8">\n  <title>${title}</title>\n  <script src="/a.js"></script>\n</head>');
+  });
+
+  it('a base whose info block shares its line keeps the rest of the head', async () => {
+    const base = '<html><head>\n  <script data-layout-info>{}</script><meta charset="utf-8">\n  <title>${title}</title>\n  <script src="/a.js"></script>\n</head><body>${content}</body></html>';
+    const out = await renderLayout('base', { title: 'T', content: 'c' }, { loadLayout: loader({ base }) });
+    assert.equal(out, '<html><head>\n  <meta charset="utf-8">\n  <title>T</title>\n  <script src="/a.js"></script>\n</head><body>c</body></html>');
+  });
+
+  for (const open of ['<template slot="aside" data-if="slot:aside">', '<template class="x" slot="aside">', '<template slot=aside>', "<template slot='aside'>"]) {
+    it(`a child slot template written ${open} fills the parent slot`, async () => {
+      const child = `<body data-template="base">\${content}${open}<b>A</b></template></body>`;
+      const out = await renderLayout('child', { title: 'T', content: 'c' }, { loadLayout: loader({ base: BASE, child }) });
+      assert.match(out, /<main>c<\/main>/);
+      assert.match(out, /<aside><b>A<\/b><\/aside>/);
+    });
+  }
+
+  it('a data-slot attribute does not make a slot template', async () => {
+    const child = '<body data-template="base"><template data-slot="aside">T</template></body>';
+    const out = await renderLayout('child', { title: 'T', content: 'c' }, { loadLayout: loader({ base: BASE, child }) });
+    assert.match(out, /<main><template data-slot="aside">T<\/template><\/main>/);
+  });
+
+  it("a slot template's data-if reaches the conditionals hook, which can drop it", async () => {
+    const child = '<body data-template="base">${content}<template slot="aside" data-if="no"><b>A</b></template><template slot="footer" data-if="yes"><b>F</b></template></body>';
+    const seen = [];
+    const conditionals = (html) => {
+      seen.push(html);
+      return html
+        .replace(/<template\b[^>]*data-if="no"[^>]*>[\s\S]*?<\/template>/g, '')
+        .replace(/ data-if="yes"/g, '');
+    };
+    const out = await renderLayout('child', { title: 'T', content: 'c' }, { loadLayout: loader({ base: BASE, child }), conditionals });
+    assert.ok(seen.includes('<template slot="aside" data-if="no"><b>A</b></template>'), seen.join('\n'));
+    assert.match(out, /<aside><\/aside>/);
+    assert.match(out, /<footer><b>F<\/b><\/footer>/);
+  });
+
+  it('the page side still recognises only the exact <template slot="x"> form', () => {
+    assert.deepEqual(extractSlots('<template slot=aside>A</template>'), { content: '<template slot=aside>A</template>', slots: {} });
   });
 });
 

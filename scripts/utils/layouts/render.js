@@ -28,10 +28,26 @@ const TEMPLATE_TAG = /<(\/?)template(?=[\s>/])[^>]*>/gi;
 // A child layout: data-template on <html> or <body> (same test as apply-template)
 const TEMPLATED_TAG = /<(html|body)(\s[^>]*data-template="([^"]+)"[^>]*)>/i;
 
-// The info block, whole line first so it leaves no blank line behind
-const INFO_LINE = /^[ \t]*<script\b[^>]*\bdata-layout-info\b[^>]*>[\s\S]*?<\/script\s*>[ \t]*\r?\n/gim;
-const INFO_ANY = /<script\b[^>]*\bdata-layout-info\b[^>]*>[\s\S]*?<\/script\s*>/gi;
+// The info block element: its body never crosses a `</script`, so the
+// match ends at the info script's own close tag. Leading indent and the
+// trailing line break are captured so a line holding only the block can
+// go whole.
+const INFO = /([ \t]*)<script\b[^>]*\bdata-layout-info\b[^>]*>(?:(?!<\/script)[\s\S])*<\/script\s*>([ \t]*(?:\r?\n|$))?/gi;
 const HAS_INFO = /<script\b[^>]*\bdata-layout-info\b/i;
+
+// A `slot` attribute inside a start tag's attributes, any quoting
+const SLOT_ATTR = /(?:^|\s)slot\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i;
+
+/**
+ * Thrown for a layout cycle or a chain deeper than MAX_DEPTH. Always a
+ * build error, whatever kind of page hit it.
+ */
+export class LayoutChainError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'LayoutChainError';
+  }
+}
 
 /**
  * Index just past the `</template>` that closes a template opened before
@@ -88,7 +104,64 @@ export function extractSlots(html) {
  */
 export function stripInfo(html) {
   if (!HAS_INFO.test(html)) return html;
-  return html.replace(INFO_LINE, '').replace(INFO_ANY, '');
+  return html.replace(INFO, (match, lead, trail, offset) => {
+    const atLineStart = offset === 0 || html[offset - 1] === '\n';
+    // Alone on its line: the whole line goes
+    if (atLineStart && trail !== undefined) return '';
+    // Shares the line: only the element goes
+    return lead + (trail || '');
+  });
+}
+
+/**
+ * Split a child layout's body into its top-level slot templates and the
+ * rest. Any top-level `<template …>` with a `slot` attribute counts, in any
+ * attribute order and quoting. Each piece is the WHOLE element (opening tag
+ * included) so the conditionals hook can see attributes such as `data-if`.
+ * @param {string} html
+ * @returns {{ body: string, pieces: Array<{ name: string, element: string }> }}
+ */
+export function splitChildSlots(html) {
+  const pieces = [];
+  let body = '';
+  let pos = 0;
+
+  TEMPLATE_TAG.lastIndex = 0;
+  let m;
+  while ((m = TEMPLATE_TAG.exec(html))) {
+    if (m[1]) continue; // a stray close tag at top level
+    const openEnd = TEMPLATE_TAG.lastIndex;
+    const close = findClose(html, openEnd);
+    if (!close) break; // never closed: leave the rest as body
+    const attrs = m[0].slice('<template'.length, -1);
+    const slot = attrs.match(SLOT_ATTR);
+    if (slot) {
+      const name = (slot[1] ?? slot[2] ?? slot[3]).trim();
+      if (name) {
+        pieces.push({ name, element: html.slice(m.index, close.end) });
+        body += html.slice(pos, m.index);
+        pos = close.end;
+      }
+    }
+    // Skip the whole element: templates inside it are not top level
+    TEMPLATE_TAG.lastIndex = close.end;
+  }
+  body += html.slice(pos);
+
+  return { body: body.trim(), pieces };
+}
+
+/**
+ * The inner HTML of a slot template element, after the conditionals hook
+ * has run on it. A hook that removed the element leaves nothing.
+ * @param {string} element
+ * @returns {string}
+ */
+function innerOf(element) {
+  const open = element.match(/^\s*<template\b[^>]*>/i);
+  if (!open) return element;
+  const close = element.match(/<\/template\s*>\s*$/i);
+  return element.slice(open[0].length, close ? close.index : element.length);
 }
 
 /**
@@ -146,10 +219,10 @@ async function renderChain(name, pageData, opts, chain) {
   const { loadLayout, data = {}, conditionals = (html) => html, removeUnmatchedSlots = true } = opts;
 
   if (chain.includes(name)) {
-    throw new Error(`Layout cycle: ${[...chain, name].join(' → ')}`);
+    throw new LayoutChainError(`Layout cycle: ${[...chain, name].join(' → ')}`);
   }
   if (chain.length >= MAX_DEPTH) {
-    throw new Error(`Layout chain too deep (more than ${MAX_DEPTH}): ${[...chain, name].join(' → ')}`);
+    throw new LayoutChainError(`Layout chain too deep (more than ${MAX_DEPTH}): ${[...chain, name].join(' → ')}`);
   }
   chain = [...chain, name];
 
@@ -170,8 +243,8 @@ async function renderChain(name, pageData, opts, chain) {
   }
 
   // Child layout: fill each piece of the raw child source, then the parent
-  const { content: body, slots } = extractSlots(child.body);
-  const fill = (piece) => renderTemplate(conditionals(piece, pageData, data), pageData, { removeUnmatchedSlots: true });
+  const { body, pieces } = splitChildSlots(child.body);
+  const fill = (piece) => renderTemplate(piece, pageData, { removeUnmatchedSlots: true });
 
   const parentData = {};
   for (const [key, value] of Object.entries(pageData)) {
@@ -180,10 +253,12 @@ async function renderChain(name, pageData, opts, chain) {
   for (const [key, value] of Object.entries(child.attrs)) {
     parentData[key] = renderTemplate(value, pageData);
   }
-  parentData.content = fill(body);
-  for (const [slot, piece] of Object.entries(slots)) {
-    const rendered = fill(piece);
+  parentData.content = fill(conditionals(body, pageData, data));
+  for (const { name: slot, element } of pieces) {
+    // The hook sees the whole <template slot …> element, attributes included
+    const rendered = fill(innerOf(conditionals(element, pageData, data)).trim());
     if (rendered.trim()) parentData[`slot:${slot}`] = rendered;
+    else delete parentData[`slot:${slot}`];
   }
 
   return renderChain(child.parent, parentData, opts, chain);

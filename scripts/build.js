@@ -130,7 +130,8 @@ class Build {
     // A failing page is recorded and skipped — one bad page must not
     // kill the other N-1. Failures are reported after the loop and the
     // process exits non-zero so CI/deploys still catch them.
-    const failedPages = [];
+    // Markdown pages that failed the same way (a broken layout chain) count too.
+    const failedPages = [...(store.failedMarkdownPages || [])];
     await runFileLoop(files, fileLoop);
     async function fileLoop(fileName) {
       let file;

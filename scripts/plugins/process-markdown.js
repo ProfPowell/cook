@@ -13,7 +13,7 @@ import { marked } from 'marked';
 import matter from 'gray-matter';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
-import { renderLayout } from '../utils/layouts/render.js';
+import { renderLayout, LayoutChainError } from '../utils/layouts/render.js';
 
 // Config
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
@@ -63,6 +63,10 @@ class ProcessMarkdown {
 
     // Track processed files
     this.processedFiles = [];
+
+    // Pages whose layout chain is broken (cycle, too deep): build errors,
+    // reported with the page loop's failures. Reset every build.
+    this.store.failedMarkdownPages = [];
   }
 
   // INIT
@@ -166,6 +170,13 @@ class ProcessMarkdown {
       });
 
     } catch (err) {
+      if (err instanceof LayoutChainError) {
+        // A layout cycle or over-deep chain fails the build, as for HTML pages
+        this.store.failedMarkdownPages.push({ page: filePath, error: err });
+        console.warn(chalk.yellow(`\n[build] Page failed: ${filePath}`));
+        console.warn(`  ${err.message}`);
+        return;
+      }
       Util.customWarn(err, `ProcessMarkdown: ${filePath} (page skipped)`);
     }
   }
