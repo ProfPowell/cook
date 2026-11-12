@@ -22,6 +22,7 @@
 import chalk from 'chalk';
 import Util from '../utils/util/util.js';
 import { renderTemplate as interpolate, getNested } from '../utils/interpolate/interpolate.js';
+import { applyConditionals, isSet } from '../utils/layouts/conditionals.js';
 
 // Config
 import { repeat as repeatConfig } from '../utils/config/config.js';
@@ -111,8 +112,9 @@ class RepeatCollection {
    * @param {Element} element - The element with data-repeat
    * @param {Document} document - The document object
    * @param {Object} outerContext - Enclosing iteration context (loop vars)
+   * @param {string[]} [outerAliases] - Loop variable names of enclosing repeats
    */
-  processRepeatElement(element, document, outerContext = {}) {
+  processRepeatElement(element, document, outerContext = {}, outerAliases = []) {
     const expression = element.getAttribute(this.config.attribute);
     if (!expression) return;
 
@@ -156,6 +158,10 @@ class RepeatCollection {
     // Create a document fragment to hold all repeated elements
     const fragment = document.createDocumentFragment();
 
+    // Loop variable names visible inside this repeat: data-if/data-unless
+    // keys under one of them (`post.image`) are decided per item here
+    const aliases = [...outerAliases, parsed.itemName, ...(parsed.indexName ? [parsed.indexName] : [])];
+
     // Generate repeated elements
     collection.forEach((item, index) => {
       // Clone the original element
@@ -179,8 +185,13 @@ class RepeatCollection {
         context[parsed.indexName] = index;
       }
 
-      // Replace template variables in the content
-      const renderedContent = this.renderTemplate(template, context);
+      // The element's own data-if/data-unless on a loop variable: decide it
+      if (!this.keepForItem(clone, aliases, context)) return;
+
+      // data-if/data-unless on loop variables inside the item, then
+      // replace template variables in the content
+      const itemTemplate = this.applyItemConditionals(template, aliases, context);
+      const renderedContent = this.renderTemplate(itemTemplate, context);
       clone.innerHTML = renderedContent;
 
       // Also process attributes on the clone itself
@@ -188,7 +199,7 @@ class RepeatCollection {
 
       // Recursively expand nested data-repeat elements with this
       // iteration's context, so they can loop over loop variables
-      this.processNestedRepeats(clone, document, context);
+      this.processNestedRepeats(clone, document, context, aliases);
 
       fragment.appendChild(clone);
     });
@@ -203,8 +214,9 @@ class RepeatCollection {
    * @param {Element} container - The clone to search within
    * @param {Document} document - The document object
    * @param {Object} context - The iteration context of the enclosing loop
+   * @param {string[]} aliases - Loop variable names of the enclosing loops
    */
-  processNestedRepeats(container, document, context) {
+  processNestedRepeats(container, document, context, aliases) {
     const nested = Array.from(container.querySelectorAll(`[${this.config.attribute}]`))
       .filter(el => {
         // Keep only repeats whose nearest repeat ancestor is the container
@@ -216,8 +228,58 @@ class RepeatCollection {
         return true;
       });
     for (const el of nested) {
-      this.processRepeatElement(el, document, context);
+      this.processRepeatElement(el, document, context, aliases);
     }
+  }
+
+  /**
+   * Lookup for data-if/data-unless inside a repeated item: keys under a
+   * loop variable are known (from the iteration context); any other key
+   * is left for the late pass.
+   * @param {string[]} aliases
+   * @param {Object} context
+   * @returns {(key: string) => { known: boolean, value?: any }}
+   */
+  itemLookup(aliases, context) {
+    return (key) => (aliases.includes(key.split('.')[0])
+      ? { known: true, value: this.getNestedValue(context, key) }
+      : { known: false });
+  }
+
+  /**
+   * Apply data-if/data-unless on loop variables to an item's template.
+   * Returns the template itself when it has neither marker.
+   * @param {string} template
+   * @param {string[]} aliases
+   * @param {Object} context
+   * @returns {string}
+   */
+  applyItemConditionals(template, aliases, context) {
+    return applyConditionals(template, this.itemLookup(aliases, context));
+  }
+
+  /**
+   * Decide the repeated element's own data-if/data-unless when its key is
+   * a loop variable: false drops this item; true strips the attribute.
+   * Other keys stay for the late pass.
+   * @param {Element} clone
+   * @param {string[]} aliases
+   * @param {Object} context
+   * @returns {boolean} Whether the item is kept
+   */
+  keepForItem(clone, aliases, context) {
+    const lookup = this.itemLookup(aliases, context);
+    for (const name of ['data-if', 'data-unless']) {
+      if (!clone.hasAttribute(name)) continue;
+      const key = clone.getAttribute(name).trim();
+      if (!key) continue;
+      const result = lookup(key);
+      if (!result.known) continue;
+      const set = isSet(result.value);
+      if (name === 'data-if' ? !set : set) return false;
+      clone.removeAttribute(name);
+    }
+    return true;
   }
 
   /**

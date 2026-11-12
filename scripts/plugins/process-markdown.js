@@ -14,6 +14,7 @@ import matter from 'gray-matter';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 import { renderLayout, LayoutChainError } from '../utils/layouts/render.js';
+import { layoutConditionals } from '../utils/layouts/conditionals.js';
 
 // Config
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
@@ -244,6 +245,9 @@ class ProcessMarkdown {
     }, {
       loadLayout: (name) => this.getLayout(name),
       data: this.data,
+      // data-if / data-unless on page fields, slots and site data. Page
+      // fields are decided here: by the page loop they are gone (ruling P5).
+      conditionals: layoutConditionals,
       // A plain layout keeps unfilled ${slot:x}, as it always has here
       removeUnmatchedSlots: false,
     });

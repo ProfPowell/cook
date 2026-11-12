@@ -39,6 +39,7 @@ import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
 import replaceTemplateStrings from './plugins/replace-template-strings.js';
+import conditionalSections from './plugins/conditional-sections.js';
 import setActiveLinks from './plugins/set-active-links.js';
 
 // GET SOURCE
@@ -179,6 +180,10 @@ class Build {
       // PLUGIN: Replace custom elements and data-component elements with templates
       // Runs third: components expand templates with attribute values (their own ${var} replacement)
       await replaceComponents({file, store, data, allowType: ['.html']});
+
+      // PLUGIN: data-if / data-unless left after layouts and repeats (includes, site data)
+      // Every remaining key is known here, from data and front matter; a missing one is not set
+      conditionalSections({file, data, allowType: ['.html']});
 
       // PLUGIN: Render all ES6 template strings
       // Runs last: resolves ${var} across the fully assembled page (includes + components + repeats)

@@ -21,6 +21,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import Util from '../utils/util/util.js';
 import { renderLayout, extractSlots } from '../utils/layouts/render.js';
+import { layoutConditionals } from '../utils/layouts/conditionals.js';
 
 // Config
 import { srcPath, distPath } from '../utils/config/config.js';
@@ -200,6 +201,8 @@ class ApplyTemplate {
     return renderLayout(name, { ...pageData, content: pageData.content || '' }, {
       loadLayout: (layoutName) => this.getTemplate(layoutName),
       data: this.data,
+      // data-if / data-unless on page fields, slots and site data
+      conditionals: layoutConditionals,
     });
   }
 
