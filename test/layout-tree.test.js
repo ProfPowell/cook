@@ -179,6 +179,28 @@ describe('layout tree: shape', () => {
     assert.equal(grid.type, 'container');
     assert.equal(grid.repeat.alias, 'post');
   });
+
+  test('an entity-encoded ${ in text stays literal; only the real field is a field', () => {
+    const src = '<footer><p>&#36;{title} and ${title}</p></footer>';
+    const { tree, out } = roundTrip(src, { fragment: true }, 'dollar');
+    assert.deepEqual(tree.body[0].body[0].inline, [{ text: '${title} and ' }, { field: 'title' }]);
+    assert.ok(out.includes('<p>&#36;{title} and ${title}</p>'), out);
+  });
+
+  test('a component inside text is an inline component, its inner HTML verbatim', () => {
+    const inner = '<svg viewBox="0 0 1 1"><path d="M0 0"/></svg>&amp; <b>x</b>';
+    const src = `<footer>\n  <p><x-icon name="a" data-if="title">${inner}</x-icon> text \${title}</p>\n  <ul><li><x-icon name="b"></x-icon> Home</li></ul>\n</footer>`;
+    const { tree, out } = roundTrip(src, { fragment: true }, 'inline component');
+    assert.deepEqual(tree.body[0].body[0].inline, [
+      { component: 'x-icon', attrs: [['name', 'a'], ['data-if', 'title']], html: inner },
+      { text: ' text ' }, { field: 'title' },
+    ]);
+    assert.deepEqual(tree.body[0].body[1].items[0].inline, [
+      { component: 'x-icon', attrs: [['name', 'b']], html: '' }, { text: ' Home' },
+    ]);
+    assert.ok(out.includes(`<p><x-icon name="a" data-if="title">${inner}</x-icon> text \${title}</p>`), out);
+    assert.equal(checkLayout(out, { fragment: true }).ok, true);
+  });
 });
 
 describe('layout tree: exact source fidelity (Review Focus 5)', () => {
@@ -256,7 +278,10 @@ ${head}</head><body>${body}</body></html>`;
     ['a comment in <head>', base('<!-- c -->', '<main>${content}</main>'), 'comment'],
     ['a comment inside a text block', base('', '<main><p>a<!-- c --></p>${content}</main>'), 'comment'],
     ['a comment between menu items', base('', '<main><ul><li>a</li><!-- c --></ul>${content}</main>'), 'comment'],
-    ['a component inside a text block', base('', '<main><p>a <x-icon></x-icon></p>${content}</main>'), 'component'],
+    ['an entity-encoded $ in an attribute', base('', '<main><p title="&#36;{title}">x</p>${content}</main>'), 'title'],
+    ['an entity-encoded { in an attribute', base('', '<main><p class="$&lbrace;title}">x</p>${content}</main>'), 'class'],
+    ['a child variable holding >', '<body data-template="base" data-c="a > b">\n<script type="application/json" data-layout-info>{ "format": 1, "label": "X" }</script>\n${content}\n</body>', 'data-c'],
+    ['a child variable holding a double quote', `<body data-template="base" data-a='say "hi"'>\n<script type="application/json" data-layout-info>{ "format": 1, "label": "X" }</script>\n\${content}\n</body>`, 'data-a'],
     ['an li mixing text and blocks', base('', '<main><ul><li><a href="/">a</a><ul><li>b</li></ul></li></ul>${content}</main>'), 'mixes'],
     ['attributes on a base <body> besides data-page-layout', base('', '<main>${content}</main>').replace('<body>', '<body class="x">'), 'class'],
   ]) {

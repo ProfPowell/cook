@@ -29,6 +29,11 @@ const TOKEN = /<!--[\s\S]*?(?:-->|$)|<![^>]*>|<(\/?)([a-zA-Z][a-zA-Z0-9-]*)(?:"[
 const FRAGMENT_MARKER = /^\s*<!--\s*layout-fragment\s*-->/;
 const MARKER_TEXT = /^\s*layout-fragment\s*$/;
 const SPACE = /[ \t\n\r\f]+/g;
+// A character reference for `$` or `{`: decoded, it could read as `${…}`
+const ENCODED_PLACEHOLDER = /&(?:#0*36|#x0*24|dollar|#0*123|#x0*7b|lbrace|lcub)(?![\w])/i;
+// One attribute in a start tag, any quoting (as render.js reads them)
+const ATTR = /([^\s"'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+const camel = (attr) => attr.slice('data-'.length).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 
 const BLOCK_ATTRS = ['data-repeat', 'data-if', 'data-unless'];
 
@@ -64,9 +69,10 @@ function scanTags(html) {
  * HTML can be sliced from the source.
  * @param {string} html
  * @param {Element} root
- * @returns {(el: Element) => string|null} the raw inner source, or null
+ * @returns {{ inner: (el: Element) => string|null, openTag: (el: Element) => string|null }}
+ *   the raw inner source and the raw start tag, or null when unpaired
  */
-function rawInner(html, root) {
+function sourceIndex(html, root) {
   const tags = scanTags(html);
   const starts = new Map();
   tags.forEach((tag, i) => {
@@ -89,7 +95,11 @@ function rawInner(html, root) {
   };
   visit(root);
 
-  return (el) => {
+  const openTag = (el) => {
+    const i = index.get(el);
+    return i === undefined ? null : html.slice(tags[i].start, tags[i].end);
+  };
+  const inner = (el) => {
     const i = index.get(el);
     if (i === undefined) return null;
     const open = tags[i];
@@ -101,10 +111,13 @@ function rawInner(html, root) {
     }
     return null;
   };
+  return { inner, openTag };
 }
 
 // HELPERS
 // -----------------------------
+const isComponent = (el) => tagOf(el).includes('-') && !LAYOUT_ELEMENTS.includes(tagOf(el));
+
 const attrList = (el, skip = []) => Array.from(el.attributes)
   .filter(a => !skip.includes(a.name.toLowerCase()))
   .map(a => [a.name, a.value]);
@@ -172,7 +185,7 @@ class TreeBuilder {
     this.html = html;
     this.parsed = parsed;
     this.document = parsed.document;
-    this.inner = rawInner(html, this.document.documentElement);
+    this.source = sourceIndex(html, this.document.documentElement);
     this.problems = [];
     this.keptComments = new Set();
     this.rawElements = new Set();
@@ -184,7 +197,7 @@ class TreeBuilder {
 
   raw(el) {
     this.rawElements.add(el);
-    const inner = this.inner(el);
+    const inner = this.source.inner(el);
     return inner ?? el.innerHTML;
   }
 
@@ -205,6 +218,8 @@ class TreeBuilder {
     else if (kind === 'child') this.child(tree);
     else tree.body = this.blocks(this.document.body, { skipMarker: FRAGMENT_MARKER.test(this.html) });
     this.sweepComments();
+    this.sweepEncodedPlaceholders();
+    if (kind === 'child') this.checkVars();
     return tree;
   }
 
@@ -243,7 +258,8 @@ class TreeBuilder {
     const vars = tag
       ? Object.entries(templateDataAttrs(tag.attrs))
       : attrList(templated, ['data-template']).filter(([name]) => /^data-/.test(name))
-        .map(([name, value]) => [name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase()), value]);
+        .map(([name, value]) => [camel(name), value]);
+    this.templated = { el: templated, read: Boolean(tag), vars };
     const pageLayout = vars.find(([name]) => name === 'pageLayout');
     tree.pageLayout = pageLayout ? pageLayout[1] : null;
     tree.vars = vars.filter(([name]) => name !== 'pageLayout');
@@ -368,11 +384,15 @@ class TreeBuilder {
     const item = this.common(li);
     let text = false;
     let blocks = false;
+    let components = false;
     for (const node of childrenOf(li)) {
       if (node.nodeType === 3 && node.textContent.trim()) text = true;
       else if (node.nodeType === 1 && INLINE_ELEMENTS.includes(tagOf(node))) text = true;
+      else if (node.nodeType === 1 && isComponent(node)) components = true;
       else if (node.nodeType === 1) blocks = true;
     }
+    // Components alone are blocks; beside text they are inline components
+    if (components && !text) blocks = true;
     if (text && blocks) {
       this.refuse(li, 'an <li> that mixes text and blocks can\'t be edited here (wrap the text in a <p>, or move the blocks out)');
       item.inline = [];
@@ -396,11 +416,69 @@ class TreeBuilder {
         if (tag === 'br' || tag === 'img') runs.push({ tag, attrs: attrList(node) });
         else runs.push({ tag, attrs: attrList(node), inline: this.inline(node) });
       } else {
-        this.rawElements.add(node);
-        this.refuse(node, `a component (<${tagOf(node)}>) inside text can't be edited here; make it its own block`);
+        // The checker allows only components here: kept whole, like a block component
+        runs.push({ component: tagOf(node), attrs: attrList(node), html: this.raw(node) });
       }
     }
     return tidyRuns(runs, { trim: top });
+  }
+
+  // SOURCE CHECKS
+  // -----------------------------
+  /**
+   * Refuse an attribute whose source spells `$` or `{` as a character
+   * reference: the tree holds decoded values, and written back the value
+   * would become a live `${…}` placeholder. A title is checked the same way.
+   */
+  sweepEncodedPlaceholders() {
+    const visit = (el) => {
+      const open = this.source.openTag(el);
+      if (open && ENCODED_PLACEHOLDER.test(open)) {
+        ATTR.lastIndex = open.indexOf(' ') === -1 ? open.length : open.indexOf(' ');
+        let m;
+        while ((m = ATTR.exec(open))) {
+          const value = m[2] ?? m[3] ?? m[4] ?? '';
+          if (ENCODED_PLACEHOLDER.test(value)) {
+            this.refuse(el, `the ${m[1]} attribute of <${tagOf(el)}> spells $ or { as a character reference, which the layout editor can't keep; write it plainly`);
+          }
+        }
+      }
+      if (tagOf(el) === 'title' && ENCODED_PLACEHOLDER.test(this.source.inner(el) ?? '')) {
+        this.refuse(el, '<title> spells $ or { as a character reference, which the layout editor can\'t keep; write it plainly');
+      }
+      if (this.rawElements.has(el)) return;
+      for (const node of childrenOf(el)) if (node.nodeType === 1) visit(node);
+    };
+    visit(this.document.documentElement);
+  }
+
+  /**
+   * Refuse a child's body variables unless render.js reads each one exactly
+   * as the DOM does (a `>` or `"` in a value, or a character reference,
+   * would be lost or changed on the way back).
+   */
+  checkVars() {
+    const { el, read, vars } = this.templated;
+    if (!read) {
+      this.refuse(el, 'the data-template tag can\'t be read the way Cook renders it');
+      return;
+    }
+    const raw = new Map(vars);
+    const dom = new Map();
+    const names = new Map();
+    for (const { name, value } of Array.from(el.attributes)) {
+      const lower = name.toLowerCase();
+      if (!lower.startsWith('data-') || lower === 'data-template') continue;
+      dom.set(camel(lower), value);
+      names.set(camel(lower), lower);
+    }
+    for (const key of new Set([...raw.keys(), ...dom.keys()])) {
+      // A `"` can't be written back inside the canonical double quotes
+      if (raw.get(key) !== dom.get(key) || dom.get(key).includes('"')) {
+        const attr = names.get(key) ?? `data-${key.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}`;
+        this.refuse(el, `the ${attr} value can't be kept by the layout editor (avoid >, " and character references in body variables)`);
+      }
+    }
   }
 
   // COMMENTS

@@ -12,8 +12,10 @@
 const INDENT = '  ';
 
 const escapeAttr = (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-const escapeText = (text) => text
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/ /g, '&nbsp;');
+const escapeMarkup = (text) => text
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
+// A text run is literal: a `${` in it must not become a placeholder
+const escapeText = (text) => escapeMarkup(text).replace(/\$\{/g, '&#36;{');
 
 /** ` name="value"` for each pair. */
 const attrString = (pairs) => pairs.map(([name, value]) => ` ${name}="${escapeAttr(value)}"`).join('');
@@ -52,6 +54,7 @@ function inlineHtml(runs = []) {
   return runs.map((run) => {
     if ('field' in run) return `\${${run.field}}`;
     if ('text' in run) return escapeText(run.text);
+    if ('component' in run) return `<${run.component}${attrString(run.attrs || [])}>${run.html ?? ''}</${run.component}>`;
     const open = `<${run.tag}${attrString(run.attrs || [])}>`;
     if (run.tag === 'br' || run.tag === 'img') return open;
     return `${open}${inlineHtml(run.inline)}</${run.tag}>`;
@@ -63,7 +66,7 @@ function inlineHtml(runs = []) {
 function headLine(item, indent) {
   if (item.slot) return `${indent}\${slot:${item.slot}}`;
   const open = `<${item.tag}${blockAttrs(item)}>`;
-  if (item.tag === 'title') return `${indent}${open}${escapeText(item.text ?? '').replace(/&gt;/g, '>')}</title>`;
+  if (item.tag === 'title') return `${indent}${open}${escapeMarkup(item.text ?? '').replace(/&gt;/g, '>')}</title>`;
   if (item.tag === 'script' || item.tag === 'style') return `${indent}${open}${item.text ?? ''}</${item.tag}>`;
   return indent + open;
 }
