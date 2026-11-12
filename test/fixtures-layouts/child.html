@@ -1,0 +1,12 @@
+<body data-template="base" data-page-layout="article">
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Blog post", "description": "A dated article with an optional sidebar.",
+    "abstract": false, "slots": { "aside": { "label": "Sidebar" } } }
+  </script>
+  <article>
+    <h1>${title}</h1>
+    <p data-if="date"><time datetime="${date}">${date}</time></p>
+    ${content}
+  </article>
+  <template slot="aside">${slot:aside}</template>
+</body>

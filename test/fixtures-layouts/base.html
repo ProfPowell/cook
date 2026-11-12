@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script type="application/json" data-layout-info>
+  { "format": 1, "label": "Base", "description": "The site shell.",
+    "abstract": true, "slots": { "aside": { "label": "Sidebar" } } }
+  </script>
+  <meta charset="utf-8">
+  <title>${title} · ${siteTitle}</title>
+  <link rel="stylesheet" href="/assets/css/vanilla-breeze.css">
+</head>
+<body data-page-layout="${pageLayout}">
+  <div data-include="/includes/header.html"></div>
+  <main>${content}</main>
+  <aside data-if="slot:aside">${slot:aside}</aside>
+  <div data-include="/includes/footer.html"></div>
+</body>
+</html>

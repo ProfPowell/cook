@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} · Thomas A. Powell</title>
+  <meta name="description" content="${description}">
+  ${ogImage}
+  <link rel="alternate" type="application/atom+xml" title="Thomas A. Powell" href="/feed.xml">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/vendor/vanilla-breeze/vanilla-breeze.css">
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <script src="/assets/vendor/vanilla-breeze/vanilla-breeze.js" type="module"></script>
+</head>
+<body>
+  <header>
+    <nav aria-label="Site"><a href="/">Thomas A. Powell</a></nav>
+  </header>
+  <main id="main">
+    <article>
+      <h1>${title}</h1>
+      <p><time datetime="${date}">${date}</time></p>
+      ${featuredImage}
+      ${content}
+    </article>
+  </main>
+  <footer>
+    <p><a href="/">All posts</a> · <a href="/feed.xml">Feed</a></p>
+  </footer>
+</body>
+</html>
