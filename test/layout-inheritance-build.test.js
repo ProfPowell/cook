@@ -116,3 +116,69 @@ describe('a broken layout chain on a markdown page fails the build', () => {
     assert.match(html, /<p>Body.<\/p>/);
   });
 });
+
+describe('a missing parent layout warns and names the chain', () => {
+  let dir, output;
+  before(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-layouts-orphan-'));
+    const files = {
+      'config/main.js': 'export default {};\n',
+      'src/layouts/post.html': '<body data-template="base"><article>${content}</article></body>\n',
+      'src/page.html': '---\nlayout: post\ntitle: Page\n---\n<p>HTML page</p>\n',
+      'src/blog/entry.md': '---\nlayout: post\ntitle: Entry\n---\nMarkdown page.\n',
+    };
+    for (const [rel, content] of Object.entries(files)) {
+      await fs.mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+      await fs.writeFile(path.join(dir, rel), content);
+    }
+    const r = spawnSync(process.execPath, [COOK, 'build'], {
+      cwd: dir, env: { ...process.env, NODE_ENV: 'production' }, encoding: 'utf-8',
+    });
+    output = r.stdout + r.stderr;
+    assert.equal(r.status, 0, output);
+  });
+  after(async () => { if (dir) await fs.rm(dir, { recursive: true, force: true }); });
+
+  test('the build output names the child and the missing parent', () => {
+    const count = output.split('Layout "post" extends "base", which wasn\'t found').length - 1;
+    // once for the HTML page, once for the markdown page
+    assert.ok(count >= 2, output);
+  });
+
+  test("the markdown page's message no longer says the child itself is missing", () => {
+    assert.ok(!output.includes('Layout "post" not found'), output);
+  });
+
+  test('fallbacks are unchanged: the markdown page gets basic HTML', async () => {
+    const html = await fs.readFile(path.join(dir, 'dist/blog/entry/index.html'), 'utf-8');
+    assert.match(html, /Markdown page\./);
+  });
+});
+
+describe('a marked include ships without its layout-fragment marker', () => {
+  let dir;
+  before(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-layouts-fragment-'));
+    const files = {
+      'config/main.js': 'export default {};\n',
+      'src/includes/site-nav.html': '<!-- layout-fragment -->\n<nav><a href="/">Home</a></nav>\n',
+      'src/index.html': '<!doctype html>\n<html><head><title>T</title></head><body>\n<div data-include="/includes/site-nav.html"></div>\n<p>x</p>\n</body></html>\n',
+    };
+    for (const [rel, content] of Object.entries(files)) {
+      await fs.mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+      await fs.writeFile(path.join(dir, rel), content);
+    }
+    // Development: comments survive (production minifies them away)
+    const r = spawnSync(process.execPath, [COOK, 'build'], {
+      cwd: dir, env: { ...process.env, NODE_ENV: 'development' }, encoding: 'utf-8',
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+  });
+  after(async () => { if (dir) await fs.rm(dir, { recursive: true, force: true }); });
+
+  test('the built page has the include and no layout-fragment text', async () => {
+    const html = await fs.readFile(path.join(dir, 'dist/index.html'), 'utf-8');
+    assert.match(html, /<nav><a [^>]*href="\/"[^>]*>Home<\/a><\/nav>/);
+    assert.ok(!html.includes('layout-fragment'), html);
+  });
+});

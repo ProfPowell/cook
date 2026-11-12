@@ -16,6 +16,7 @@
  * and renders exactly as before.
  */
 
+import chalk from 'chalk';
 import { renderTemplate } from '../interpolate/interpolate.js';
 
 export const MAX_DEPTH = 5;
@@ -25,8 +26,44 @@ const SLOT_OPEN = /<template\s+slot="([^"]+)">/gi;
 // Any template open or close tag, for depth counting
 const TEMPLATE_TAG = /<(\/?)template(?=[\s>/])[^>]*>/gi;
 
-// A child layout: data-template on <html> or <body> (same test as apply-template)
-const TEMPLATED_TAG = /<(html|body)(\s[^>]*data-template="([^"]+)"[^>]*)>/i;
+// A child layout: data-template on <html> or <body> (same test as
+// apply-template), its value double-quoted, single-quoted or unquoted.
+// Groups: 1 tag, 2 attributes, 3/4/5 the value in each quoting.
+const TEMPLATED_TAG = /<(html|body)(\s(?:[^>]*?\s)?data-template\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'>]+))[^>]*)>/i;
+
+// One attribute in a start tag's attribute string, any quoting
+const ATTR = /([^\s"'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+
+/**
+ * Find the `<html>` or `<body>` start tag carrying data-template.
+ * @param {string} src
+ * @returns {{ index: number, length: number, name: string, attrs: string }|null}
+ *   `name` is the template name, `attrs` the tag's attribute string
+ */
+export function findTemplatedTag(src) {
+  const m = src.match(TEMPLATED_TAG);
+  if (!m) return null;
+  return { index: m.index, length: m[0].length, name: m[3] ?? m[4] ?? m[5], attrs: m[2] };
+}
+
+/**
+ * The data-* attributes (data-template excepted) of an attribute string,
+ * keyed by camelCase name, values in any quoting.
+ * @param {string} attrs
+ * @returns {Record<string, string>}
+ */
+export function templateDataAttrs(attrs) {
+  const out = {};
+  ATTR.lastIndex = 0;
+  let m;
+  while ((m = ATTR.exec(attrs)) !== null) {
+    const attr = m[1].toLowerCase();
+    if (!/^data-[a-z][a-z0-9-]*$/.test(attr) || attr === 'data-template') continue;
+    const key = attr.slice('data-'.length).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    out[key] = m[2] ?? m[3] ?? m[4] ?? '';
+  }
+  return out;
+}
 
 // The info block element: its body never crosses a `</script`, so the
 // match ends at the info script's own close tag. Leading indent and the
@@ -170,16 +207,11 @@ function innerOf(element) {
  * @returns {{ parent: string, attrs: Record<string,string>, body: string }|null}
  */
 function splitChild(src) {
-  const tag = src.match(TEMPLATED_TAG);
+  const tag = findTemplatedTag(src);
   if (!tag) return null;
 
   // data-* attributes on the templated element, data-template excepted
-  const attrs = {};
-  const attrPattern = /\sdata-(?!template\b)([a-z][a-z0-9-]*)="([^"]*)"/gi;
-  let m;
-  while ((m = attrPattern.exec(tag[2])) !== null) {
-    attrs[m[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = m[2];
-  }
+  const attrs = templateDataAttrs(tag.attrs);
 
   // The body: inside <body> when there is one, else inside <html>
   let body;
@@ -189,13 +221,13 @@ function splitChild(src) {
     const end = src.toLowerCase().lastIndexOf('</body');
     body = src.slice(start, end === -1 || end < start ? src.length : end);
   } else {
-    const start = tag.index + tag[0].length;
+    const start = tag.index + tag.length;
     const end = src.toLowerCase().lastIndexOf('</html');
     body = src.slice(start, end === -1 || end < start ? src.length : end)
       .replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head\s*>/i, '');
   }
 
-  return { parent: tag[3].trim(), attrs, body: stripInfo(body) };
+  return { parent: tag.name.trim(), attrs, body: stripInfo(body) };
 }
 
 /**
@@ -206,6 +238,9 @@ function splitChild(src) {
  * @property {(name: string) => Promise<string|null>} opts.loadLayout
  * @property {Object} [opts.data] - Site data, passed to `conditionals`
  * @property {(html: string, pageData: Object, data: Object) => string} [opts.conditionals]
+ * @property {(message: string) => void} [opts.onMissingParent] - Told when a
+ *   child layout's parent isn't found (the render still returns null).
+ *   Defaults to a yellow console warning.
  * @property {boolean} [opts.removeUnmatchedSlots=true] - For a plain layout
  *   only (no info block, no parent): remove unfilled `${slot:x}`. Layouts in
  *   the new format always remove them.
@@ -228,7 +263,16 @@ async function renderChain(name, pageData, opts, chain) {
 
   // Missing (or empty, as callers have always treated it): not found
   const src = await loadLayout(name);
-  if (!src) return null;
+  if (!src) {
+    if (chain.length > 1) {
+      const child = chain[chain.length - 2];
+      let message = `Layout "${child}" extends "${name}", which wasn't found`;
+      if (chain.length > 2) message += ` (${chain.join(' → ')})`;
+      const warn = opts.onMissingParent || ((m) => console.log(chalk.yellow(`  ${m}`)));
+      warn(message);
+    }
+    return null;
+  }
 
   const child = TEMPLATED_TAG.test(src) ? splitChild(src) : null;
 

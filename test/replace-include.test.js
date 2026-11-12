@@ -19,6 +19,7 @@ const PAGE = (body) => `<!DOCTYPE html>
 </html>`;
 
 const NAV = `<nav class="site-nav"><a href="/">Home</a></nav>`;
+const MARKED = `<!-- layout-fragment -->\n${NAV}\n`;
 
 // The plugin resolves includes against `${srcPath}/` (srcPath = 'src'),
 // checking store.cachedIncludes first — seed the cache so tests need no
@@ -27,6 +28,8 @@ function seededStore() {
   return {
     cachedIncludes: {
       [path.resolve('src/includes/nav.html')]: NAV,
+      [path.resolve('src/includes/marked.html')]: MARKED,
+      [path.resolve('src/includes/plain-comment.html')]: '<!-- note -->\n' + NAV,
     },
   };
 }
@@ -83,5 +86,19 @@ describe('replace-include: error handling', () => {
     );
 
     assert.ok(file.src.includes('site-nav'), `good include blocked by bad one:\n${file.src}`);
+  });
+});
+
+describe('replace-include: the layout-fragment marker', () => {
+
+  test('a marked include ships without its marker line', async () => {
+    const file = await run(`<div data-include="/includes/marked.html"></div><p>after</p>`);
+    assert.ok(!file.src.includes('layout-fragment'), `marker shipped:\n${file.src}`);
+    assert.equal(file.src, PAGE(`${NAV}\n<p>after</p>`));
+  });
+
+  test('an unmarked include is inlined byte for byte', async () => {
+    const file = await run(`<div data-include="/includes/plain-comment.html"></div>`);
+    assert.equal(file.src, PAGE(`<!-- note -->\n${NAV}`));
   });
 });

@@ -149,6 +149,20 @@ describe('Apply Template Plugin', () => {
       assert.ok(file.src.includes('<h2>Trail Pack</h2>'));
     });
 
+    it('should find single-quoted and unquoted data-template (and data-* values)', async () => {
+      const layouts = { default: '<p>${author}</p><main>${content}</main>' };
+      const single = await run(
+        "<html><head><title>T</title></head><body data-template='default' data-author='Kim'><main><p>C</p></main></body></html>",
+        layouts
+      );
+      assert.strictEqual(single.src, '<p>Kim</p><main><p>C</p></main>');
+      const bare = await run(
+        '<html><head><title>T</title></head><body data-template=default data-author=Kim><main><p>C</p></main></body></html>',
+        layouts
+      );
+      assert.strictEqual(bare.src, '<p>Kim</p><main><p>C</p></main>');
+    });
+
     it('should not include data-template itself as a variable', async () => {
       const layouts = { default: '<p>${template}</p><p>${author}</p><main>${content}</main>' };
       const file = await run(

@@ -20,7 +20,7 @@ import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import Util from '../utils/util/util.js';
-import { renderLayout, extractSlots } from '../utils/layouts/render.js';
+import { renderLayout, extractSlots, findTemplatedTag, templateDataAttrs } from '../utils/layouts/render.js';
 import { layoutConditionals } from '../utils/layouts/conditionals.js';
 
 // Config
@@ -75,9 +75,9 @@ class ApplyTemplate {
    * @returns {string|null} Template name or null
    */
   findTemplateName() {
-    // Match data-template on <html> or <body>
-    const match = this.file.src.match(/<(?:html|body)\s[^>]*data-template="([^"]+)"/i);
-    return match ? match[1] : null;
+    // Match data-template on <html> or <body>, value in any quoting
+    const tag = findTemplatedTag(this.file.src);
+    return tag ? tag.name : null;
   }
 
   /**
@@ -140,16 +140,10 @@ class ApplyTemplate {
 
     // Extract data-* attributes from the element with data-template
     // These become template variables (e.g., data-author="Kim" → ${author})
-    const templateElMatch = this.file.src.match(/<(?:html|body)\s([^>]*data-template="[^"]*"[^>]*)>/i);
-    if (templateElMatch) {
-      const attrs = templateElMatch[1];
-      const attrPattern = /data-(?!template)([a-z][a-z0-9-]*)="([^"]*)"/gi;
-      let attrMatch;
-      while ((attrMatch = attrPattern.exec(attrs)) !== null) {
-        // Convert kebab-case to camelCase for template vars
-        const key = attrMatch[1].replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-        data[key] = attrMatch[2];
-      }
+    // (any quoting; kebab-case names become camelCase vars)
+    const templateEl = findTemplatedTag(this.file.src);
+    if (templateEl) {
+      Object.assign(data, templateDataAttrs(templateEl.attrs));
     }
 
     // For pages with front matter (no <body> wrapper), the entire file.src IS the content

@@ -126,6 +126,22 @@ describe('checkLayout', () => {
     assert.deepEqual(result.problems, []);
   });
 
+  test('a component can carry data-repeat; its alias is valid on it, not outside', () => {
+    const card = '<post-card data-repeat="collections.blog as post" title="${post.title}"></post-card>';
+    const ok = checkLayout(base({ body: `<main>\${content}${card}</main>` }));
+    assert.deepEqual(ok.problems, []);
+
+    const outside = checkLayout(base({ body: `<main>\${content}${card}<p>\${post.title}</p></main>` }));
+    assert.equal(outside.ok, false);
+    assert.deepEqual(messages(outside), ['unknown field "post.title"']);
+  });
+
+  test('an element that still can\'t repeat gets the any-block message', () => {
+    const inline = checkLayout(base({ body: '<main>${content}<p>x <a data-repeat="collections.blog as post" href="#">y</a></p></main>' }));
+    assert.ok(hasProblem(inline, '<a> can\'t repeat here (data-repeat goes on a block'));
+    assert.ok(!hasProblem(inline, 'container or a ul/ol/menu'));
+  });
+
   test('unknown field', () => {
     const html = base({ body: '<main>${content}<p>${titel}</p></main>' });
     const result = checkLayout(html);

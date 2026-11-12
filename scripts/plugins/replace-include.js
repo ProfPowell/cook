@@ -14,6 +14,22 @@ import Util from '../utils/util/util.js';
 import { convertPageToDirectory, distPath, srcPath } from '../utils/config/config.js';
 
 
+// A format-1 fragment's leading marker (see utils/layouts/list.js) and the
+// line break after it. It is for `cook check-layouts`, not for the page.
+const FRAGMENT_MARKER = /^(\s*)<!--\s*layout-fragment\s*-->[ \t]*\r?\n?/;
+
+/**
+ * Remove a leading `<!-- layout-fragment -->` marker from include content.
+ * Content without the marker is returned as is.
+ * @param {string} content
+ * @returns {string}
+ */
+function stripFragmentMarker(content) {
+  if (typeof content !== 'string' || !content.includes('layout-fragment')) return content;
+  return content.replace(FRAGMENT_MARKER, '$1');
+}
+
+
 // DEFINE
 // -----------------------------
 /**
@@ -139,6 +155,7 @@ class ReplaceInclude {
         console.warn(chalk.yellow(`  [include] Not found: "${filePath}" referenced in ${this.file.path}`));
         content = `<!-- cook:include-not-found ${filePath} -->`;
       }
+      content = stripFragmentMarker(content);
       src = src.substring(0, match.index) + content + src.substring(match.index + match[0].length);
       onReplace();
     }
@@ -195,7 +212,7 @@ class ReplaceInclude {
         // ADD CONTENT TO DOM
         // Replace the include element with the fetched content using outerHTML.
         // This keeps content in the correct DOM context (e.g., <head> stays in <head>).
-        el.outerHTML = content;
+        el.outerHTML = stripFragmentMarker(content);
       }
       catch (err) {
         Util.customWarn(err, `replace-includes.js: ${this.file.path}`);

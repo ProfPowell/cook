@@ -329,9 +329,9 @@ class Checker {
   block(el, ctx) {
     const name = tagOf(el);
 
-    // data-repeat clones whatever element it sits on, so any block may carry it
-    // (containers, menus and layout elements read it themselves).
-    if (el.hasAttribute('data-repeat') && !name.includes('-') && !MENU_ELEMENTS.includes(name)
+    // data-repeat clones whatever element it sits on, so any block may carry it,
+    // components included (containers, menus and layout elements read it themselves).
+    if (el.hasAttribute('data-repeat') && !LAYOUT_ELEMENTS.includes(name) && !MENU_ELEMENTS.includes(name)
         && !CONTAINER_ELEMENTS.includes(name) && !(LAYOUT_WRAPPERS.includes(name) && el.hasAttribute('data-layout'))) {
       ctx = this.repeatScope(el, ctx);
       this.repeatRead.add(el);
@@ -566,7 +566,7 @@ class Checker {
       if (handled.includes(lower)) continue;
       if (lower === 'data-repeat' && this.repeatRead.has(el)) continue;
       if (lower === 'data-repeat') {
-        this.problem(el, `<${name}> can't repeat (data-repeat goes on a container or a ul/ol/menu)`);
+        this.problem(el, `<${name}> can't repeat here (data-repeat goes on a block, such as a container, a text block, a list, an li in a menu or a component)`);
         continue;
       }
       if (lower === 'data-if' || lower === 'data-unless') {

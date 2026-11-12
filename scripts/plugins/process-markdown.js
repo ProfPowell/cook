@@ -238,6 +238,7 @@ class ProcessMarkdown {
     // samples) is never scanned for substitution. Page data wins over
     // global data; ${content} always resolves. A child layout is applied,
     // then its parent, and so on.
+    let missingParent = false;
     const finalHtml = await renderLayout(layoutName, {
       ...this.data,
       ...pageData,
@@ -250,11 +251,16 @@ class ProcessMarkdown {
       conditionals: layoutConditionals,
       // A plain layout keeps unfilled ${slot:x}, as it always has here
       removeUnmatchedSlots: false,
+      // The layout exists but a layout it extends doesn't: say which
+      onMissingParent: (message) => {
+        missingParent = true;
+        console.log(chalk.yellow(`  ${message}, using basic HTML`));
+      },
     });
 
     if (finalHtml === null) {
       // Fallback to basic HTML if layout not found
-      console.log(chalk.yellow(`  Layout "${layoutName}" not found, using basic HTML`));
+      if (!missingParent) console.log(chalk.yellow(`  Layout "${layoutName}" not found, using basic HTML`));
       return this.buildBasicHtml(pageData);
     }
 

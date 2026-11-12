@@ -113,6 +113,19 @@ describe('renderLayout', () => {
     assert.match(out, /<body data-page-layout="article">/);
   });
 
+  it('a child\'s data-template and data-* attributes may be single-quoted or unquoted', async () => {
+    const single = POST.replace('<body data-template="base" data-page-layout="article">', "<body data-template='base' data-page-layout='article'>");
+    const outSingle = await renderLayout('post', { title: 'Hi', content: 'c', pageLayout: 'landing' }, { loadLayout: loader({ ...LAYOUTS, post: single }) });
+    assert.match(outSingle, /<!doctype html>/);
+    assert.match(outSingle, /<body data-page-layout="article">/);
+
+    const bare = POST.replace('<body data-template="base" data-page-layout="article">', '<body data-template=base data-page-layout=article>');
+    const outBare = await renderLayout('post', { title: 'Hi', content: 'c', pageLayout: 'landing' }, { loadLayout: loader({ ...LAYOUTS, post: bare }) });
+    assert.match(outBare, /<!doctype html>/);
+    assert.match(outBare, /<body data-page-layout="article">/);
+    assert.equal(outBare, outSingle);
+  });
+
   it('an explicit <template slot="aside">${slot:aside}</template> forwards the page slot', async () => {
     const out = await renderLayout('post', { title: 'Hi', content: '', 'slot:aside': '<p>side</p>' }, { loadLayout: loader(LAYOUTS) });
     assert.match(out, /<aside><p>side<\/p><\/aside>/);
