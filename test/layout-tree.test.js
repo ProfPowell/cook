@@ -152,8 +152,15 @@ describe('layout tree: shape', () => {
   test('text is decoded in the tree and escaped on the way out', () => {
     const src = '<footer><p>a &amp; b &lt;c&gt; &copy;&nbsp;d</p></footer>';
     const { tree, out } = roundTrip(src, { fragment: true }, 'entities');
-    assert.deepEqual(tree.body[0].body[0].inline, [{ text: 'a & b <c> © d' }]);
+    assert.deepEqual(tree.body[0].body[0].inline, [{ text: 'a & b <c> ©\u00a0d' }]);
     assert.ok(out.includes('<p>a &amp; b &lt;c&gt; ©&nbsp;d</p>'), out);
+  });
+
+  test('invisible characters are written as references, so they show in the file', () => {
+    const src = '<footer><p>co&shy;op a&#8203;b x&#x2060;y ♥</p></footer>';
+    const { tree, out } = roundTrip(src, { fragment: true }, 'invisibles');
+    assert.deepEqual(tree.body[0].body[0].inline, [{ text: 'co\u00adop a\u200bb x\u2060y ♥' }]);
+    assert.ok(out.includes('<p>co&shy;op a&#8203;b x&#8288;y ♥</p>'), out);
   });
 
   test('whitespace in text collapses; text blocks sit on one line', () => {

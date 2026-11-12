@@ -12,8 +12,11 @@
 const INDENT = '  ';
 
 const escapeAttr = (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+// Invisible characters are written as references, so they show in the file
+const INVISIBLE_REFS = { '\u00a0': '&nbsp;', '\u00ad': '&shy;', '\u200b': '&#8203;', '\u2060': '&#8288;' };
 const escapeMarkup = (text) => text
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\u00a0/g, '&nbsp;');
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/[\u00a0\u00ad\u200b\u2060]/g, (c) => INVISIBLE_REFS[c]);
 // A text run is literal: a `${` in it must not become a placeholder
 const escapeText = (text) => escapeMarkup(text).replace(/\$\{/g, '&#36;{');
 

@@ -173,6 +173,7 @@ const { layouts, includes, problems } = await listLayouts(process.cwd());</code-
 
 - A layout that doesn't follow the format is not parsed; `parseLayout` reports the problems instead, the same ones `cook check-layouts` prints.
 - A component's inner HTML, an inline script or style, and a comment between blocks survive a round trip. A correct layout holding something the tree has no place for is refused with a problem, never opened with that part lost.
+- The tree holds text decoded: `&hearts;` in the file is `♥` in the tree. Written back, characters are written as themselves (`♥`), except `&`, `<` and `>`, and the invisible ones, which are written as references so they can be seen in the file: `&nbsp;`, `&shy;`, `&#8203;` (zero-width space) and `&#8288;` (word joiner).
 
 <code-block language="javascript" label="Edit a layout">import { parseLayout, serializeLayout } from 'cook-ssg/layouts';
 const parsed = parseLayout(source, { fields, lists });
