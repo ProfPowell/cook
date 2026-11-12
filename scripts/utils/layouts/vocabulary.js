@@ -36,8 +36,11 @@ export const INLINE_ELEMENTS = ['a', 'strong', 'em', 'span', 'time', 'br', 'img'
 /** Sectioning elements: containers without needing `data-layout`. */
 export const SECTIONING = ['article', 'aside', 'nav', 'section'];
 
+/** Containers that never need `data-layout`: sectioning plus header and footer. */
+export const CONTAINER_ELEMENTS = [...SECTIONING, 'header', 'footer'];
+
 /** Elements that may wrap other blocks when they carry `data-layout`. */
-export const LAYOUT_WRAPPERS = ['div', 'header', 'footer', ...SECTIONING];
+export const LAYOUT_WRAPPERS = ['div', ...CONTAINER_ELEMENTS];
 
 /** Menu elements: their children are `li`. */
 export const MENU_ELEMENTS = ['ul', 'ol', 'menu'];

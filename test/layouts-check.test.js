@@ -113,6 +113,14 @@ describe('checkLayout', () => {
     assert.deepEqual(result.problems, []);
   });
 
+  test('header and footer are containers without data-layout', () => {
+    const result = checkLayout(base({
+      body: '<main>${content}<article><header><h1>${title}</h1></header><footer><p>${author}</p></footer></article></main>',
+    }));
+    assert.deepEqual(result.problems, []);
+    assert.equal(result.ok, true);
+  });
+
   test('components are opaque', () => {
     const result = checkLayout(base({ body: '<main>${content}<my-card><div><table></table></div></my-card></main>' }));
     assert.deepEqual(result.problems, []);

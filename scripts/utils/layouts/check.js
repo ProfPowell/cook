@@ -8,7 +8,7 @@
 import { parseLayoutSource, childrenOf } from './parse.js';
 import {
   FORMAT, PAGE_LAYOUTS, DOCUMENT_FIELDS, HEAD_ELEMENTS, HEAD_SLOT_ELEMENTS,
-  TEXT_ELEMENTS, INLINE_ELEMENTS, SECTIONING, LAYOUT_WRAPPERS, MENU_ELEMENTS,
+  TEXT_ELEMENTS, INLINE_ELEMENTS, CONTAINER_ELEMENTS, LAYOUT_WRAPPERS, MENU_ELEMENTS,
   LAYOUT_ELEMENTS, BODY_REGIONS, ELEMENT_ATTRS, isGlobalAttr,
 } from './vocabulary.js';
 
@@ -345,7 +345,7 @@ class Checker {
     if (name === 'img') return this.checkAttrs(el, ctx);
     if (name === 'picture') return this.picture(el, ctx);
     if (name === 'figure') return this.figure(el, ctx);
-    if (SECTIONING.includes(name) || (LAYOUT_WRAPPERS.includes(name) && el.hasAttribute('data-layout'))) {
+    if (CONTAINER_ELEMENTS.includes(name) || (LAYOUT_WRAPPERS.includes(name) && el.hasAttribute('data-layout'))) {
       return this.container(el, ctx, { repeat: true });
     }
 
