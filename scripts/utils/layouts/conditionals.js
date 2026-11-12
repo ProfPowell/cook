@@ -147,12 +147,42 @@ function rawTextEnd(html, name, from) {
   return close === -1 ? html.length : close + 1;
 }
 
+// Start tags that close an open <p>
+const CLOSES_P = new Set([
+  'address', 'article', 'aside', 'blockquote', 'details', 'div', 'dl',
+  'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3',
+  'h4', 'h5', 'h6', 'header', 'hgroup', 'hr', 'main', 'menu', 'nav', 'ol',
+  'p', 'pre', 'section', 'table', 'ul',
+]);
+// Elements with an optional end tag, and the start tags that end them
+const IMPLIED_END = {
+  li: new Set(['li']),
+  dt: new Set(['dt', 'dd']),
+  dd: new Set(['dt', 'dd']),
+  option: new Set(['option', 'optgroup']),
+  optgroup: new Set(['optgroup']),
+  tr: new Set(['tr', 'tbody', 'thead', 'tfoot']),
+  td: new Set(['td', 'th', 'tr', 'tbody', 'thead', 'tfoot']),
+  th: new Set(['td', 'th', 'tr', 'tbody', 'thead', 'tfoot']),
+  thead: new Set(['tbody', 'tfoot']),
+  tbody: new Set(['tbody', 'tfoot']),
+};
+
+/** Whether a `<startName>` start tag ends an open `open` element. */
+function closesImplicitly(open, startName) {
+  if (open === 'p') return CLOSES_P.has(startName);
+  return !!IMPLIED_END[open] && IMPLIED_END[open].has(startName);
+}
+
 /**
  * Index just past the element whose start tag was read at `tag`.
  * Void and self-closing elements end with their tag. Nested elements of
- * the same name are counted. An element never closed ends where a close
- * tag for something not open inside it appears (its parent closing), or
- * at the end of input.
+ * the same name are counted. HTML's optional end tags are modelled: a
+ * `p` ends at a start tag that closes a p, an `li` at the next `li`, a
+ * `dt`/`dd` at the next dt/dd, an `option` at option/optgroup, a `tr` at
+ * tr, a `td`/`th` at td/th/tr. Any element ends where a close tag for
+ * something not open inside it appears (its parent closing), or at the
+ * end of input, so removal never runs past the enclosing element.
  */
 function elementEnd(html, tag) {
   if (VOID.has(tag.name) || tag.selfClosing) return tag.end;
@@ -166,6 +196,9 @@ function elementEnd(html, tag) {
     const t = readTag(html, k);
     if (!t) { j = k + 1; continue; }
     if (t.type === 'start') {
+      // Optional end tags: this start tag may close open elements
+      while (stack.length && closesImplicitly(stack[stack.length - 1], t.name)) stack.pop();
+      if (!stack.length) return k;
       if (RAW_TEXT.has(t.name) && !t.selfClosing) j = rawTextEnd(html, t.name, t.end);
       else {
         if (!VOID.has(t.name) && !t.selfClosing) stack.push(t.name);
@@ -295,20 +328,23 @@ export function layoutConditionals(html, pageData = {}, data = {}) {
   // A whole child-layout slot template: render.js unwraps it, so its own
   // data-if/data-unless never reaches a later pass. Decide it now, a key
   // still unknown counting as not set.
-  const open = typeof result === 'string' && result.match(SLOT_TEMPLATE_OPEN);
-  if (open && MARKER.test(open[0])) {
-    const decided = applyConditionals(`${open[0]}</template>`, (key) => {
+  if (typeof result !== 'string') return result;
+  const lead = result.match(/^\s*/)[0].length;
+  const tag = result[lead] === '<' ? readTag(result, lead) : null;
+  if (tag && tag.type === 'start' && tag.name === 'template'
+    && tag.attrs.some((a) => /^slot$/i.test(a.name))
+    && tag.attrs.some((a) => CONDITIONAL_ATTR.test(a.name))) {
+    const openTag = result.slice(lead, tag.end);
+    const decided = applyConditionals(`${openTag}</template>`, (key) => {
       const r = lookup(key);
       return r.known ? r : { known: true, value: undefined };
     });
-    if (!decided) return '';
-    return decided.slice(0, -'</template>'.length) + result.slice(open[0].length);
+    // Removed: only this template element goes, what follows stays
+    if (!decided) return result.slice(0, lead) + result.slice(elementEnd(result, tag));
+    return result.slice(0, lead) + decided.slice(0, -'</template>'.length) + result.slice(tag.end);
   }
   return result;
 }
-
-// The opening tag of a fragment that is one `<template … slot …>` element
-const SLOT_TEMPLATE_OPEN = /^\s*<template\b(?=[^>]*\sslot\s*=)(?:[^>"']|"[^"]*"|'[^']*')*>/i;
 
 /**
  * Late-pass conditionals: every key is known; a missing one is not set.

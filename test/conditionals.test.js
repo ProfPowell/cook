@@ -128,6 +128,32 @@ describe('applyConditionals', () => {
     assert.equal(applyConditionals('<p data-if="a">to the end', all({})), '');
   });
 
+  test('optional end tags: an element ends where HTML ends it', () => {
+    const none = all({});
+    // p ends at a start tag that closes a p
+    assert.equal(applyConditionals('<p data-if="a">one<p>two</p><div>rest</div>', none), '<p>two</p><div>rest</div>');
+    assert.equal(applyConditionals('<p data-if="a">one<div>rest</div>', none), '<div>rest</div>');
+    assert.equal(applyConditionals('<p data-if="a">one <b>bold</b> <h2>h</h2>', none), '<h2>h</h2>');
+    // li ends at the next li, or at the parent's end
+    assert.equal(applyConditionals('<ul><li data-if="a">one<li>two</ul>', none), '<ul><li>two</ul>');
+    assert.equal(applyConditionals('<ul><li>one<li data-if="a">two</ul><p>after</p>', none), '<ul><li>one</ul><p>after</p>');
+    // a nested list inside the removed li goes with it
+    assert.equal(applyConditionals('<ul><li data-if="a">one<ul><li>x<li>y</ul><li>two</ul>', none), '<ul><li>two</ul>');
+    // dt/dd, option, tr, td
+    assert.equal(applyConditionals('<dl><dt data-if="a">t<dd>d</dl>', none), '<dl><dd>d</dl>');
+    assert.equal(applyConditionals('<dl><dt>t<dd data-if="a">d<dt>u</dl>', none), '<dl><dt>t<dt>u</dl>');
+    assert.equal(applyConditionals('<select><option data-if="a">x<option>y</select>', none), '<select><option>y</select>');
+    assert.equal(applyConditionals('<table><tr data-if="a"><td>1<td>2<tr><td>3</table>', none), '<table><tr><td>3</table>');
+    assert.equal(applyConditionals('<table><tr><td data-if="a">1<td>2</table>', none), '<table><tr><td>2</table>');
+    assert.equal(applyConditionals('<table><tr><td data-if="a">1<tr><td>2</table>', none), '<table><tr><tr><td>2</table>');
+  });
+
+  test('never removes past the end of the enclosing element', () => {
+    const none = all({});
+    assert.equal(applyConditionals('<section><span data-if="a">x</section><p>after</p>', none), '<section></section><p>after</p>');
+    assert.equal(applyConditionals('<div><p data-if="a">one</div><div>two</div>', none), '<div></div><div>two</div>');
+  });
+
   test('works on full documents', () => {
     const doc = '<!doctype html>\n<html lang="en">\n<head><title>T</title></head>\n<body>\n<aside data-if="slot:aside">${slot:aside}</aside>\n</body>\n</html>\n';
     assert.equal(
@@ -218,6 +244,16 @@ describe('renderLayout with layout conditionals', () => {
   test("a slot template's own key cannot wait for the late pass: missing is not set", async () => {
     // The template element is unwrapped here, so its own data-if has no later pass
     assert.equal(layoutConditionals('<template slot="a" data-if="x"><p data-if="y">p</p></template>', {}, {}), '');
+    // Only that template goes: what follows it stays
+    assert.equal(layoutConditionals('<template slot="a" data-if="x">a</template>\n<p>more</p>', {}, {}), '\n<p>more</p>');
+    assert.equal(
+      layoutConditionals('<template slot="a" data-if="x"><template>n</template></template><p data-if="z">m</p>', {}, {}),
+      '<p data-if="z">m</p>',
+    );
+    assert.equal(
+      layoutConditionals('<template slot="a" data-if="x">a</template>\n<p>more</p>', { x: 1 }, {}),
+      '<template slot="a">a</template>\n<p>more</p>',
+    );
     assert.equal(
       layoutConditionals('<template slot="a" data-unless="x"><p data-if="y">p</p></template>', {}, {}),
       '<template slot="a"><p data-if="y">p</p></template>',
