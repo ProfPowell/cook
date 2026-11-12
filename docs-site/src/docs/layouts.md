@@ -163,7 +163,6 @@ The same checker is available to your own tools as a module:
 <code-block language="javascript" label="cook-ssg/layouts">import { checkLayout, listLayouts, FORMAT } from 'cook-ssg/layouts';
 const { layouts, includes, problems } = await listLayouts(process.cwd());</code-block>
 
-
 ## For tool authors
 
 `cook-ssg/layouts` also exports what a layout editor needs. Everything here reads and returns plain data and never changes the build.
@@ -186,8 +185,8 @@ const next = serializeLayout(parsed.tree);</code-block>
 
 <code-block language="javascript" label="Layout usage">import { layoutUsage } from 'cook-ssg/layouts';
 const { pages, layouts } = await layoutUsage(process.cwd());
-// pages.post   -> ['src/blog/hello.md', 'src/about.html']
-// layouts.base -> ['post', 'page']</code-block>
+// pages.post   -> ['src/about.html', 'src/blog/hello.md']
+// layouts.base -> ['page', 'post']</code-block>
 
 - `pages[name]` lists the paths, relative to the site, of pages in `src/` that use the layout `name`: through a front matter `layout:` (HTML or markdown), through the `markdown.layout` default in `config/main.js` for a markdown page with none, or through `data-template` on `<html>` or `<body>`.
 - `layouts[name]` lists the layouts whose `data-template` names `name`, that is, the layouts built on it.
