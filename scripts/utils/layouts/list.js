@@ -5,7 +5,7 @@
  * names (from config/data.js and config/main.js) for the checker.
  */
 
-import { existsSync, promises as fs } from 'node:fs';
+import { existsSync, statSync, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -17,7 +17,9 @@ const FRAGMENT_MARKER = /^\s*<!--\s*layout-fragment\s*-->/;
 async function importConfig(file) {
   if (!existsSync(file)) return { missing: true };
   try {
-    const mod = await import(pathToFileURL(file).href);
+    // Bust the module cache by mtime so a long-lived caller sees edits
+    const url = `${pathToFileURL(file).href}?t=${statSync(file).mtimeMs}`;
+    const mod = await import(url);
     let value = mod.default ?? mod;
     if (typeof value === 'function') value = await value();
     return { value };
@@ -30,7 +32,7 @@ async function importConfig(file) {
  * Read the field and list names a site makes available to layouts.
  * Never throws; a config file that fails to load is reported in `problems`.
  * @param {string} siteDir - The site's root directory
- * @returns {Promise<{ fields: string[], lists: string[], problems: string[] }>}
+ * @returns {Promise<{ fields: string[], lists: string[], problems: Array<{ file: string, line: number, message: string }> }>}
  */
 export async function loadSiteNames(siteDir) {
   const fields = new Set();
@@ -38,7 +40,7 @@ export async function loadSiteNames(siteDir) {
   const problems = [];
 
   const data = await importConfig(path.join(siteDir, 'config', 'data.js'));
-  if (data.error) problems.push(`config/data.js could not be loaded (${data.error})`);
+  if (data.error) problems.push({ file: 'config/data.js', line: 1, message: `config/data.js could not be loaded (${data.error})` });
   else if (data.value && typeof data.value === 'object') {
     for (const [key, value] of Object.entries(data.value)) {
       fields.add(key);
@@ -47,7 +49,7 @@ export async function loadSiteNames(siteDir) {
   }
 
   const main = await importConfig(path.join(siteDir, 'config', 'main.js'));
-  if (main.error) problems.push(`config/main.js could not be loaded (${main.error})`);
+  if (main.error) problems.push({ file: 'config/main.js', line: 1, message: `config/main.js could not be loaded (${main.error})` });
   else if (main.value && typeof main.value === 'object') {
     const declared = main.value.layouts?.fields;
     if (Array.isArray(declared)) declared.filter(f => typeof f === 'string').forEach(f => fields.add(f));
@@ -115,7 +117,7 @@ function resolveChain(entry, byName) {
  * @param {Object} [opts]
  * @property {string[]} [opts.fields] - Known field names (default: loaded from the site config)
  * @property {string[]} [opts.lists] - Known list roots (default: loaded from the site config)
- * @returns {Promise<{ layouts: Object[], includes: Array<{ name: string, file: string, ok: boolean, problems: Array }> }>}
+ * @returns {Promise<{ problems: Array<{ file: string, line: number, message: string }>, layouts: Object[], includes: Array<{ name: string, file: string, ok: boolean, problems: Array }> }>}
  */
 export async function listLayouts(siteDir, { fields, lists } = {}) {
   let configProblems = [];
@@ -157,12 +159,10 @@ export async function listLayouts(siteDir, { fields, lists } = {}) {
   for (const entry of entries) {
     const { chain, problem } = resolveChain(entry, byName);
     entry.chain = chain;
-    if (problem) entry.problems.push({ line: 1, message: problem });
+    // Plain layouts never fail: no chain problem for them
+    if (problem && entry.kind !== 'plain') entry.problems.push({ line: 1, message: problem });
     entry.editable = !problem && chain.every(n => byName.get(n).ok);
-  }
-
-  if (entries.length && configProblems.length) {
-    for (const message of configProblems) entries[0].problems.push({ line: 1, message });
+    if (entry.problems.length) entry.ok = false;
   }
 
   const includes = [];
@@ -178,5 +178,5 @@ export async function listLayouts(siteDir, { fields, lists } = {}) {
     }
   }
 
-  return { layouts: entries, includes };
+  return { problems: configProblems, layouts: entries, includes };
 }

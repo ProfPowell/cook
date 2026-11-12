@@ -81,3 +81,23 @@ test('an unmarked include is plain; a marked bad include fails', async () => {
   assert.equal(r2.status, 1);
   assert.match(r2.stdout, /^src\/includes\/x\.html:2: /m);
 });
+
+test('a plain child pointing at a missing parent exits 0', async () => {
+  const dir = await site({ 'src/layouts/p.html': '<html data-template="gone"><body>${content}</body></html>' });
+  const r = run(dir);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+test('a throwing config/data.js exits 1, even with no layouts', async () => {
+  const dir = await site({ 'config/data.js': "throw new Error('boom');\n" });
+  const r = run(dir);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^config\/data\.js:1: .*boom/m);
+});
+
+test('an orphan format-1 child exits 1', async () => {
+  const dir = await site({ 'src/layouts/post.html': post('date').replace('"base"', '"nope"') });
+  const r = run(dir);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /parent layout "nope" not found/);
+});

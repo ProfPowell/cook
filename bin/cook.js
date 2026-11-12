@@ -51,8 +51,12 @@ switch (command) {
 
   case 'check-layouts': {
     const { listLayouts } = await import('../scripts/layouts.js');
-    const { layouts, includes } = await listLayouts(process.cwd());
+    const { layouts, includes, problems } = await listLayouts(process.cwd());
     let failed = false;
+    for (const { file, line, message } of problems) {
+      failed = true;
+      console.log(`${file}:${line}: ${message}`);
+    }
     const report = (dir, items) => {
       for (const item of items) {
         for (const { line, message } of item.problems) {

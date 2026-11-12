@@ -80,6 +80,7 @@ describe('listLayouts', () => {
     const orphan = layouts.find(l => l.name === 'orphan');
     assert.ok(orphan.problems.some(p => p.message === 'parent layout "nope" not found'));
     assert.equal(orphan.editable, false);
+    assert.equal(orphan.ok, false);
   });
 
   test('a cycle names its chain', async () => {
@@ -87,6 +88,7 @@ describe('listLayouts', () => {
     const a = layouts.find(l => l.name === 'a');
     assert.ok(a.problems.some(p => p.message.includes('a → b → a')), JSON.stringify(a.problems));
     assert.equal(a.editable, false);
+    assert.equal(a.ok, false);
   });
 
   test('plain layouts keep their scanned slots and are not editable', async () => {
@@ -127,6 +129,24 @@ describe('listLayouts', () => {
   });
 });
 
+test('a plain layout with a missing parent has no problem', async () => {
+  const tmp = await makeSite({ 'src/layouts/p.html': '<html data-template="gone"><body>${content}</body></html>' });
+  const { layouts } = await listLayouts(tmp);
+  assert.equal(layouts[0].kind, 'plain');
+  assert.deepEqual(layouts[0].problems, []);
+});
+
+test('data.js edits are picked up between calls', async () => {
+  const tmp = await makeSite({
+    'config/data.js': "export default { one: 1 };\n",
+    'src/layouts/base.html': baseLayout('<footer><p>${two}</p></footer>'),
+  });
+  assert.equal((await listLayouts(tmp)).layouts[0].ok, false);
+  await new Promise(r => setTimeout(r, 20));
+  await fs.writeFile(path.join(tmp, 'config/data.js'), "export default { one: 1, two: 2 };\n");
+  assert.equal((await listLayouts(tmp)).layouts[0].ok, true);
+});
+
 describe('loadSiteNames', () => {
   test('reads data.js keys, array lists, function exports', async () => {
     const tmp = await makeSite({
@@ -144,8 +164,10 @@ describe('loadSiteNames', () => {
     });
     const names = await loadSiteNames(tmp);
     assert.deepEqual(names.fields, []);
-    const { layouts } = await listLayouts(tmp);
-    assert.match(layouts[0].problems[0].message, /config\/data\.js.*boom/);
+    const { layouts, problems } = await listLayouts(tmp);
+    assert.equal(problems[0].file, 'config/data.js');
+    assert.match(problems[0].message, /config\/data\.js.*boom/);
+    assert.deepEqual(layouts[0].problems, []);
     const empty = await loadSiteNames(path.join(tmp, 'nowhere'));
     assert.deepEqual(empty.fields, []);
   });
