@@ -23,6 +23,7 @@ Usage:
   cook build          Build the site (production)
   cook dev            Build + live-reload dev server
   cook dev --port N   Dev server on a custom port (default: 3000)
+  cook check-layouts  Check src/layouts and src/includes against the layout format
   cook --help         Show this help
   cook --version      Show version
 `);
@@ -46,6 +47,28 @@ switch (command) {
     execSync(`node "${buildScript}"`, { stdio: 'inherit', env });
     execSync(`node "${devScript}"`, { stdio: 'inherit', env });
     break;
+  }
+
+  case 'check-layouts': {
+    const { listLayouts } = await import('../scripts/layouts.js');
+    const { layouts, includes } = await listLayouts(process.cwd());
+    let failed = false;
+    const report = (dir, items) => {
+      for (const item of items) {
+        for (const { line, message } of item.problems) {
+          failed = true;
+          console.log(`src/${dir}/${item.file}:${line}: ${message}`);
+        }
+      }
+    };
+    report('layouts', layouts);
+    report('includes', includes);
+    const plain = layouts.filter(l => l.kind === 'plain').length
+      + includes.filter(i => !i.ok && i.problems.length === 0).length;
+    const editable = layouts.filter(l => l.editable).length;
+    const withProblems = [...layouts, ...includes].filter(i => i.problems.length > 0).length;
+    console.log(`${layouts.length} layouts, ${includes.length} includes: ${editable} editable, ${plain} plain, ${withProblems} with problems`);
+    process.exit(failed ? 1 : 0);
   }
 
   case '--version':

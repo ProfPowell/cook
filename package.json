@@ -10,7 +10,8 @@
   "exports": {
     ".": "./scripts/build.js",
     "./build": "./scripts/build.js",
-    "./dev": "./scripts/dev.js"
+    "./dev": "./scripts/dev.js",
+    "./layouts": "./scripts/layouts.js"
   },
   "files": [
     "bin/",
