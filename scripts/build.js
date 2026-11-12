@@ -164,7 +164,7 @@ class Build {
 
       // PLUGIN: Apply layout template from [data-template] attribute
       // Also checks file.frontMatter.layout as a fallback
-      await applyTemplate({file, store, allowType: ['.html']});
+      await applyTemplate({file, store, data, allowType: ['.html']});
 
       // PLUGIN: Replace `[data-include]` in files
       // Runs after template: includes inside the template get resolved

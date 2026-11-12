@@ -20,7 +20,7 @@ import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import Util from '../utils/util/util.js';
-import { renderTemplate } from '../utils/interpolate/interpolate.js';
+import { renderLayout, extractSlots } from '../utils/layouts/render.js';
 
 // Config
 import { srcPath, distPath } from '../utils/config/config.js';
@@ -29,10 +29,11 @@ import { srcPath, distPath } from '../utils/config/config.js';
 // DEFINE
 // -----------------------------
 class ApplyTemplate {
-  constructor({ file, store, allowType, disallowType }) {
+  constructor({ file, store, data, allowType, disallowType }) {
     this.opts = { file, allowType, disallowType };
     this.file = file;
     this.store = store;
+    this.data = data || {};
     this.allowType = allowType;
     this.disallowType = disallowType;
 
@@ -56,15 +57,14 @@ class ApplyTemplate {
       || null;
     if (!templateName) return;
 
-    // Load the template
-    const templateContent = await this.getTemplate(templateName);
-    if (!templateContent) return;
-
     // Extract page metadata and content from the source page
     const pageData = this.extractPageData();
 
-    // Merge page content into the template
-    this.file.src = this.applyTemplate(templateContent, pageData);
+    // Merge page content into the template (and, for a child layout,
+    // its parents). null: the layout wasn't found, leave the page as is.
+    const rendered = await this.applyTemplate(templateName, pageData);
+    if (rendered === null) return;
+    this.file.src = rendered;
   }
 
   /**
@@ -169,37 +169,37 @@ class ApplyTemplate {
       }
     }
 
-    // Extract named slots from <template slot="name"> elements.
+    // Extract named slots from top-level <template slot="name"> elements
+    // (nested <template>s inside a slot are kept whole).
     // These provide content for ${slot:name} placeholders in layouts.
     // Remaining content (after slot extraction) becomes ${content}.
     if (rawContent) {
-      const slotPattern = /<template\s+slot="([^"]+)">([\s\S]*?)<\/template>/gi;
-      let slotMatch;
-      while ((slotMatch = slotPattern.exec(rawContent)) !== null) {
-        data[`slot:${slotMatch[1]}`] = slotMatch[2].trim();
+      const { content, slots } = extractSlots(rawContent);
+      for (const [name, value] of Object.entries(slots)) {
+        data[`slot:${name}`] = value;
       }
-      // Remove <template slot="..."> elements from content
-      data.content = rawContent.replace(slotPattern, '').trim();
+      data.content = content;
     }
 
     return data;
   }
 
   /**
-   * Inject page data into the template.
+   * Render the page through the named layout and any layouts it extends.
    * Replaces ${content} and other ${var} placeholders.
-   * @param {string} template - Template HTML
+   * @param {string} name - Layout name
    * @param {Object} pageData - Extracted page data
-   * @returns {string} Merged HTML
+   * @returns {Promise<string|null>} Merged HTML, or null if the layout is missing
    */
-  applyTemplate(template, pageData) {
-    // Shared interpolator: single pass over the LAYOUT only, callback
+  applyTemplate(name, pageData) {
+    // Shared interpolator: single pass over each LAYOUT only, callback
     // insertion (page content with $-patterns and ${...} in code samples
     // is never scanned), unmatched vars deferred to replaceTemplateStrings,
     // unfilled ${slot:...} removed. ${content} always resolves (empty
     // string when the page produced none).
-    return renderTemplate(template, { ...pageData, content: pageData.content || '' }, {
-      removeUnmatchedSlots: true,
+    return renderLayout(name, { ...pageData, content: pageData.content || '' }, {
+      loadLayout: (layoutName) => this.getTemplate(layoutName),
+      data: this.data,
     });
   }
 

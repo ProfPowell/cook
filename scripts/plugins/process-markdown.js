@@ -13,7 +13,7 @@ import { marked } from 'marked';
 import matter from 'gray-matter';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
-import { renderTemplate } from '../utils/interpolate/interpolate.js';
+import { renderLayout } from '../utils/layouts/render.js';
 
 // Config
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
@@ -221,24 +221,29 @@ class ProcessMarkdown {
    * @returns {string} Final HTML
    */
   async applyLayout(layoutName, pageData) {
-    // Get layout template
-    const layoutContent = await this.getLayout(layoutName);
+    // Shared interpolator: single pass over each LAYOUT only — markdown
+    // content (which legitimately contains ${...} and $-patterns in code
+    // samples) is never scanned for substitution. Page data wins over
+    // global data; ${content} always resolves. A child layout is applied,
+    // then its parent, and so on.
+    const finalHtml = await renderLayout(layoutName, {
+      ...this.data,
+      ...pageData,
+      content: pageData.content ?? '',
+    }, {
+      loadLayout: (name) => this.getLayout(name),
+      data: this.data,
+      // A plain layout keeps unfilled ${slot:x}, as it always has here
+      removeUnmatchedSlots: false,
+    });
 
-    if (!layoutContent) {
+    if (finalHtml === null) {
       // Fallback to basic HTML if layout not found
       console.log(chalk.yellow(`  Layout "${layoutName}" not found, using basic HTML`));
       return this.buildBasicHtml(pageData);
     }
 
-    // Shared interpolator: single pass over the LAYOUT only — markdown
-    // content (which legitimately contains ${...} and $-patterns in code
-    // samples) is never scanned for substitution. Page data wins over
-    // global data; ${content} always resolves.
-    return renderTemplate(layoutContent, {
-      ...this.data,
-      ...pageData,
-      content: pageData.content ?? '',
-    });
+    return finalHtml;
   }
 
   /**
