@@ -14,8 +14,14 @@ const MASTODON_USER = /^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_])?$/;
 const LINKEDIN_SLUG = /^[A-Za-z0-9_%-]+$/;
 const YOUTUBE = /^@[A-Za-z0-9._-]+$/;
 
-/** Drop surrounding space, a trailing slash, `https?://` and `www.` (pasted URLs). */
-const stripUrl = (s) => s.replace(/\/+$/, '').replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+/**
+ * If `s` is a pasted URL on `host` (optional `https?://` and `www.`, optional trailing
+ * slash), return the path after the host; otherwise null. Bare handles never match.
+ */
+const urlPath = (s, host) => {
+  const m = s.match(new RegExp(`^(?:https?://)?(?:www\\.)?${host.replace(/\./g, '\\.')}/(.+?)/*$`, 'i'));
+  return m ? m[1] : null;
+};
 
 const fail = (error) => ({ error });
 
@@ -42,15 +48,13 @@ export function parseHandle(service, input) {
 
   switch (service) {
     case 'bluesky': {
-      let s = stripUrl(raw);
-      const m = s.match(/^bsky\.app\/profile\/([^/]+)$/i);
-      if (m) s = m[1];
-      const handle = s.replace(/^@/, '').toLowerCase();
+      const m = (urlPath(raw, 'bsky.app') || '').match(/^profile\/([^/]+)$/i);
+      const handle = (m ? m[1] : raw).replace(/^@/, '').toLowerCase();
       return DOMAIN.test(handle) ? { handle } : fail('Bluesky handles look like name.bsky.social');
     }
     case 'mastodon': {
-      const s = stripUrl(raw);
-      const m = s.match(/^([^/@]+)\/@([^/@]+)$/);
+      const s = raw;
+      const m = s.match(/^(?:https?:\/\/)?(?:www\.)?([^/@\s]+)\/@([^/@]+)\/*$/i);
       let user;
       let instance;
       if (m) {
@@ -65,22 +69,18 @@ export function parseHandle(service, input) {
       return { handle: `@${user}@${instance}` };
     }
     case 'github': {
-      let s = stripUrl(raw);
-      const m = s.match(/^github\.com\/([^/]+)$/i);
-      if (m) s = m[1];
-      const handle = s.replace(/^@/, '');
+      const p = urlPath(raw, 'github.com');
+      const handle = (p && !p.includes('/') ? p : raw).replace(/^@/, '');
       return GITHUB.test(handle) ? { handle } : fail('GitHub usernames are 1 to 39 letters, digits or single hyphens');
     }
     case 'linkedin': {
-      const s = stripUrl(raw);
-      const m = s.match(/^linkedin\.com\/in\/([^/]+)$/i) || s.match(/^in\/([^/]+)$/i);
-      const slug = m ? m[1] : s;
+      const m = (urlPath(raw, 'linkedin.com') || '').match(/^in\/([^/]+)$/i) || raw.match(/^in\/([^/]+?)\/*$/i);
+      const slug = m ? m[1] : raw;
       return LINKEDIN_SLUG.test(slug) ? { handle: slug } : fail('Use the part after linkedin.com/in/');
     }
     case 'youtube': {
-      const s = stripUrl(raw);
-      const m = s.match(/^youtube\.com\/(@[^/]+)$/i);
-      const handle = m ? m[1] : s;
+      const p = urlPath(raw, 'youtube.com');
+      const handle = p && !p.includes('/') ? p : raw;
       return YOUTUBE.test(handle) ? { handle } : fail('YouTube handles look like @name');
     }
     case 'link':
