@@ -109,7 +109,7 @@ function fold(line) {
 
 /**
  * vCard 4.0 for contact.vcf.
- * @param {{ name?: string, email?: string, url?: string, org?: string, title?: string }} contact
+ * @param {{ name?: string, email?: string|string[], url?: string, org?: string, title?: string }} contact
  * @param {{ siteUrl?: string }} [options] `URL` defaults to siteUrl
  * @returns {{ text: string|null, warning?: string }}
  */
@@ -121,7 +121,8 @@ export function renderVcard(contact, { siteUrl } = {}) {
   const lines = ['BEGIN:VCARD', 'VERSION:4.0', `FN:${escapeVcardText(c.name.trim())}`];
   if (nonEmpty(c.org)) lines.push(`ORG:${escapeVcardText(c.org.trim())}`);
   if (nonEmpty(c.title)) lines.push(`TITLE:${escapeVcardText(c.title.trim())}`);
-  if (nonEmpty(c.email)) lines.push(`EMAIL;PREF=1:${escapeVcardText(c.email.trim())}`);
+  const emails = (Array.isArray(c.email) ? c.email : [c.email]).filter(nonEmpty);
+  emails.forEach((e, i) => lines.push(`${i === 0 ? 'EMAIL;PREF=1' : 'EMAIL'}:${escapeVcardText(e.trim())}`));
   const url = nonEmpty(c.url) ? c.url : siteUrl;
   // URI value type: not text-escaped (RFC 6350); only strip whitespace so it cannot break a line.
   if (nonEmpty(url)) lines.push(`URL:${String(url).replace(/\s+/g, '')}`);

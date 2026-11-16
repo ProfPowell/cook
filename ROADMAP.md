@@ -23,6 +23,10 @@ These roadmap items are already implemented and were removed from the remaining 
 
 ## Release Notes
 
+### 2.11.1 (unreleased)
+
+- SocialSpec: `contact.email` may be an array of addresses. `contact.vcf` gets one `EMAIL` line each, the first with `PREF=1`. A single string builds byte-identically.
+
 ### 2.11.0 (unreleased)
 
 - SocialSpec: `about`, `contact` and `following` in `config/social.json` write `/.well-known/following.opml`, `about.md` and `contact.vcf`, with matching `_headers` blocks (exact Content-Type plus `Access-Control-Allow-Origin: *`). `social.aboutHtml` is added to template data. The Worker returns `/.well-known/*` untouched and adds CORS on the three paths. Sites without these keys build byte-identically. See the SocialSpec docs.

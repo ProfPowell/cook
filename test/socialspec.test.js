@@ -96,6 +96,14 @@ test('renderVcard: minimal card, CRLF, URL defaults to siteUrl', () => {
   assert.ok(!/[^\r]\n/.test(text));
 });
 
+test('renderVcard: several emails, first is preferred, blanks dropped, order kept', () => {
+  const { text } = renderVcard({ name: 'N', email: ['a@example.com', '', '  ', 'b@example.com', 'c@example.com'] }, {});
+  assert.equal(text, 'BEGIN:VCARD\r\nVERSION:4.0\r\nFN:N\r\nEMAIL;PREF=1:a@example.com\r\nEMAIL:b@example.com\r\nEMAIL:c@example.com\r\nEND:VCARD\r\n');
+  assert.equal(renderVcard({ name: 'N', email: ['only@example.com'] }, {}).text, renderVcard({ name: 'N', email: 'only@example.com' }, {}).text);
+  assert.ok(!renderVcard({ name: 'N', email: [] }, {}).text.includes('EMAIL'));
+  assert.ok(!renderVcard({ name: 'N', email: [3, null] }, {}).text.includes('EMAIL'));
+});
+
 test('renderVcard: empty fields omitted; ORG and TITLE emitted; explicit url wins', () => {
   const a = renderVcard({ name: 'N', email: '', url: '', org: '', title: '' }, {}).text;
   assert.equal(a, 'BEGIN:VCARD\r\nVERSION:4.0\r\nFN:N\r\nEND:VCARD\r\n');

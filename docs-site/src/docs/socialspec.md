@@ -22,7 +22,7 @@ Cook can publish a SocialSpec profile for your site: three small static files un
   },
   "contact": {
     "name": "Your Name",
-    "email": "you@example.com",
+    "email": ["you@example.com", "press@example.com"],
     "url": "https://example.com/",
     "org": "Example",
     "title": "Writer"
@@ -34,7 +34,7 @@ Cook can publish a SocialSpec profile for your site: three small static files un
 }</code-block>
 
 - `about`: `summary` and `body`. Use `file` instead of `body` to read the text from a Markdown file; `body` wins when both are set. `file` is a path from the project root, inside the site and outside `src/` (for example `content/about.md`), because anything in `src/` is copied to the built site as-is.
-- `contact`: `name` is required. `email`, `url`, `org` and `title` are optional and only written when you set them. Nothing is filled in from other config. The address in `contact.vcf` is public, so use one you are happy to see scraped.
+- `contact`: `name` is required. `email`, `url`, `org` and `title` are optional and only written when you set them. `email` is one address or an array of addresses: each becomes an `EMAIL` line in order, and the first is marked preferred. Nothing is filled in from other config. The address in `contact.vcf` is public, so use one you are happy to see scraped.
 - `following`: one entry per feed. `feedUrl` must be an absolute URL: an `http:` feed is kept with a warning, and an entry whose `feedUrl` is missing or not absolute (for example `/feed.xml`) is dropped from `following.opml`. `siteUrl` is optional; when it is not an absolute URL, the entry is kept but written without `htmlUrl`. `"public": false` keeps an entry in the config but out of the file.
 
 Add `siteUrl` to your site data and set `formats.feed`; every URL in the files is absolute, and a SocialSpec profile starts from the site feed.
