@@ -108,8 +108,9 @@ test('renderVcard: empty fields omitted; ORG and TITLE emitted; explicit url win
 
 test('renderVcard: escapes backslash, comma, semicolon and newline', () => {
   const { text } = renderVcard({ name: 'A, B; C\\D\nE', org: 'X;Y' }, { siteUrl: SITE });
-  assert.ok(text.includes('FN:A\\, B\; C\\\\D\\nE\r\n'));
-  assert.ok(text.includes('ORG:X\;Y\r\n'));
+  assert.ok(text.includes('FN:A\\, B\\; C\\\\D\\nE\r\n'));
+  assert.ok(text.includes('ORG:X\\;Y\r\n'));
+  assert.ok(renderVcard({ name: 'A;B,C' }, {}).text.includes('A\\;B\\,C')); // raw: backslash then semicolon
 });
 
 test('renderVcard: no name gives null text and a warning', () => {

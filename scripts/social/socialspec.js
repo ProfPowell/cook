@@ -83,7 +83,7 @@ const escapeVcardText = (s) =>
     .replace(/\\/g, '\\\\')
     .replace(/\r\n|\r|\n/g, '\\n')
     .replace(/,/g, '\\,')
-    .replace(/;/g, '\;');
+    .replace(/;/g, '\\;');
 
 /** Fold one content line at 75 octets (RFC 6350), never splitting a character. */
 function fold(line) {
