@@ -1,6 +1,6 @@
 ---
 title: Social Links
-description: List your social profiles once in config and let Cook fill <social-links> elements at build
+description: List your social profiles once in config and let Cook fill social-links elements at build
 section: Advanced
 ---
 
@@ -38,13 +38,13 @@ A bad entry (unknown service, `http:` URL, malformed handle) is skipped with a `
 
 ## The element
 
-<code-block language="html" label="Layout footer"><footer>
-  <social-links></social-links>
-</footer></code-block>
+<code-block language="html" label="Layout footer">&lt;footer&gt;
+  &lt;social-links&gt;&lt;/social-links&gt;
+&lt;/footer&gt;</code-block>
 
 Cook writes one `<ul>` inside the element:
 
-<code-block language="html" label="Built output"><social-links><ul><li><a href="https://github.com/octocat"><span class="social-icon" data-service="github" aria-hidden="true"></span><span>GitHub</span></a></li></ul></social-links></code-block>
+<code-block language="html" label="Built output">&lt;social-links&gt;&lt;ul&gt;&lt;li&gt;&lt;a href="https://github.com/octocat"&gt;&lt;span class="social-icon" data-service="github" aria-hidden="true"&gt;&lt;/span&gt;&lt;span&gt;GitHub&lt;/span&gt;&lt;/a&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/social-links&gt;</code-block>
 
 - `services` limits the list to a comma list of service ids, such as `services="github,bluesky"`.
 - Mastodon links carry `rel="me"`.
