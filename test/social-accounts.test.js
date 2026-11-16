@@ -6,6 +6,7 @@ test('SERVICES lists ids in table order', () => {
   assert.deepEqual(SERVICES.map((s) => s.id), ['bluesky', 'mastodon', 'github', 'linkedin', 'youtube', 'link']);
   assert.deepEqual(SERVICES.map((s) => s.name), ['Bluesky', 'Mastodon', 'GitHub', 'LinkedIn', 'YouTube', 'Link']);
   assert.equal(SERVICES.find((s) => s.id === 'github').checkable, true);
+  assert.equal(SERVICES.find((s) => s.id === 'mastodon').checkable, true);
   assert.equal(SERVICES.find((s) => s.id === 'link').checkable, false);
 });
 
@@ -17,7 +18,8 @@ const good = [
   ['mastodon', '@tpowell@Mastodon.Social', '@tpowell@mastodon.social', 'https://mastodon.social/@tpowell'],
   ['mastodon', 'TPowell@mastodon.social', '@TPowell@mastodon.social', 'https://mastodon.social/@TPowell'],
   ['mastodon', 'https://mastodon.social/@tpowell', '@tpowell@mastodon.social', 'https://mastodon.social/@tpowell'],
-  ['mastodon', 'www.mastodon.social/@tpowell/', '@tpowell@mastodon.social', 'https://mastodon.social/@tpowell'],
+  ['mastodon', 'mastodon.social/@tpowell/', '@tpowell@mastodon.social', 'https://mastodon.social/@tpowell'],
+  ['mastodon', 'https://www.example.social/@u', '@u@www.example.social', 'https://www.example.social/@u'],
   ['bluesky', 'www.example.com', 'www.example.com', 'https://bsky.app/profile/www.example.com'],
   ['bluesky', '@www.example.com', 'www.example.com', 'https://bsky.app/profile/www.example.com'],
   ['mastodon', 'www.bob@mastodon.social', '@www.bob@mastodon.social', 'https://mastodon.social/@www.bob'],

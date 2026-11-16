@@ -173,3 +173,7 @@ browserSync.watch(themeJson).on('change', file => { rebuild(file); }).on('add', 
 // config/programs.json (Vanilla Press) feeds the programs data: rebuild on change.
 const programsJson = `${process.cwd()}/config/programs.json`;
 browserSync.watch(programsJson).on('change', file => { rebuild(file); }).on('add', file => { rebuild(file); });
+
+// config/social.json (Vanilla Press) feeds <social-links>: rebuild on change.
+const socialJson = `${process.cwd()}/config/social.json`;
+browserSync.watch(socialJson).on('change', file => { rebuild(file); }).on('add', file => { rebuild(file); });

@@ -54,7 +54,7 @@ export function parseHandle(service, input) {
     }
     case 'mastodon': {
       const s = raw;
-      const m = s.match(/^(?:https?:\/\/)?(?:www\.)?([^/@\s]+)\/@([^/@]+)\/*$/i);
+      const m = s.match(/^(?:https?:\/\/)?([^/@\s]+)\/@([^/@]+)\/*$/i);
       let user;
       let instance;
       if (m) {
