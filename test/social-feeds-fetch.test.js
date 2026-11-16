@@ -74,6 +74,7 @@ test('github browser mode reads public events and reports done', async () => {
   const f = recorder(githubRoute);
   const res = await fetchAccountPage(CAROL, { fetch: f, mode: 'browser', token: 'ignored-no' });
   assert.equal(f.calls.length, 1);
+  assert.ok(!(f.calls[0].init.headers && f.calls[0].init.headers.Authorization), 'the browser sends no token');
   assert.equal(f.calls[0].url, 'https://api.github.com/users/carol-dev/events/public?per_page=30');
   assert.equal(res.done, true);
   assert.equal(res.items.length, 1);

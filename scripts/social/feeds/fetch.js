@@ -87,7 +87,7 @@ async function mastodonPage(account, opts) {
 async function githubPage(account, opts) {
   const user = encodeURIComponent(account.handle);
   const headers = { ...(opts.headers || {}) };
-  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  if (opts.token && opts.mode !== 'browser') headers.Authorization = `Bearer ${opts.token}`;
   const o = { ...opts, headers };
   if (opts.mode === 'browser') {
     const url = `https://api.github.com/users/${user}/events/public?per_page=30`;
