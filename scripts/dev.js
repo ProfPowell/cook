@@ -10,6 +10,7 @@ import path from 'node:path';
 import { runBuild } from './build.js';
 import fs from 'fs-extra';
 import { loadProgramAreas, isProgramFile } from './plugins/programs.js';
+import { setFeedCacheMaxAge } from './plugins/social-feed.js';
 
 const browserSync = browserSyncLib.create('Dev Server');
 
@@ -174,6 +175,9 @@ browserSync.watch(themeJson).on('change', file => { rebuild(file); }).on('add', 
 const programsJson = `${process.cwd()}/config/programs.json`;
 browserSync.watch(programsJson).on('change', file => { rebuild(file); }).on('add', file => { rebuild(file); });
 
-// config/social.json (Vanilla Press) feeds <social-links>: rebuild on change.
+// <social-feed>: reuse fetched posts for 10 minutes across rebuilds.
+setFeedCacheMaxAge(10 * 60 * 1000);
+
+// config/social.json (Vanilla Press) feeds <social-links> and <social-feed>: rebuild on change.
 const socialJson = `${process.cwd()}/config/social.json`;
 browserSync.watch(socialJson).on('change', file => { rebuild(file); }).on('add', file => { rebuild(file); });

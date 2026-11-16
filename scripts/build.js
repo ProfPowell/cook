@@ -39,6 +39,7 @@ import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
 import { socialData, fillSocialLinks } from './plugins/social-links.js';
+import { fillSocialFeeds, resetSocialFeeds } from './plugins/social-feed.js';
 import { writeSocialspecFiles } from './plugins/socialspec-files.js';
 import { writeHeaderBlocks } from './plugins/headers.js';
 import replaceTemplateStrings from './plugins/replace-template-strings.js';
@@ -112,6 +113,8 @@ class Build {
 
     // PLUGIN: Social: `social` data from config/social.json (or main.js `social`)
     await socialData({data});
+    // <social-feed>: per-build fetch cache (cook dev keeps fresh results)
+    resetSocialFeeds();
 
     // PLUGIN: Generate responsive image derivatives (AVIF/WebP at multiple widths)
     await optimizeImagesGenerate({store});
@@ -199,6 +202,9 @@ class Build {
 
       // PLUGIN: Fill empty <social-links> elements with the site's profile links
       fillSocialLinks({file, data, allowType: ['.html']});
+
+      // PLUGIN: Fill empty <social-feed> elements with recent posts (fetched once per account, snapshots on failure)
+      await fillSocialFeeds({ file, allowType: ['.html'] });
 
       // PLUGIN: Rewrite <img> to <picture> with responsive srcset
       await optimizeImagesRewrite({file, store, allowType: ['.html']});

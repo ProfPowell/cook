@@ -1,0 +1,9 @@
+{
+  "accounts": [
+    { "service": "bluesky", "handle": "alice.example.com" },
+    { "service": "mastodon", "handle": "@bob@social.example" },
+    { "service": "github", "handle": "carol-dev" },
+    { "service": "bluesky", "handle": "dave.example.com", "hidden": true },
+    { "service": "linkedin", "handle": "erin-example" }
+  ]
+}

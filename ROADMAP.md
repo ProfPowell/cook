@@ -23,6 +23,10 @@ These roadmap items are already implemented and were removed from the remaining 
 
 ## Release Notes
 
+### 2.12.0 (unreleased)
+
+- `<social-feed>`: each empty element is filled at build with recent Bluesky and Mastodon posts and GitHub releases from `config/social.json` (`accounts`, `tags`, `items`, `height`, `hide-counts`). Each account is fetched once per build (`cook dev` reuses results for 10 minutes); a successful fetch writes `data/social-feeds/<service>-<slug>.json`, which a failed or `COOK_OFFLINE=1` build uses instead. `GITHUB_TOKEN` is used for GitHub at build. Feeds never fail a build. `cook-ssg/social` also exports the feed helpers. Pages without `<social-feed>` build byte-identically. See the Social Feed docs.
+
 ### 2.11.1 (unreleased)
 
 - SocialSpec: `contact.email` may be an array of addresses. `contact.vcf` gets one `EMAIL` line each, the first with `PREF=1`. A single string builds byte-identically.
