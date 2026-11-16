@@ -45,7 +45,7 @@ Cook keeps your attributes, sets `--social-feed-height` and writes:
 
 - Each entry has the author, a permalink with the date, the text, an image when the post has one, release details for GitHub, and counts unless `hide-counts` is set. All post text is escaped, and only `https:` links and images are kept.
 - With nothing to show, `<p class="social-feed-empty">Nothing yet</p>` is written and `data-infinite` is left off.
-- The state JSON holds the accounts, paging cursors, the newest date per account and up to 24 more matching posts for the browser to show first. It never holds a token.
+- The state JSON holds the accounts, paging cursors, the newest date per account and every other fetched post that matches the block, newest first, for the browser to show before it fetches more. It never holds a token.
 
 Browser refresh and load-more need Vanilla Breeze's `<social-feed>` component on the page. Without it the built list still shows.
 

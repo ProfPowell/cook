@@ -4,7 +4,9 @@
  * the site's Bluesky, Mastodon and GitHub accounts (config/social.json).
  *
  * Each account is fetched at most once per build (`cook dev` reuses a result
- * for 10 minutes). A successful fetch with at least one item writes
+ * for 10 minutes): one page when that covers every block's `items`, and for a
+ * block with `tags` further pages from the cached cursor until enough posts
+ * match, at most 3 pages in all. A successful fetch with at least one item writes
  * data/social-feeds/<service>-<slug>.json; a failed one falls back to that
  * snapshot. `COOK_OFFLINE=1` uses snapshots only. Feeds never fail a build.
  */
@@ -14,17 +16,18 @@ import Util from '../utils/util/util.js';
 import { getSocial } from '../utils/config/config.js';
 import { normalizeAccounts } from '../social/accounts.js';
 import { feedAccounts, parseFeedAttrs, renderSocialFeed } from '../social/feeds/block.js';
-import { collectItems } from '../social/feeds/fetch.js';
+import { fetchAccountPage } from '../social/feeds/fetch.js';
+import { matchesTags } from '../social/feeds/core.js';
 import { readSnapshot, writeSnapshot } from '../social/feeds/snapshots.js';
 
 const TAG = '[social-feed] ';
 const SKIP_INSIDE = 'pre, code, template, textarea';
 const ATTRS = ['accounts', 'tags', 'items', 'height'];
-/** Enough for the largest first batch (50) plus the buffer (24); paging stops at 3 pages anyway. */
-const WANT = 74;
+/** Pages fetched per account per build, at most. */
+const MAX_PAGES = 3;
 const HEADERS = { 'User-Agent': 'cook-ssg' };
 
-/** account key → { at, failed?, promise } */
+/** account key → { at, target, items, cursor, done, pages, stopped, failed?, chain } */
 const cache = new Map();
 let maxAgeMs = 0;
 let feedFetch = null;
@@ -65,43 +68,63 @@ const offline = () => {
   return !!v && v !== '0' && v.toLowerCase() !== 'false';
 };
 
-/** Fetch one account, or fall back to its snapshot. Never rejects. */
-async function loadAccount(account, entry) {
+/**
+ * Make sure the account's cached result has at least `want` items passing
+ * `tags`, fetching further pages from the cached cursor as needed (at most 3
+ * pages per account per build). The first page failing falls back to the
+ * snapshot; a later page failing keeps what was fetched. Never rejects.
+ * @returns {Promise<{ items: object[], cursor: string|null, done: boolean }>}
+ *   a copy taken now, so a block's state matches the pages fetched so far
+ */
+function accountResult(account, { want, tags }) {
+  let entry = cache.get(account.key);
+  if (!entry) {
+    const target = { key: account.key, service: account.service, handle: account.handle };
+    if (account.did) target.did = account.did;
+    entry = { at: Date.now(), target, items: [], cursor: null, done: false, pages: 0, stopped: false, chain: Promise.resolve() };
+    cache.set(account.key, entry);
+  }
+  entry.chain = entry.chain.then(() => extend(account, entry, { want, tags }));
+  return entry.chain.then(() => ({ items: [...entry.items], cursor: entry.cursor, done: entry.done }));
+}
+
+async function extend(account, entry, { want, tags }) {
   const rootDir = process.cwd();
-  const { key, service, handle, did } = account;
-  const fromSnapshot = (why) => {
-    entry.failed = true;
-    const items = readSnapshot(rootDir, account);
-    warn(`${TAG}${key}: ${why}; ${items ? 'using the snapshot' : 'no snapshot, so nothing from this account'}`);
-    return { items: items || [], cursor: null, done: false };
-  };
-  if (offline()) return fromSnapshot('COOK_OFFLINE is set');
-  const doFetch = feedFetch || globalThis.fetch;
-  try {
-    const target = { key, service, handle };
-    if (did) target.did = did;
-    const res = await collectItems(target, {
-      fetch: doFetch,
-      want: WANT,
-      mode: 'build',
-      token: process.env.GITHUB_TOKEN || undefined,
-      headers: HEADERS,
-    });
-    if (res.items.length) writeSnapshot(rootDir, account, res.items);
-    return { items: res.items, cursor: res.cursor, done: res.done };
-  } catch (err) {
-    return fromSnapshot(err && err.message ? err.message : String(err));
+  const { key } = account;
+  if (entry.failed) return;
+  if (entry.pages === 0 && offline()) return useSnapshot(account, entry, 'COOK_OFFLINE is set');
+  const passing = () => entry.items.filter((i) => matchesTags(i, tags)).length;
+  while (!entry.done && !entry.stopped && entry.pages < MAX_PAGES && (entry.pages === 0 || passing() < want)) {
+    try {
+      const res = await fetchAccountPage(entry.target, {
+        fetch: feedFetch || globalThis.fetch,
+        cursor: entry.cursor,
+        mode: 'build',
+        token: process.env.GITHUB_TOKEN || undefined,
+        headers: HEADERS,
+      });
+      entry.pages += 1;
+      entry.items.push(...res.items);
+      entry.cursor = res.cursor;
+      entry.done = res.done;
+      if (entry.items.length) writeSnapshot(rootDir, account, entry.items);
+    } catch (err) {
+      const why = err && err.message ? err.message : String(err);
+      if (entry.pages === 0) return useSnapshot(account, entry, why);
+      entry.stopped = true;
+      warn(`${TAG}${key}: ${why}; showing the posts fetched before it`);
+    }
   }
 }
 
-function accountResult(account) {
-  let entry = cache.get(account.key);
-  if (!entry) {
-    entry = { at: Date.now() };
-    entry.promise = loadAccount(account, entry);
-    cache.set(account.key, entry);
-  }
-  return entry.promise;
+/** A failed or offline account: its snapshot items, no cursor, not done. */
+function useSnapshot(account, entry, why) {
+  entry.failed = true;
+  const items = readSnapshot(process.cwd(), account);
+  warn(`${TAG}${account.key}: ${why}; ${items ? 'using the snapshot' : 'no snapshot, so nothing from this account'}`);
+  entry.items = items || [];
+  entry.cursor = null;
+  entry.done = false;
 }
 
 /** The element's style with `--social-feed-height` set (replacing an earlier one). */
@@ -139,7 +162,7 @@ export async function fillSocialFeeds({ file, allowType }) {
     for (const w of [...opts.warnings, ...selected.warnings]) warn(w);
     const accounts = selected.accounts.filter((a) => !opts.tags.length || a.service !== 'github');
 
-    const results = await Promise.all(accounts.map((a) => accountResult(a)));
+    const results = await Promise.all(accounts.map((a) => accountResult(a, { want: opts.items, tags: opts.tags })));
     const itemsByKey = {};
     const cursorsByKey = {};
     accounts.forEach((a, i) => {

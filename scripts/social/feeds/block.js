@@ -14,7 +14,6 @@ const TAG = '[social-feed] ';
 const FEED_SERVICES = ['bluesky', 'mastodon', 'github'];
 const DEFAULT_ITEMS = 12;
 const DEFAULT_HEIGHT = '32rem';
-const BUFFER = 24;
 const HEIGHT = /^\d+(\.\d+)?(rem|em|px|vh)$/;
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -138,7 +137,7 @@ export function renderSocialFeed(attrs, { accounts = [], itemsByKey = {}, cursor
 
   const merged = mergeItems(chosen.map((a) => cleanItems(byKey[a.key], a.key)), { tags: opts.tags });
   const shown = merged.slice(0, opts.items);
-  const buffer = merged.slice(opts.items, opts.items + BUFFER);
+  const buffer = merged.slice(opts.items);
   const newest = {};
   for (const item of merged) if (!(item.source in newest)) newest[item.source] = item.date;
 

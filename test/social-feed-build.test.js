@@ -25,10 +25,11 @@ after(async () => { for (const t of tmps) await fs.rm(t, { recursive: true, forc
 
 const hour = (i) => new Date(Date.UTC(2026, 10, 10, 23 - i)).toISOString();
 
-/** A Bluesky getAuthorFeed body: n posts, newest first, no cursor (one page). */
-function bsky(handle, n, { tagEvery = 0, offset = 0 } = {}) {
+/** A Bluesky getAuthorFeed body: n posts, newest first; one page unless `cursor` is given. */
+function bsky(handle, n, { tagEvery = 0, offset = 0, start = 0, cursor } = {}) {
   return {
-    feed: Array.from({ length: n }, (_, i) => ({
+    ...(cursor ? { cursor } : {}),
+    feed: Array.from({ length: n }, (_, j) => j + start).map((i) => ({
       post: {
         uri: `at://did:plc:${handle.split('.')[0]}/app.bsky.feed.post/r${i}`,
         author: { did: `did:plc:${handle.split('.')[0]}`, handle, displayName: handle.split('.')[0] },
@@ -287,7 +288,7 @@ describe('<social-feed> build fill', () => {
     assert.ok(s.accounts.every((a) => a.service !== 'github'));
   });
 
-  test('buffer holds up to 24 unshown matching items; state JSON has no token', async () => {
+  test('buffer holds every unshown matching item; state JSON has no token', async () => {
     const { read, requests } = await build({
       stub: routes({ alice: bsky('alice.example.com', 40) }),
       files: { 'src/index.html': page('<social-feed items="5"></social-feed>') },
@@ -296,7 +297,7 @@ describe('<social-feed> build fill', () => {
     const html = await read();
     assert.equal(articles(html).length, 5);
     const s = state(html);
-    assert.equal(s.buffer.length, 24);
+    assert.equal(s.buffer.length, 41); // 40 + 5 + 1 fetched, 5 shown
     const shown = new Set(articles(html).map((a) => a.id));
     assert.ok(s.buffer.every((i) => !shown.has(i.id)));
     const bufDates = s.buffer.map((i) => i.date);
@@ -305,5 +306,50 @@ describe('<social-feed> build fill', () => {
     const gh = requests.filter((r) => r.url.includes('api.github.com'));
     assert.ok(gh.length > 0 && gh.every((r) => r.headers.Authorization === 'Bearer ghp_secret_token_value'));
     assert.ok(requests.filter((r) => !r.url.includes('api.github.com')).every((r) => !r.headers.Authorization));
+  });
+  test('buffer + shown covers every fetched matching item; cursor is the one after the last fetched page', async () => {
+    const alice = (n, cursor) => bsky('alice.example.com', 10, { tagEvery: 5, start: n * 10, offset: n * 30, cursor });
+    const stub = routes({
+      extra: [
+        { match: 'cursor=p2', body: alice(2, 'p3') },
+        { match: 'cursor=p1', body: alice(1, 'p2') },
+        { match: 'actor=alice.example.com', body: alice(0, 'p1') },
+      ],
+      bob: mastoStatuses(5, { tagEvery: 2 }),
+    });
+    const { read, requests } = await build({
+      stub, files: { 'src/index.html': page('<social-feed tags="cook" items="5"></social-feed><social-feed items="3"></social-feed>') },
+    });
+    const html = await read();
+    assert.equal(requests.filter((r) => r.url.includes('actor=alice.example.com')).length, 3);
+
+    // tagged block: 3 alice pages (2 tagged each) + bob's 3 tagged toots
+    const tagged = state(html, 0);
+    const taggedIds = [...articles(html).slice(0, 5).map((a) => a.id), ...tagged.buffer.map((i) => i.id)];
+    assert.equal(taggedIds.length, 9);
+    assert.equal(new Set(taggedIds).size, 9);
+    assert.equal(tagged.accounts.find((a) => a.service === 'bluesky').cursor, 'p3');
+
+    // a later untagged block sees every fetched item: 30 alice + 5 bob + 1 carol
+    const plain = state(html, 1);
+    assert.equal(3 + plain.buffer.length, 36);
+    assert.equal(plain.accounts.find((a) => a.service === 'bluesky').cursor, 'p3');
+  });
+
+  test('no tags: one page per account when items <= page size', async () => {
+    const stub = routes({
+      extra: [{ match: 'cursor=', body: bsky('alice.example.com', 30, { start: 30 }) }],
+      alice: bsky('alice.example.com', 30, { cursor: 'p1' }),
+      bob: mastoStatuses(15),
+    });
+    const { read, requests } = await build({ stub });
+    const count = (s) => requests.filter((r) => r.url.includes(s)).length;
+    assert.equal(count('actor=alice.example.com'), 1);
+    assert.equal(count('/statuses'), 1);
+    assert.equal(count('/users/carol-dev/repos'), 1);
+    const s = state(await read());
+    assert.equal(s.accounts[0].cursor, 'p1');
+    assert.equal(s.accounts[0].done, false);
+    assert.equal(12 + s.buffer.length, 46);
   });
 });
