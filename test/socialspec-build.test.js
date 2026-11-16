@@ -156,6 +156,22 @@ describe('SocialSpec files', () => {
     assert.doesNotMatch(opml, /Rel/);
   });
 
+  test('public entry with no feedUrl is dropped with a warning', async () => {
+    const { tmp, out } = await site({
+      ...base,
+      'config/social.json': JSON.stringify({ following: [
+        { title: 'NoFeed' },
+        { title: 'PrivNoFeed', public: false },
+        { title: 'Good', feedUrl: 'https://z.example/f.xml' },
+      ] }),
+    });
+    assert.match(out, /\[social\].*"NoFeed".*feedUrl/);
+    assert.doesNotMatch(out, /PrivNoFeed/);
+    const opml = await read(tmp, '.well-known/following.opml');
+    assert.match(opml, /z\.example/);
+    assert.doesNotMatch(opml, /NoFeed/);
+  });
+
   test('relative siteUrl: entry kept without htmlUrl, with a warning', async () => {
     const { tmp, out } = await site({
       ...base,

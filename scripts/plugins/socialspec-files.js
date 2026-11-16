@@ -58,7 +58,8 @@ export function writeSocialspecFiles({ data, rootDir, cwd = process.cwd() }) {
   if (hasFollowing) {
     const kept = [];
     for (const e of raw.following) {
-      if (!e || e.public === false || !nonEmpty(e.feedUrl)) continue;
+      if (!e || e.public === false) continue;
+      if (!nonEmpty(e.feedUrl)) { warn(`following "${e.title || '(untitled)'}": no feedUrl, entry skipped`); continue; }
       const label = e.title || e.feedUrl;
       const feed = scheme(e.feedUrl);
       if (!feed) { warn(`following "${label}": feedUrl must be an absolute URL, entry skipped`); continue; }
