@@ -39,6 +39,8 @@ import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
 import { socialData, fillSocialLinks } from './plugins/social-links.js';
+import { writeSocialspecFiles } from './plugins/socialspec-files.js';
+import { writeHeaderBlocks } from './plugins/headers.js';
 import replaceTemplateStrings from './plugins/replace-template-strings.js';
 import conditionalSections from './plugins/conditional-sections.js';
 import setActiveLinks from './plugins/set-active-links.js';
@@ -268,13 +270,13 @@ class Build {
     // built-in post-loop plugin so they all work with plain root paths.
     await applyBasePath();
 
-    // Sandboxed programs: `_headers` rules (Cloudflare Pages, Netlify) appended
-    // to the site's own `_headers`, which copySrc already placed in dist.
+    // Sandboxed programs and SocialSpec files: `_headers` rules (Cloudflare Pages,
+    // Netlify) appended to the site's own `_headers`, which copySrc already placed
+    // in dist. One read-modify-write for both sources.
     if (!Util.validatePageChange()) {
-      const headersFile = path.join(siteRootDir(distPath, siteRoot), '_headers');
-      const existing = fs.existsSync(headersFile) ? fs.readFileSync(headersFile, 'utf-8') : null;
-      const headers = programHeaders(allPrograms(), existing);
-      if (headers !== null) fs.writeFileSync(headersFile, headers);
+      const rootDir = siteRootDir(distPath, siteRoot);
+      const socialBlocks = writeSocialspecFiles({ data, rootDir });
+      writeHeaderBlocks(rootDir, [programHeaders(allPrograms(), null), socialBlocks]);
     }
 
     // CUSTOM PLUGINS: Run custom user plugins after file loop

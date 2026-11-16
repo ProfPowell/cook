@@ -6,6 +6,9 @@
  */
 
 import chalk from 'chalk';
+import fs from 'node:fs';
+import path from 'node:path';
+import { marked } from 'marked';
 import Util from '../utils/util/util.js';
 import { getSocial } from '../utils/config/config.js';
 import { normalizeAccounts, renderSocialLinks } from '../social/index.js';
@@ -16,6 +19,16 @@ const SKIP_INSIDE = 'pre, code, template, textarea';
 
 let visibleAccounts = [];
 
+/** The about body (or the contents of `about.file`) as HTML; undefined when there is none. */
+function aboutHtml(about) {
+  if (!isObj(about)) return undefined;
+  let md = typeof about.body === 'string' && about.body.trim() ? about.body : '';
+  if (!md && typeof about.file === 'string' && about.file.trim()) {
+    try { md = fs.readFileSync(path.resolve(process.cwd(), about.file), 'utf-8'); } catch { md = ''; }
+  }
+  return md.trim() ? marked.parse(md) : undefined;
+}
+
 /** Set `social` on the data store when a social config exists. */
 export async function socialData({ data }) {
   visibleAccounts = [];
@@ -25,6 +38,8 @@ export async function socialData({ data }) {
   for (const w of warnings) console.log(chalk.yellow(`${TAG}${w}`));
   visibleAccounts = visible;
   data.social = { ...(isObj(raw) ? raw : {}), accounts: visible, allAccounts: all };
+  const html = aboutHtml(isObj(raw) ? raw.about : undefined);
+  if (html !== undefined) data.social.aboutHtml = html;
 }
 
 /**
