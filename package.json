@@ -11,7 +11,8 @@
     ".": "./scripts/build.js",
     "./build": "./scripts/build.js",
     "./dev": "./scripts/dev.js",
-    "./layouts": "./scripts/layouts.js"
+    "./layouts": "./scripts/layouts.js",
+    "./social": "./scripts/social/index.js"
   },
   "files": [
     "bin/",
