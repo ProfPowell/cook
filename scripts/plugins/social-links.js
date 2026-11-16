@@ -6,11 +6,10 @@
  */
 
 import chalk from 'chalk';
-import fs from 'node:fs';
-import path from 'node:path';
 import { marked } from 'marked';
 import Util from '../utils/util/util.js';
 import { getSocial } from '../utils/config/config.js';
+import { resolveAboutBody } from './socialspec-files.js';
 import { normalizeAccounts, renderSocialLinks } from '../social/index.js';
 
 const TAG = '[social] ';
@@ -21,11 +20,7 @@ let visibleAccounts = [];
 
 /** The about body (or the contents of `about.file`) as HTML; undefined when there is none. */
 function aboutHtml(about) {
-  if (!isObj(about)) return undefined;
-  let md = typeof about.body === 'string' && about.body.trim() ? about.body : '';
-  if (!md && typeof about.file === 'string' && about.file.trim()) {
-    try { md = fs.readFileSync(path.resolve(process.cwd(), about.file), 'utf-8'); } catch { md = ''; }
-  }
+  const md = resolveAboutBody(about, process.cwd());
   return md.trim() ? marked.parse(md) : undefined;
 }
 

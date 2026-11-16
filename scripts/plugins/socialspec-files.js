@@ -1,4 +1,21 @@
 /**
+ * The about text as raw Markdown: `body` when it has text, else the contents of
+ * `about.file` (a path from `cwd`); '' when there is neither or the file is unreadable.
+ * Used by both the `social.aboutHtml` data and the about.md writer.
+ * @param {object} about
+ * @param {string} [cwd]
+ * @returns {string}
+ */
+export function resolveAboutBody(about, cwd = process.cwd()) {
+  if (!isObj(about)) return '';
+  if (nonEmpty(about.body)) return about.body;
+  if (nonEmpty(about.file)) {
+    try { return fs.readFileSync(path.resolve(cwd, about.file), 'utf-8'); } catch { return ''; }
+  }
+  return '';
+}
+
+/**
  * @file socialspec-files.js
  * @description Writes the SocialSpec profile files under `<siteRoot>/.well-known/`
  * (following.opml, about.md, contact.vcf) from the `social` config, and returns
@@ -82,10 +99,7 @@ export function writeSocialspecFiles({ data, rootDir, cwd = process.cwd() }) {
     if (!nonEmpty(about.body) && nonEmpty(about.file) && !fs.existsSync(path.resolve(cwd, about.file))) {
       warn(`about.file "${about.file}" not found`);
     }
-    const text = renderAbout(about, {
-      siteUrl,
-      readFile: (f) => fs.readFileSync(path.resolve(cwd, f), 'utf-8'),
-    });
+    const text = renderAbout({ ...about, body: resolveAboutBody(about, cwd) }, { siteUrl });
     if (text) out['about.md'] = text;
   }
 

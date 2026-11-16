@@ -131,6 +131,21 @@ describe('SocialSpec files', () => {
     assert.match(await read(b.tmp, '.well-known/about.md'), /From \*file\*/);
   });
 
+  test('about.body wins over about.file, in the file and in aboutHtml', async () => {
+    const { tmp } = await site({
+      ...base,
+      'config/social.json': JSON.stringify({ about: { body: 'From **body**', file: 'content/about.md' } }),
+      'content/about.md': 'From *file*',
+      'src/about.html': page('<div>${social.aboutHtml}</div>'),
+    });
+    const md = await read(tmp, '.well-known/about.md');
+    assert.match(md, /From \*\*body\*\*/);
+    assert.doesNotMatch(md, /From \*file\*/);
+    const html = await read(tmp, 'about/index.html');
+    assert.match(html, /<strong>body<\/strong>/);
+    assert.doesNotMatch(html, /<em>file<\/em>/);
+  });
+
   test('http feed is kept with a warning', async () => {
     const { tmp, out } = await site({
       ...base,

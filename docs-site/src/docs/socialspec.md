@@ -33,11 +33,19 @@ Cook can publish a SocialSpec profile for your site: three small static files un
   ]
 }</code-block>
 
-- `about`: `summary` and `body`. Use `file` (a path from the project root) instead of `body` to read the text from a Markdown file; `body` wins when both are set.
+- `about`: `summary` and `body`. Use `file` instead of `body` to read the text from a Markdown file; `body` wins when both are set. `file` is a path from the project root, inside the site and outside `src/` (for example `content/about.md`), because anything in `src/` is copied to the built site as-is.
 - `contact`: `name` is required. `email`, `url`, `org` and `title` are optional and only written when you set them. Nothing is filled in from other config. The address in `contact.vcf` is public, so use one you are happy to see scraped.
-- `following`: one entry per feed. `feedUrl` must be an absolute URL. `siteUrl` is optional. `"public": false` keeps an entry in the config but out of the file.
+- `following`: one entry per feed. `feedUrl` must be an absolute URL: an `http:` feed is kept with a warning, and an entry whose `feedUrl` is missing or not absolute (for example `/feed.xml`) is dropped from `following.opml`. `siteUrl` is optional; when it is not an absolute URL, the entry is kept but written without `htmlUrl`. `"public": false` keeps an entry in the config but out of the file.
 
 Add `siteUrl` to your site data and set `formats.feed`; every URL in the files is absolute, and a SocialSpec profile starts from the site feed.
+
+### About links and images
+
+In `about.md`, Cook makes root-relative Markdown inline links and images absolute: only the form `](/path)` is rewritten. Raw HTML such as `src="/img/me.png"` or `href="/blog/"`, and reference-style link definitions, are left as written and stay relative, which a reader of `about.md` cannot resolve. Write absolute URLs in those places.
+
+### With `basePath`
+
+When the site sets a `basePath`, the files are written under that base path in the built site. SocialSpec clients look for `/.well-known/` at the domain root, so they will not find them there. Serve the files from the domain root of the host instead.
 
 ## The files
 
@@ -59,7 +67,7 @@ For each file written, Cook adds a block to `_headers` in the site root with the
 
 `_headers` is read by Cloudflare Pages and Netlify. On any other host, set the same three headers yourself for the three paths: the Content-Type from the table, and `Access-Control-Allow-Origin: *`. The files are still written either way.
 
-The optional [Cloudflare Worker](/docs/deployment/) returns `/.well-known/*` untouched, skips content negotiation for it, and adds `Access-Control-Allow-Origin: *` to the three SocialSpec paths.
+The optional [Cloudflare Worker](/docs/deployment/) returns `/.well-known/*` untouched, skips content negotiation for it, and adds `Access-Control-Allow-Origin: *` to the three SocialSpec paths. A missing `/.well-known/*` file returns the host's plain 404: the Worker does not serve your custom 404 page for it.
 
 ## Warnings
 
@@ -74,7 +82,7 @@ These are `[social]` warnings; the build continues.
 
 ## Template data
 
-The `social` template data gains `about`, `contact` and `following` as written in the config, plus `social.aboutHtml`: the about body (or `about.file`) rendered from Markdown to HTML, for an about page. Raw HTML in the Markdown passes through unchanged, so only put text you trust in it.
+The `social` template data gains `about`, `contact` and `following` as written in the config, plus `social.aboutHtml`: the about body (or `about.file`) rendered from Markdown to HTML, for an about page. `aboutHtml` is not sanitized: raw HTML in the Markdown passes through unchanged. That is fine for text you write yourself, but never put content from other people in `about`.
 
 <code-block language="html" label="An about page">&lt;section&gt;
   &lt;p&gt;&#36;{social.about.summary}&lt;/p&gt;
