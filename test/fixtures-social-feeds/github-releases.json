@@ -1,0 +1,44 @@
+[
+  {
+    "url": "https://api.github.com/repos/carol-dev/widget/releases/200000003",
+    "html_url": "https://github.com/carol-dev/widget/releases/tag/v1.3.0-rc.1",
+    "id": 200000003,
+    "author": { "login": "carol-dev", "id": 9000001, "avatar_url": "https://avatars.githubusercontent.com/u/9000001?v=4", "html_url": "https://github.com/carol-dev", "type": "User" },
+    "tag_name": "v1.3.0-rc.1",
+    "target_commitish": "main",
+    "name": "v1.3.0-rc.1",
+    "draft": false,
+    "prerelease": true,
+    "created_at": "2026-11-12T10:00:00Z",
+    "published_at": "2026-11-12T10:05:00Z",
+    "body": "Release candidate."
+  },
+  {
+    "url": "https://api.github.com/repos/carol-dev/widget/releases/200000004",
+    "html_url": "https://github.com/carol-dev/widget/releases/tag/untagged-abc123",
+    "id": 200000004,
+    "author": { "login": "carol-dev", "id": 9000001, "avatar_url": "https://avatars.githubusercontent.com/u/9000001?v=4", "html_url": "https://github.com/carol-dev", "type": "User" },
+    "tag_name": "v1.3.0",
+    "target_commitish": "main",
+    "name": "v1.3.0",
+    "draft": true,
+    "prerelease": false,
+    "created_at": "2026-11-13T10:00:00Z",
+    "published_at": null,
+    "body": "Draft notes."
+  },
+  {
+    "url": "https://api.github.com/repos/carol-dev/widget/releases/200000002",
+    "html_url": "https://github.com/carol-dev/widget/releases/tag/v1.2.0",
+    "id": 200000002,
+    "author": { "login": "carol-dev", "id": 9000001, "avatar_url": "https://avatars.githubusercontent.com/u/9000001?v=4", "html_url": "https://github.com/carol-dev", "type": "User" },
+    "tag_name": "v1.2.0",
+    "target_commitish": "main",
+    "name": "Widget 1.2.0",
+    "draft": false,
+    "prerelease": false,
+    "created_at": "2026-11-07T14:00:00Z",
+    "published_at": "2026-11-07T14:30:00Z",
+    "body": "Adds <thing> & fixes stuff."
+  }
+]

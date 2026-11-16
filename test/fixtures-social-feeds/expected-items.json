@@ -1,0 +1,192 @@
+{
+  "bluesky": [
+    {
+      "id": "bluesky:at://did:plc:alice0000000000000000000/app.bsky.feed.post/3lhost1aaaaa2",
+      "service": "bluesky",
+      "source": "bluesky:alice.example.com",
+      "url": "https://bsky.app/profile/alice.example.com/post/3lhost1aaaaa2",
+      "date": "2026-11-14T08:00:00.000Z",
+      "text": "<script>alert('x')</script> Tom & Jerry say \"hi\"",
+      "tags": [],
+      "reposted": false,
+      "author": {
+        "name": "Alice \"A\" <Example>",
+        "handle": "@alice.example.com",
+        "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:alice0000000000000000000/bafkreialiceavatar@jpeg",
+        "url": "https://bsky.app/profile/alice.example.com"
+      },
+      "counts": {
+        "replies": 0,
+        "reposts": 1,
+        "likes": 2
+      }
+    },
+    {
+      "id": "bluesky:at://did:plc:dave00000000000000000000/app.bsky.feed.post/3lrepost1bbb2",
+      "service": "bluesky",
+      "source": "bluesky:alice.example.com",
+      "url": "https://bsky.app/profile/dave.example.net/post/3lrepost1bbb2",
+      "date": "2026-11-13T09:30:00.000Z",
+      "text": "Shipping a small library today.",
+      "tags": [],
+      "reposted": true,
+      "author": {
+        "name": "Dave",
+        "handle": "@dave.example.net",
+        "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:dave00000000000000000000/bafkreidaveavatar@jpeg",
+        "url": "https://bsky.app/profile/dave.example.net"
+      },
+      "counts": {
+        "replies": 4,
+        "reposts": 9,
+        "likes": 31
+      }
+    },
+    {
+      "id": "bluesky:at://did:plc:alice0000000000000000000/app.bsky.feed.post/3lcard1ddd2",
+      "service": "bluesky",
+      "source": "bluesky:alice.example.com",
+      "url": "https://bsky.app/profile/alice.example.com/post/3lcard1ddd2",
+      "date": "2026-11-10T18:45:00.000Z",
+      "text": "New write-up on static sites",
+      "tags": [],
+      "reposted": false,
+      "author": {
+        "name": "Alice",
+        "handle": "@alice.example.com",
+        "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:alice0000000000000000000/bafkreialiceavatar@jpeg",
+        "url": "https://bsky.app/profile/alice.example.com"
+      },
+      "image": {
+        "url": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:alice0000000000000000000/bafkreicardthumb@jpeg",
+        "alt": "Static sites, again"
+      },
+      "counts": {
+        "replies": 2,
+        "reposts": 3,
+        "likes": 12
+      }
+    },
+    {
+      "id": "bluesky:at://did:plc:alice0000000000000000000/app.bsky.feed.post/3ltags1eee2",
+      "service": "bluesky",
+      "source": "bluesky:alice.example.com",
+      "url": "https://bsky.app/profile/alice.example.com/post/3ltags1eee2",
+      "date": "2026-11-09T07:15:00.000Z",
+      "text": "Finished a great novel #Reading",
+      "tags": [
+        "reading",
+        "books"
+      ],
+      "reposted": false,
+      "author": {
+        "name": "Alice",
+        "handle": "@alice.example.com",
+        "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:alice0000000000000000000/bafkreialiceavatar@jpeg",
+        "url": "https://bsky.app/profile/alice.example.com"
+      },
+      "counts": {
+        "replies": 1,
+        "reposts": 0,
+        "likes": 5
+      }
+    },
+    {
+      "id": "bluesky:at://did:plc:alice0000000000000000000/app.bsky.feed.post/3lplain1fff2",
+      "service": "bluesky",
+      "source": "bluesky:alice.example.com",
+      "url": "https://bsky.app/profile/alice.example.com/post/3lplain1fff2",
+      "date": "2026-11-08T12:00:00.000Z",
+      "text": "Good morning.",
+      "tags": [],
+      "reposted": false,
+      "author": {
+        "name": "Alice",
+        "handle": "@alice.example.com",
+        "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:alice0000000000000000000/bafkreialiceavatar@jpeg",
+        "url": "https://bsky.app/profile/alice.example.com"
+      },
+      "counts": {
+        "replies": 0,
+        "reposts": 0,
+        "likes": 3
+      }
+    }
+  ],
+  "mastodon": [
+    {
+      "id": "mastodon:https://social.example/users/bob/statuses/113500000000000005",
+      "service": "mastodon",
+      "source": "mastodon:@bob@social.example",
+      "url": "https://social.example/@bob/113500000000000005",
+      "date": "2026-11-15T09:00:00.000Z",
+      "text": "Fish & chips at the #Reading group.\nSecond <b>paragraph</b> 'quoted' — ok\nthird line https://example.org/notes",
+      "tags": [
+        "reading"
+      ],
+      "reposted": false,
+      "author": {
+        "name": "Bob B.",
+        "handle": "@bob@social.example",
+        "avatar": "https://files.social.example/accounts/avatars/bob.png",
+        "url": "https://social.example/@bob"
+      },
+      "image": {
+        "url": "https://files.social.example/media_attachments/files/small/chips.jpg",
+        "alt": "A plate of fish and chips"
+      },
+      "counts": {
+        "replies": 3,
+        "reposts": 1,
+        "likes": 7
+      }
+    },
+    {
+      "id": "mastodon:https://other.example/users/erin/statuses/113490000000000010",
+      "service": "mastodon",
+      "source": "mastodon:@bob@social.example",
+      "url": "https://other.example/@erin/113490000000000010",
+      "date": "2026-11-13T11:00:00.000Z",
+      "text": "Boost-worthy news \"today\"",
+      "tags": [
+        "news"
+      ],
+      "reposted": true,
+      "author": {
+        "name": "erin",
+        "handle": "@erin@other.example",
+        "url": "https://other.example/@erin"
+      },
+      "counts": {
+        "replies": 2,
+        "reposts": 6,
+        "likes": 14
+      }
+    }
+  ],
+  "github": [
+    {
+      "id": "github:200000002",
+      "service": "github",
+      "source": "github:carol-dev",
+      "url": "https://github.com/carol-dev/widget/releases/tag/v1.2.0",
+      "date": "2026-11-07T14:30:00.000Z",
+      "text": "Released widget v1.2.0",
+      "tags": [],
+      "reposted": false,
+      "author": {
+        "name": "carol-dev",
+        "handle": "carol-dev",
+        "avatar": "https://avatars.githubusercontent.com/u/9000001?v=4",
+        "url": "https://github.com/carol-dev"
+      },
+      "release": {
+        "repo": "widget",
+        "tag": "v1.2.0",
+        "repoUrl": "https://github.com/carol-dev/widget",
+        "description": "A <small> widget & friends",
+        "language": "JavaScript"
+      }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+[
+  {
+    "id": "113500000000000005",
+    "created_at": "2026-11-15T09:00:00.000Z",
+    "in_reply_to_id": null,
+    "in_reply_to_account_id": null,
+    "sensitive": false,
+    "spoiler_text": "",
+    "visibility": "public",
+    "language": "en",
+    "uri": "https://social.example/users/bob/statuses/113500000000000005",
+    "url": "https://social.example/@bob/113500000000000005",
+    "replies_count": 3,
+    "reblogs_count": 1,
+    "favourites_count": 7,
+    "content": "<p>Fish &amp; chips at the <a href=\"https://social.example/tags/Reading\" class=\"mention hashtag\" rel=\"tag\">#<span>Reading</span></a> group.</p><p>Second &lt;b&gt;paragraph&lt;/b&gt; &#39;quoted&#39; &#x2014; ok<br />third line <a href=\"https://example.org/notes\" rel=\"nofollow noopener\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">example.org/notes</span><span class=\"invisible\"></span></a></p>",
+    "reblog": null,
+    "account": {
+      "id": "109000000000000001",
+      "username": "bob",
+      "acct": "bob",
+      "display_name": "Bob B.",
+      "url": "https://social.example/@bob",
+      "avatar": "https://files.social.example/accounts/avatars/bob.png",
+      "avatar_static": "https://files.social.example/accounts/avatars/bob.png"
+    },
+    "media_attachments": [
+      {
+        "id": "113500000000000099",
+        "type": "image",
+        "url": "https://files.social.example/media_attachments/files/original/chips.jpg",
+        "preview_url": "https://files.social.example/media_attachments/files/small/chips.jpg",
+        "remote_url": null,
+        "description": "A plate of fish and chips"
+      }
+    ],
+    "mentions": [],
+    "tags": [{ "name": "reading", "url": "https://social.example/tags/reading" }],
+    "emojis": [],
+    "card": null
+  },
+  {
+    "id": "113500000000000004",
+    "created_at": "2026-11-14T20:00:00.000Z",
+    "in_reply_to_id": "113400000000000001",
+    "in_reply_to_account_id": "109000000000000077",
+    "visibility": "public",
+    "uri": "https://social.example/users/bob/statuses/113500000000000004",
+    "url": "https://social.example/@bob/113500000000000004",
+    "replies_count": 0,
+    "reblogs_count": 0,
+    "favourites_count": 0,
+    "content": "<p><span class=\"h-card\"><a href=\"https://other.example/@erin\" class=\"u-url mention\">@<span>erin</span></a></span> Thanks!</p>",
+    "reblog": null,
+    "account": {
+      "id": "109000000000000001",
+      "username": "bob",
+      "acct": "bob",
+      "display_name": "Bob B.",
+      "url": "https://social.example/@bob",
+      "avatar": "https://files.social.example/accounts/avatars/bob.png"
+    },
+    "media_attachments": [],
+    "mentions": [{ "id": "109000000000000077", "username": "erin", "acct": "erin@other.example", "url": "https://other.example/@erin" }],
+    "tags": [],
+    "card": null
+  },
+  {
+    "id": "113500000000000003",
+    "created_at": "2026-11-13T11:00:00.000Z",
+    "in_reply_to_id": null,
+    "visibility": "public",
+    "uri": "https://social.example/users/bob/statuses/113500000000000003/activity",
+    "url": null,
+    "replies_count": 0,
+    "reblogs_count": 0,
+    "favourites_count": 0,
+    "content": "",
+    "reblog": {
+      "id": "113490000000000010",
+      "created_at": "2026-11-12T16:20:00.000Z",
+      "in_reply_to_id": null,
+      "visibility": "public",
+      "uri": "https://other.example/users/erin/statuses/113490000000000010",
+      "url": "https://other.example/@erin/113490000000000010",
+      "replies_count": 2,
+      "reblogs_count": 6,
+      "favourites_count": 14,
+      "content": "<p>Boost-worthy news &quot;today&quot;</p>",
+      "reblog": null,
+      "account": {
+        "id": "109000000000000077",
+        "username": "erin",
+        "acct": "erin@other.example",
+        "display_name": "",
+        "url": "https://other.example/@erin",
+        "avatar": "http://other.example/avatars/erin.png"
+      },
+      "media_attachments": [],
+      "mentions": [],
+      "tags": [{ "name": "News", "url": "https://social.example/tags/news" }],
+      "card": null
+    },
+    "account": {
+      "id": "109000000000000001",
+      "username": "bob",
+      "acct": "bob",
+      "display_name": "Bob B.",
+      "url": "https://social.example/@bob",
+      "avatar": "https://files.social.example/accounts/avatars/bob.png"
+    },
+    "media_attachments": [],
+    "mentions": [],
+    "tags": [],
+    "card": null
+  }
+]
