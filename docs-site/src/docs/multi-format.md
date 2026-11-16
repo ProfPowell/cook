@@ -69,6 +69,10 @@ The instructions appear in `llms.txt` under an "Instructions for AI Agents" head
 
 When enabled, Cook concatenates all markdown page content (with frontmatter stripped) into a single `dist/llms-full.txt` file. This is ideal for bulk ingestion by IDE tools and AI systems that want the entire site in one request.
 
+## SocialSpec files
+
+Cook can also write `following.opml`, `about.md` and `contact.vcf` under `/.well-known/` from `config/social.json`. The Worker returns these untouched, never rewriting them to `/md/`. See the [SocialSpec docs](/docs/socialspec/).
+
 ## Configuration
 
 <code-block language="javascript" label="config/main.js">export default {

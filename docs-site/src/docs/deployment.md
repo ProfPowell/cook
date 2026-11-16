@@ -89,6 +89,8 @@ npx wrangler deploy</code-block>
 
 The worker adds `Vary: Accept, X-Requested-With` headers so CDN caches store each format separately.
 
+Requests under `/.well-known/` skip negotiation and return the built file untouched. The worker adds `Access-Control-Allow-Origin: *` to the three [SocialSpec](/docs/socialspec/) files (`following.opml`, `about.md`, `contact.vcf`). On Cloudflare Pages and Netlify, Cook also writes the matching `_headers` blocks; on other hosts, set those headers yourself.
+
 ## Netlify
 
 Add a `netlify.toml` to your project root:

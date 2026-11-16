@@ -85,3 +85,50 @@ describe('worker: redirect passthrough', () => {
     assert.equal(res.headers.get('Location'), '/about/');
   });
 });
+
+describe('worker: /.well-known pass-through', () => {
+  const files = {
+    '/.well-known/about.md': '---\nsummary: "hi"\n---\n\nHello\n',
+    '/.well-known/following.opml': '<opml/>',
+    '/.well-known/contact.vcf': 'BEGIN:VCARD',
+    '/.well-known/security.txt': 'Contact: x',
+    '/md/.well-known/about.md/index.md': '# WRONG',
+    '/.well-known/about.md/_fragment.html': 'WRONG',
+  };
+
+  test('Accept: text/markdown for about.md is not rewritten to /md/', async () => {
+    const res = await worker.fetch(req('/.well-known/about.md', { Accept: 'text/markdown' }), makeEnv(files));
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), files['/.well-known/about.md']);
+  });
+
+  test('htmlstar and json negotiation are skipped too', async () => {
+    const env = makeEnv(files);
+    const a = await worker.fetch(req('/.well-known/about.md', { 'X-Requested-With': 'htmlstar' }), env);
+    assert.equal(await a.text(), files['/.well-known/about.md']);
+    const j = await worker.fetch(req('/.well-known/contact.vcf', { Accept: 'application/json' }), env);
+    assert.equal(await j.text(), 'BEGIN:VCARD');
+  });
+
+  test('CORS header is present on the three SocialSpec paths', async () => {
+    const env = makeEnv(files);
+    for (const p of ['following.opml', 'about.md', 'contact.vcf']) {
+      const res = await worker.fetch(req(`/.well-known/${p}`), env);
+      assert.equal(res.headers.get('Access-Control-Allow-Origin'), '*', p);
+    }
+  });
+
+  test('CORS header is absent elsewhere, and other well-known files are untouched', async () => {
+    const env = makeEnv({ ...files, '/docs/': '<html/>' });
+    const sec = await worker.fetch(req('/.well-known/security.txt'), env);
+    assert.equal(await sec.text(), 'Contact: x');
+    assert.equal(sec.headers.get('Access-Control-Allow-Origin'), null);
+    const page = await worker.fetch(req('/docs/'), env);
+    assert.equal(page.headers.get('Access-Control-Allow-Origin'), null);
+  });
+
+  test('a missing well-known file is a plain 404', async () => {
+    const res = await worker.fetch(req('/.well-known/nope.txt'), makeEnv(files));
+    assert.equal(res.status, 404);
+  });
+});

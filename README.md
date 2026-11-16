@@ -158,11 +158,12 @@ The build process performs the following steps, in this order:
    * Minifies HTML, CSS, and JS source (production only)
 8. **Generates fragments** - A sibling `_fragment.html` per page for SPA-style navigation (`fragments` config)
 9. **Generates formats** - Markdown copies under `/md/`, JSON under `/api/`, Atom feed, and `llms.txt` (`formats` config)
-10. **Creates `sitemap.xml`** - When `sitemap.url` is set, written to the site root (`/dist`, or `/dist/<siteRoot>`); fragments excluded
-11. **Creates bundled files** - `.css` and `.js` bundles are written
-12. **Fingerprints assets** - Opt-in content-hash filenames with HTML and JS-import rewriting (`fingerprint` config)
-13. **Applies `basePath`** - When set, prefixes root-relative URLs in built HTML for sub-path hosting (production only)
-14. **Runs custom-user `after` plugins** - Runs once after file processing
+10. **Writes SocialSpec files** - With `about`, `contact` or `following` in `config/social.json`, writes `following.opml`, `about.md` and `contact.vcf` under `/.well-known/` and adds their `_headers` blocks
+11. **Creates `sitemap.xml`** - When `sitemap.url` is set, written to the site root (`/dist`, or `/dist/<siteRoot>`); fragments excluded
+12. **Creates bundled files** - `.css` and `.js` bundles are written
+13. **Fingerprints assets** - Opt-in content-hash filenames with HTML and JS-import rewriting (`fingerprint` config)
+14. **Applies `basePath`** - When set, prefixes root-relative URLs in built HTML for sub-path hosting (production only)
+15. **Runs custom-user `after` plugins** - Runs once after file processing
 
 A page that fails during the loop is reported (with its path) and skipped; the rest of the site still builds, a failure summary prints at the end, and the process exits non-zero so CI catches it.
 

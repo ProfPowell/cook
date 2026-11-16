@@ -8,13 +8,31 @@
  *   - Accept: application/json    → serves from /api/ path
  *   - Default                     → serves index.html (page scope)
  *
+ * /.well-known/* is returned untouched (no negotiation); the three SocialSpec
+ * files also get Access-Control-Allow-Origin: *.
+ *
  * Falls back to Pages static assets for all requests.
  */
+
+const SOCIALSPEC_PATHS = new Set([
+  '/.well-known/following.opml',
+  '/.well-known/about.md',
+  '/.well-known/contact.vcf',
+]);
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const pathname = url.pathname;
+
+    // Well-known files are served as written: no negotiation, no Vary.
+    if (pathname.startsWith('/.well-known/')) {
+      const res = await env.ASSETS.fetch(request);
+      if (!SOCIALSPEC_PATHS.has(pathname) || !res.ok) return res;
+      const headers = new Headers(res.headers);
+      headers.set('Access-Control-Allow-Origin', '*');
+      return new Response(res.body, { status: res.status, headers });
+    }
     const accept = request.headers.get('Accept') || '';
     const requestedWith = request.headers.get('X-Requested-With') || '';
 
