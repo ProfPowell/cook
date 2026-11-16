@@ -7,3 +7,4 @@
 export { SERVICES } from './catalog.js';
 export { parseHandle, profileUrl, normalizeAccounts } from './accounts.js';
 export { renderSocialLinks } from './render.js';
+export { renderOpml, renderAbout, renderVcard } from './socialspec.js';
