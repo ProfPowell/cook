@@ -131,31 +131,56 @@ describe('SocialSpec files', () => {
     assert.match(await read(b.tmp, '.well-known/about.md'), /From \*file\*/);
   });
 
-  test('warnings: relative/http feedUrl, missing siteUrl, missing feed, nameless contact, missing about.file', async () => {
+  test('http feed is kept with a warning', async () => {
+    const { tmp, out } = await site({
+      ...base,
+      'config/social.json': JSON.stringify({ following: [{ title: 'Http', feedUrl: 'http://x.example/feed.xml', siteUrl: 'http://x.example/' }] }),
+    });
+    assert.match(out, /\[social\].*"Http".*http/);
+    const opml = await read(tmp, '.well-known/following.opml');
+    assert.match(opml, /xmlUrl="http:\/\/x\.example\/feed\.xml"/);
+    assert.match(opml, /htmlUrl="http:\/\/x\.example\/"/);
+  });
+
+  test('relative feed is dropped with a warning', async () => {
+    const { tmp, out } = await site({
+      ...base,
+      'config/social.json': JSON.stringify({ following: [
+        { title: 'Rel', feedUrl: '/feed.xml' },
+        { title: 'Good', feedUrl: 'https://z.example/f.xml' },
+      ] }),
+    });
+    assert.match(out, /\[social\].*"Rel".*absolute/);
+    const opml = await read(tmp, '.well-known/following.opml');
+    assert.match(opml, /z\.example/);
+    assert.doesNotMatch(opml, /Rel/);
+  });
+
+  test('relative siteUrl: entry kept without htmlUrl, with a warning', async () => {
+    const { tmp, out } = await site({
+      ...base,
+      'config/social.json': JSON.stringify({ following: [{ title: 'BadSite', feedUrl: 'https://y.example/f.xml', siteUrl: 'y.example' }] }),
+    });
+    assert.match(out, /\[social\].*"BadSite".*siteUrl/);
+    const opml = await read(tmp, '.well-known/following.opml');
+    assert.match(opml, /xmlUrl="https:\/\/y\.example\/f\.xml"/);
+    assert.doesNotMatch(opml, /htmlUrl/);
+  });
+
+  test('warnings: missing siteUrl, missing feed, nameless contact, missing about.file', async () => {
     const { tmp, out } = await site({
       'src/index.html': page('<p>hi</p>'),
       'config/main.js': 'export default {};\n',
       'config/social.json': JSON.stringify({
-        following: [
-          { title: 'Rel', feedUrl: '/feed.xml' },
-          { title: 'Http', feedUrl: 'http://x.example/feed.xml' },
-          { title: 'BadSite', feedUrl: 'https://y.example/f.xml', siteUrl: 'y.example' },
-          { title: 'Good', feedUrl: 'https://z.example/f.xml' },
-        ],
+        following: [{ title: 'Good', feedUrl: 'https://z.example/f.xml' }],
         contact: { email: 'a@b.c' },
         about: { file: 'nope.md' },
       }),
     });
     assert.match(out, /\[social\].*siteUrl/);
     assert.match(out, /\[social\].*formats\.feed/);
-    assert.match(out, /\[social\].*"Rel".*https/);
-    assert.match(out, /\[social\].*"Http"/);
-    assert.match(out, /\[social\].*"BadSite"/);
     assert.match(out, /\[social\].*no name/);
     assert.match(out, /\[social\].*nope\.md/);
-    const opml = await read(tmp, '.well-known/following.opml');
-    assert.match(opml, /z\.example/);
-    assert.doesNotMatch(opml, /Rel|Http|BadSite/);
     assert.equal(await exists(tmp, '.well-known/contact.vcf'), false);
     assert.equal(await exists(tmp, '.well-known/about.md'), false);
   });

@@ -15,8 +15,12 @@ const TAG = '[social] ';
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
 const warn = (msg) => console.log(chalk.yellow(`${TAG}${msg}`));
-const isHttps = (u) => {
-  try { return new URL(u).protocol === 'https:'; } catch { return false; }
+/** 'https', 'http' or null (not an absolute http(s) URL). */
+const scheme = (u) => {
+  try {
+    const p = new URL(u).protocol;
+    return p === 'https:' ? 'https' : p === 'http:' ? 'http' : null;
+  } catch { return null; }
 };
 
 const TYPES = {
@@ -54,11 +58,18 @@ export function writeSocialspecFiles({ data, rootDir, cwd = process.cwd() }) {
   if (hasFollowing) {
     const kept = [];
     for (const e of raw.following) {
-      if (!e || e.public === false || !nonEmpty(e.feedUrl)) { if (e && e.public !== false) kept.push(e); continue; }
+      if (!e || e.public === false || !nonEmpty(e.feedUrl)) continue;
       const label = e.title || e.feedUrl;
-      if (!isHttps(e.feedUrl)) { warn(`following "${label}": feedUrl must be an absolute https URL, entry skipped`); continue; }
-      if (nonEmpty(e.siteUrl) && !isHttps(e.siteUrl)) { warn(`following "${label}": siteUrl must be an absolute https URL, entry skipped`); continue; }
-      kept.push(e);
+      const feed = scheme(e.feedUrl);
+      if (!feed) { warn(`following "${label}": feedUrl must be an absolute URL, entry skipped`); continue; }
+      if (feed === 'http') warn(`following "${label}": feedUrl is http, not https`);
+      let entry = e;
+      if (nonEmpty(e.siteUrl)) {
+        const site = scheme(e.siteUrl);
+        if (!site) { warn(`following "${label}": siteUrl must be an absolute URL, htmlUrl omitted`); entry = { ...e, siteUrl: undefined }; }
+        else if (site === 'http') warn(`following "${label}": siteUrl is http, not https`);
+      }
+      kept.push(entry);
     }
     const title = `${nonEmpty(data?.siteTitle) ? data.siteTitle : 'Site'} follows`;
     const text = renderOpml(kept, { title });
