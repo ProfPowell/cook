@@ -27,7 +27,8 @@ function aboutHtml(about) {
 /** Set `social` on the data store when a social config exists. */
 export async function socialData({ data }) {
   visibleAccounts = [];
-  const raw = getSocial();
+  // Once per build: read the file afresh; later readers this build get this result (and no repeat warning).
+  const raw = getSocial({ fresh: true });
   if (raw === undefined) return;
   const { all, visible, warnings } = normalizeAccounts(raw);
   for (const w of warnings) console.log(chalk.yellow(`${TAG}${w}`));

@@ -38,12 +38,12 @@ test('feedAccounts: named keys include hidden ones, skip unknown with a warning,
 });
 
 test('parseFeedAttrs: defaults, valid values and fallbacks with warnings', () => {
-  assert.deepEqual(parseFeedAttrs({}), { accounts: '', tags: [], items: 12, height: '32rem', hideCounts: false, warnings: [] });
+  assert.deepEqual(parseFeedAttrs({}), { accounts: '', tags: [], items: 12, height: null, hideCounts: false, warnings: [] });
   const ok = parseFeedAttrs({ tags: '#Cook, html ,', items: '50', height: '12.5vh', 'hide-counts': '' });
   assert.deepEqual([ok.tags, ok.items, ok.height, ok.hideCounts, ok.warnings], [['cook', 'html'], 50, '12.5vh', true, []]);
   const bad = parseFeedAttrs({ items: '51', height: '10px; color: red' });
   assert.equal(bad.items, 12);
-  assert.equal(bad.height, '32rem');
+  assert.equal(bad.height, null, 'an invalid height is dropped, so the element CSS default applies');
   assert.equal(bad.warnings.length, 2);
   assert.ok(bad.warnings.every((w) => w.startsWith('[social-feed] ')));
   assert.equal(parseFeedAttrs({ items: '0' }).items, 12);
@@ -83,4 +83,19 @@ test('cook-ssg/social exports the feed helpers', () => {
   for (const name of ['renderEntry', 'renderFeedParts', 'mergeItems', 'matchesTags', 'readSnapshot', 'snapshotPath', 'renderSocialFeed', 'feedAccounts']) {
     assert.equal(typeof social[name], 'function', name);
   }
+});
+
+test('renderSocialFeed: hand-edited snapshot dates are normalized to ISO before the merge; unparseable ones dropped', () => {
+  const { accounts } = feedAccounts(all, 'bluesky:alice.example.com');
+  const items = [
+    item(1, { id: 'bluesky:at://x/offset', date: '2026-01-01T05:00:00+02:00' }), // 03:00Z
+    item(2, { id: 'bluesky:at://x/zulu', date: '2026-01-01T04:00:00Z' }),
+    item(3, { id: 'bluesky:at://x/bad', date: 'not a date' }),
+  ];
+  const html = renderSocialFeed({ items: '1' }, { accounts, itemsByKey: { [accounts[0].key]: items } });
+  const json = JSON.parse(html.match(/<script type="application\/json" class="social-feed-state">([\s\S]*?)<\/script>/)[1]);
+  assert.match(html, /data-id="bluesky:at:\/\/x\/zulu"/, 'the later instant is shown first');
+  assert.deepEqual(json.buffer.map((i) => [i.id, i.date]), [['bluesky:at://x/offset', '2026-01-01T03:00:00.000Z']]);
+  assert.equal(json.newest[accounts[0].key], '2026-01-01T04:00:00.000Z');
+  assert.ok(!html.includes('x/bad'));
 });

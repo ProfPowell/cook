@@ -133,7 +133,8 @@ describe('<social-feed> build fill', () => {
   test('fills an empty <social-feed> with entries, more line and state JSON', async () => {
     const { read } = await build();
     const html = await read();
-    assert.match(html, /<social-feed style="--social-feed-height: 32rem">/);
+    assert.match(html, /<social-feed>/, 'no inline height without a height attribute');
+    assert.ok(!html.includes('--social-feed-height'));
     assert.match(html, /<activity-feed aria-label="Recent posts" data-infinite(="")?>/);
     const list = articles(html);
     assert.equal(list.length, 12);
@@ -255,19 +256,41 @@ describe('<social-feed> build fill', () => {
     for (const name of await fs.readdir(snapshots)) {
       files[`data/social-feeds/${name}`] = await fs.readFile(path.join(snapshots, name), 'utf8');
     }
-    const { read, requests } = await build({ files, env: { COOK_OFFLINE: '1' } });
+    const { read, requests, out } = await build({ files: { ...files, 'data/social-feeds/github-carol-dev.json': null }, env: { COOK_OFFLINE: '1' } });
     assert.equal(requests.length, 0);
+    const warnings = feedWarnings(out);
+    assert.equal(warnings.length, 2, out);
+    assert.equal(warnings.filter((w) => w.includes('COOK_OFFLINE')).length, 2, out);
+    assert.ok(warnings.some((w) => w.includes('github:carol-dev') && w.includes('no snapshot')), out);
+    assert.ok(!warnings.some((w) => w.includes('bluesky:alice') || w.includes('mastodon:')), out);
     const html = await read();
-    assert.deepEqual(articles(html), articles(await first.read()));
+    const fromSnapshots = articles(await first.read()).filter((a) => a.service !== 'github');
+    assert.equal(articles(html).length, 12);
+    assert.deepEqual(articles(html).slice(0, fromSnapshots.length), fromSnapshots);
+    assert.ok(articles(html).every((a) => a.service !== 'github'));
   });
 
-  test('invalid items/height fall back to 12 / 32rem with a warning', async () => {
+  test('a bad config/social.json is reported once although a page has a <social-feed>', async () => {
+    const { out, read } = await build({ files: { 'config/social.json': '{ not json' } });
+    assert.equal(out.split('\n').filter((l) => l.includes('[social] config/social.json')).length, 1, out);
+    assert.match(await read(), /Nothing yet/);
+  });
+
+  test('a multi-line post keeps its line breaks through the production minifier', async () => {
+    const alice = bsky('alice.example.com', 1);
+    alice.feed[0].post.record.text = 'line one\nline two';
+    const { read } = await build({ stub: routes({ alice }), files: { 'src/index.html': page('<social-feed accounts="bluesky:alice.example.com"></social-feed>') } });
+    assert.match(await read(), /<p class="social-feed-text">line one<br>line two<\/p>/);
+  });
+
+  test('invalid items falls back to 12; invalid height writes no inline height; one warning each', async () => {
     const { read, out } = await build({
       files: { 'src/index.html': page('<social-feed items="abc" height="10furlongs" style="color: red"></social-feed>') },
     });
     const html = await read();
     assert.equal(articles(html).length, 12);
-    assert.match(html, /style="color: red; --social-feed-height: 32rem"/);
+    assert.match(html, /style="color: red"/);
+    assert.ok(!html.includes('--social-feed-height'));
     const warnings = feedWarnings(out);
     assert.equal(warnings.filter((w) => w.includes('items')).length, 1, out);
     assert.equal(warnings.filter((w) => w.includes('height')).length, 1, out);

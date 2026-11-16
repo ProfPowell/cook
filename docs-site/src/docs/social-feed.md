@@ -21,10 +21,10 @@ Accounts come from the same config as [Social Links](/docs/social-links/). Other
 | `accounts` | comma list of account keys, `<service>:<handle>` as stored, such as `bluesky:name.bsky.social`, `mastodon:@user@example.social` or `github:octocat` | every visible Bluesky, Mastodon and GitHub account |
 | `tags` | comma list of hashtags without `#`, matched case-insensitively | none |
 | `items` | how many entries to show first, a whole number from 1 to 50 | `12` |
-| `height` | the scroll height, a length in `rem`, `em`, `px` or `vh` | `32rem` |
+| `height` | the scroll height, a length in `rem`, `em`, `px` or `vh` | `32rem` (from the component's CSS) |
 | `hide-counts` | leave out reply, repost and like counts | counts show |
 
-- An invalid `items` or `height` falls back to the default with a `[social-feed]` warning.
+- An invalid `items` falls back to the default with a `[social-feed]` warning. An invalid `height` is ignored with a warning, so the default applies.
 - A hidden account named in `accounts` is included. A key that is not in the config is skipped with a warning.
 - With `tags`, only Bluesky and Mastodon posts that carry one of the tags show. GitHub releases have no tags, so a block with `tags` shows none.
 - Replies are never shown. Reposts and boosts are.
@@ -33,9 +33,9 @@ Accounts come from the same config as [Social Links](/docs/social-links/). Other
 
 ## Built output
 
-Cook keeps your attributes, sets `--social-feed-height` and writes:
+Cook keeps your attributes and writes the markup below. With a valid `height`, it also sets that length inline as `style="--social-feed-height: …"`; without one it writes no inline height, so the component's CSS default (`32rem`) applies and your own stylesheet can override it without `!important`.
 
-<code-block language="html" label="Built output (shortened)">&lt;social-feed style="--social-feed-height: 32rem"&gt;
+<code-block language="html" label="Built output (shortened)">&lt;social-feed&gt;
   &lt;activity-feed aria-label="Recent posts" data-infinite&gt;
     &lt;article data-activity data-id="…" data-service="bluesky"&gt;…&lt;/article&gt;
   &lt;/activity-feed&gt;
@@ -43,9 +43,10 @@ Cook keeps your attributes, sets `--social-feed-height` and writes:
   &lt;script type="application/json" class="social-feed-state"&gt;…&lt;/script&gt;
 &lt;/social-feed&gt;</code-block>
 
-- Each entry has the author, a permalink with the date, the text, an image when the post has one, release details for GitHub, and counts unless `hide-counts` is set. All post text is escaped, and only `https:` links and images are kept.
+- Each entry has the author, a permalink with the date, the text (each line break written as `<br>`, so HTML minification keeps it), an image when the post has one, release details for GitHub, and counts unless `hide-counts` is set. All post text is escaped, and only `https:` links and images are kept.
 - With nothing to show, `<p class="social-feed-empty">Nothing yet</p>` is written and `data-infinite` is left off.
-- The state JSON holds the accounts, paging cursors, the newest date per account and every other fetched post that matches the block, newest first, for the browser to show before it fetches more. It never holds a token.
+- The state JSON holds the accounts, paging cursors, the newest date per account and every other fetched post that matches the block, newest first, for the browser to show before it fetches more. It never holds a token. Post dates are normalized to ISO 8601 UTC, and a post whose date does not parse (in a hand-edited snapshot, say) is left out.
+- `newest` (account key to the newest post date Cook saw) is reserved: Cook writes it, and the Vanilla Breeze component does not read it yet.
 
 Browser refresh and load-more need Vanilla Breeze's `<social-feed>` component on the page. Without it the built list still shows.
 
@@ -65,7 +66,7 @@ When a service is down, slow (5 seconds) or answers with bad data, Cook uses tha
 
 - Each account is fetched at most once per build, however many blocks use it. `cook dev` reuses results for 10 minutes and rebuilds when `config/social.json` changes.
 - Requests send a generic `User-Agent: cook-ssg`.
-- `COOK_OFFLINE=1` skips the network and builds from snapshots:
+- `COOK_OFFLINE=1` skips the network and builds from snapshots, logging one `[social-feed]` note per build; an account with no snapshot still gets its own warning:
 
 <code-block language="bash" label="Offline build">COOK_OFFLINE=1 npx cook build</code-block>
 

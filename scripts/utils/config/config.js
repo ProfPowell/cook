@@ -52,9 +52,8 @@ function getPrograms() {
 // config/social.json (written by Vanilla Press): the site's social accounts; main.js `social` wins when defined
 const socialJsonPath = `${cwd}/config/social.json`;
 
-/** The social config. Re-read on every call, like getTheme. */
-function getSocial() {
-  if (userConfig.social !== undefined) return userConfig.social;
+/** config/social.json parsed, or undefined (missing or invalid, with a warning). */
+function readSocialJson() {
   if (!fs.existsSync(socialJsonPath)) return undefined;
   try {
     return JSON.parse(fs.readFileSync(socialJsonPath, 'utf8'));
@@ -62,6 +61,21 @@ function getSocial() {
     console.log(chalk.yellow(`[social] config/social.json: ${err.message}`));
     return undefined;
   }
+}
+
+/** The last read of config/social.json, as `{ value }` (null before the first). */
+let socialRead = null;
+
+/**
+ * The social config.
+ * @param {{ fresh?: boolean }} [opts] `fresh` re-reads config/social.json; the
+ *   build does so once at its start (socialData), and later readers in that
+ *   build reuse the result, so a parse error is reported once per build
+ */
+function getSocial({ fresh = false } = {}) {
+  if (userConfig.social !== undefined) return userConfig.social;
+  if (fresh || !socialRead) socialRead = { value: readSocialJson() };
+  return socialRead.value;
 }
 
 

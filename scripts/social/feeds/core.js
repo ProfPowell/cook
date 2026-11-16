@@ -163,7 +163,7 @@ function htmlToText(html) {
   const text = str(html)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>\s*<p(?:\s[^>]*)?>/gi, '\n')
-    .replace(/<[^>]*>/g, '');
+    .replace(/<[^<>]*>/g, '');
   return decodeEntities(text).trim();
 }
 
@@ -373,7 +373,8 @@ export function renderEntry(item, { hideCounts = false, serviceName } = {}) {
   if (avatar) parts.push(`<img class="social-feed-avatar" src="${e(avatar)}" alt="" width="40" height="40" loading="lazy">`);
   parts.push(`<header class="social-feed-head"><b>${e(author.name || author.handle)}</b> <span class="social-feed-handle">${e(author.handle)}</span> <a class="social-feed-permalink" href="${e(url)}"><time datetime="${e(item.date)}">${e(mediumDate(item.date))}</time></a> <span class="social-feed-source">${e(serviceName || item.service)}</span></header>`);
   if (item.reposted) parts.push('<p class="social-feed-reposted">Reposted</p>');
-  parts.push(`<p class="social-feed-text">${e(item.text)}</p>`);
+  // `<br>`, not a raw newline: a whitespace-collapsing minifier keeps it.
+  parts.push(`<p class="social-feed-text">${e(item.text).replace(/\r?\n/g, '<br>')}</p>`);
   const image = isObj(item.image) ? safeHttps(item.image.url) : null;
   if (image) parts.push(`<a class="social-feed-image" href="${e(url)}"><img src="${e(image)}" alt="${e(item.image.alt)}" loading="lazy"></a>`);
   if (isObj(item.release)) {

@@ -13,7 +13,6 @@ import { mergeItems, renderFeedParts, safeHttps } from './core.js';
 const TAG = '[social-feed] ';
 const FEED_SERVICES = ['bluesky', 'mastodon', 'github'];
 const DEFAULT_ITEMS = 12;
-const DEFAULT_HEIGHT = '32rem';
 const HEIGHT = /^\d+(\.\d+)?(rem|em|px|vh)$/;
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -61,12 +60,13 @@ export function feedAccounts(normalized, keysAttr) {
 }
 
 /**
- * Read a block's attributes. Invalid `items` or `height` fall back to the
- * default with a warning.
+ * Read a block's attributes. An invalid `items` falls back to the default
+ * with a warning; an invalid `height` warns and is dropped (null), as is a
+ * missing one, so the element's own CSS default applies.
  * @param {{ accounts?: string|null, tags?: string|null, items?: string|null,
  *   height?: string|null, 'hide-counts'?: string|boolean|null }} attrs
  *   attribute values as authored; a missing attribute is null or undefined
- * @returns {{ accounts: string, tags: string[], items: number, height: string, hideCounts: boolean, warnings: string[] }}
+ * @returns {{ accounts: string, tags: string[], items: number, height: string|null, hideCounts: boolean, warnings: string[] }}
  */
 export function parseFeedAttrs(attrs = {}) {
   const a = isObj(attrs) ? attrs : {};
@@ -81,11 +81,11 @@ export function parseFeedAttrs(attrs = {}) {
     else warnings.push(`${TAG}items="${a.items}" is not a whole number from 1 to 50; using ${DEFAULT_ITEMS}`);
   }
 
-  let height = DEFAULT_HEIGHT;
+  let height = null;
   if (has(a.height)) {
     const s = String(a.height).trim();
     if (HEIGHT.test(s)) height = s;
-    else warnings.push(`${TAG}height="${a.height}" is not a rem, em, px or vh length; using ${DEFAULT_HEIGHT}`);
+    else warnings.push(`${TAG}height="${a.height}" is not a rem, em, px or vh length; ignored`);
   }
 
   const tags = [];
@@ -104,12 +104,16 @@ export function parseFeedAttrs(attrs = {}) {
   };
 }
 
-/** Keep only items with the fields the merge and renderer rely on; snapshots are hand-editable. */
+/**
+ * Keep only items with the fields the merge and renderer rely on; snapshots are
+ * hand-editable. Dates are normalized to ISO 8601 UTC (an unparseable one drops
+ * the item), so mergeItems' string comparison orders them by instant.
+ */
 function cleanItems(list, key) {
   return (Array.isArray(list) ? list : [])
     .filter((i) => isObj(i) && typeof i.id === 'string' && i.id && typeof i.date === 'string'
       && !Number.isNaN(Date.parse(i.date)) && safeHttps(i.url))
-    .map((i) => ({ ...i, source: key }));
+    .map((i) => ({ ...i, date: new Date(i.date).toISOString(), source: key }));
 }
 
 /** JSON safe inside a `<script>`: no `<`, `>` or `&` survive as raw characters. */

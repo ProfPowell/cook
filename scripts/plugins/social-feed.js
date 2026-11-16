@@ -8,7 +8,11 @@
  * block with `tags` further pages from the cached cursor until enough posts
  * match, at most 3 pages in all. A successful fetch with at least one item writes
  * data/social-feeds/<service>-<slug>.json; a failed one falls back to that
- * snapshot. `COOK_OFFLINE=1` uses snapshots only. Feeds never fail a build.
+ * snapshot. `COOK_OFFLINE=1` uses snapshots only (one note per build; an
+ * account with no snapshot still warns). Feeds never fail a build.
+ *
+ * `--social-feed-height` is written inline only from a valid `height`; without
+ * one the component's CSS default (32rem) applies.
  */
 
 import chalk from 'chalk';
@@ -92,7 +96,7 @@ async function extend(account, entry, { want, tags }) {
   const rootDir = process.cwd();
   const { key } = account;
   if (entry.failed) return;
-  if (entry.pages === 0 && offline()) return useSnapshot(account, entry, 'COOK_OFFLINE is set');
+  if (entry.pages === 0 && offline()) return useSnapshot(account, entry, 'COOK_OFFLINE is set', { quiet: true });
   const passing = () => entry.items.filter((i) => matchesTags(i, tags)).length;
   while (!entry.done && !entry.stopped && entry.pages < MAX_PAGES && (entry.pages === 0 || passing() < want)) {
     try {
@@ -117,11 +121,15 @@ async function extend(account, entry, { want, tags }) {
   }
 }
 
-/** A failed or offline account: its snapshot items, no cursor, not done. */
-function useSnapshot(account, entry, why) {
+/**
+ * A failed or offline account: its snapshot items, no cursor, not done.
+ * `quiet` (offline): a found snapshot gives one note per build, not a line per account.
+ */
+function useSnapshot(account, entry, why, { quiet = false } = {}) {
   entry.failed = true;
   const items = readSnapshot(process.cwd(), account);
-  warn(`${TAG}${account.key}: ${why}; ${items ? 'using the snapshot' : 'no snapshot, so nothing from this account'}`);
+  if (items && quiet) warn(`${TAG}${why}; using snapshots`);
+  else warn(`${TAG}${account.key}: ${why}; ${items ? 'using the snapshot' : 'no snapshot, so nothing from this account'}`);
   entry.items = items || [];
   entry.cursor = null;
   entry.done = false;
@@ -171,7 +179,7 @@ export async function fillSocialFeeds({ file, allowType }) {
     });
 
     el.innerHTML = renderSocialFeed(attrs, { accounts, itemsByKey, cursorsByKey });
-    el.setAttribute('style', withHeight(el.getAttribute('style'), opts.height));
+    if (opts.height) el.setAttribute('style', withHeight(el.getAttribute('style'), opts.height));
   }
   Util.commitDom(file, dom, true);
 }

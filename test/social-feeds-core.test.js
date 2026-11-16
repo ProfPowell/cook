@@ -215,3 +215,18 @@ test('normalized fixtures equal expected-items.json; rendered fixtures equal exp
     .join('\n') + '\n';
   assert.equal(html, readFileSync(fx('expected-entry.html'), 'utf8'));
 });
+
+test('renderEntry: each newline in the text becomes <br>, so a whitespace-collapsing minifier keeps the line breaks', () => {
+  const item = { id: 'x:1', service: 'bluesky', url: 'https://bsky.app/p/1', date: '2026-11-01T00:00:00.000Z', text: 'one <a>\ntwo\n\nthree', author: { name: 'A', handle: '@a' } };
+  const html = renderEntry(item, { hideCounts: true });
+  assert.match(html, /<p class="social-feed-text">one &lt;a&gt;<br>two<br><br>three<\/p>/);
+  assert.ok(!/social-feed-text">[^<]*\n/.test(html), 'no raw newline left in the text');
+});
+
+test('mastodon: tag stripping is linear on a long run of "<" with no ">"', () => {
+  const content = 'x' + '<'.repeat(50000);
+  const started = Date.now();
+  const { items } = normalizeMastodon([{ id: '1', uri: 'https://m.example/s/1', url: 'https://m.example/@a/1', created_at: '2026-11-01T00:00:00Z', content, account: { acct: 'a', url: 'https://m.example/@a' } }], BOB);
+  assert.ok(Date.now() - started < 500, `took ${Date.now() - started}ms`);
+  assert.equal(items.length, 1);
+});
