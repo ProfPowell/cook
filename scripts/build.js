@@ -38,6 +38,7 @@ import processHtmlFrontmatter from './plugins/process-html-frontmatter.js';
 import replaceInclude from './plugins/replace-include.js';
 import replaceInline from './plugins/replace-inline.js';
 import replaceMissingExternalLinkProtocol from './plugins/replace-external-link-protocol.js';
+import { socialData, fillSocialLinks } from './plugins/social-links.js';
 import replaceTemplateStrings from './plugins/replace-template-strings.js';
 import conditionalSections from './plugins/conditional-sections.js';
 import setActiveLinks from './plugins/set-active-links.js';
@@ -106,6 +107,9 @@ class Build {
 
     // PLUGIN: Programs: `programs` / `programAreas` data from config/programs.json
     await programsData({data});
+
+    // PLUGIN: Social: `social` data from config/social.json (or main.js `social`)
+    await socialData({data});
 
     // PLUGIN: Generate responsive image derivatives (AVIF/WebP at multiple widths)
     await optimizeImagesGenerate({store});
@@ -190,6 +194,9 @@ class Build {
       // Merge front matter data so page-level variables resolve alongside global data
       const templateData = file.frontMatter ? { ...data, ...file.frontMatter } : data;
       replaceTemplateStrings({file, data: templateData, allowType: ['.html', '.json', '.webmanifest']});
+
+      // PLUGIN: Fill empty <social-links> elements with the site's profile links
+      fillSocialLinks({file, data, allowType: ['.html']});
 
       // PLUGIN: Rewrite <img> to <picture> with responsive srcset
       await optimizeImagesRewrite({file, store, allowType: ['.html']});

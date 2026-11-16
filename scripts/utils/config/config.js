@@ -49,6 +49,21 @@ function getPrograms() {
   }
 }
 
+// config/social.json (written by Vanilla Press): the site's social accounts; main.js `social` wins when defined
+const socialJsonPath = `${cwd}/config/social.json`;
+
+/** The social config. Re-read on every call, like getTheme. */
+function getSocial() {
+  if (userConfig.social !== undefined) return userConfig.social;
+  if (!fs.existsSync(socialJsonPath)) return undefined;
+  try {
+    return JSON.parse(fs.readFileSync(socialJsonPath, 'utf8'));
+  } catch (err) {
+    console.log(chalk.yellow(`[social] config/social.json: ${err.message}`));
+    return undefined;
+  }
+}
+
 
 // DEFINE DEFAULT CONFIG
 // -----------------------------
@@ -349,7 +364,7 @@ const config = mergeConfigs(defaultConfig, userConfig);
 export default config;
 
 // Named exports for destructuring imports
-export { getTheme, getPrograms };
+export { getTheme, getPrograms, getSocial };
 export const {
   activeLink,
   autoComponents,

@@ -23,6 +23,10 @@ These roadmap items are already implemented and were removed from the remaining 
 
 ## Release Notes
 
+### 2.10.0 (unreleased)
+
+- Social accounts: `config/social.json` (or `social` in `main.js`) feeds `social.accounts` / `social.allAccounts` template data and fills each empty `<social-links>` element with a list of profile links at build. The `cook-ssg/social` module parses and renders accounts. See the Social Links docs.
+
 ### 2.8.0 (unreleased)
 
 - Layout inheritance: a layout whose `<html>` or `<body>` has `data-template` is built on a parent (depth 5, cycles are build errors), for HTML and Markdown pages. Slots are forwarded explicitly.

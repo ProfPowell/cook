@@ -147,6 +147,7 @@ The build process performs the following steps, in this order:
    * Repeats elements for each item in collections (`[data-repeat]`, nesting supported)
    * Replaces custom elements and `[data-component]` elements with templates (nesting supported; flat or Declarative Shadow DOM)
    * Replaces ES6 template strings (`${}`) with front matter + global data
+   * Fills empty `<social-links>` elements with profile links from `config/social.json`
    * Rewrites `<img>` to responsive `<picture>` elements
    * Detects custom elements and manages component JS loading (`autoComponents` config)
    * Pre-renders Declarative Shadow DOM from a manifest (`dsd` config)
