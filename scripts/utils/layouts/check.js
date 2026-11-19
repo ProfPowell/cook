@@ -8,7 +8,7 @@
 import { parseLayoutSource, childrenOf } from './parse.js';
 import {
   FORMAT, PAGE_LAYOUTS, DOCUMENT_FIELDS, HEAD_ELEMENTS, HEAD_SLOT_ELEMENTS,
-  TEXT_ELEMENTS, INLINE_ELEMENTS, CONTAINER_ELEMENTS, LAYOUT_WRAPPERS, MENU_ELEMENTS,
+  TEXT_ELEMENTS, INLINE_ELEMENTS, HEADING_ELEMENTS, CONTAINER_ELEMENTS, LAYOUT_WRAPPERS, MENU_ELEMENTS,
   LAYOUT_ELEMENTS, BODY_REGIONS, ELEMENT_ATTRS, isGlobalAttr,
 } from './vocabulary.js';
 
@@ -353,6 +353,7 @@ class Checker {
     if (this.isInclude(el)) return this.include(el, ctx);
     if (MENU_ELEMENTS.includes(name)) return this.menu(el, ctx);
     if (TEXT_ELEMENTS.includes(name)) return this.textBlock(el, ctx);
+    if (name === 'hgroup') return this.hgroup(el, ctx);
     if (name === 'img') return this.checkAttrs(el, ctx);
     if (name === 'picture') return this.picture(el, ctx);
     if (name === 'figure') return this.figure(el, ctx);
@@ -442,6 +443,28 @@ class Checker {
   inline(el, ctx) {
     this.checkAttrs(el, ctx);
     this.walkInline(el, ctx);
+  }
+
+  /** An `<hgroup>`: exactly one heading and any paragraphs, each a text block. */
+  hgroup(el, ctx) {
+    this.checkAttrs(el, ctx);
+    let headings = 0;
+    for (const node of childrenOf(el)) {
+      if (isBlank(node)) continue;
+      const name = node.nodeType === 1 ? tagOf(node) : null;
+      if (name && HEADING_ELEMENTS.includes(name)) {
+        headings += 1;
+        this.textBlock(node, ctx);
+      } else if (name === 'p') {
+        this.textBlock(node, ctx);
+      } else if (name) {
+        this.checkHandlers(node);
+        this.problem(node, `<${name}> can't be inside <hgroup> (one heading and paragraphs)`);
+      } else {
+        this.problemAt(el, node.textContent.trim(), '<hgroup> holds one heading and paragraphs, not bare text');
+      }
+    }
+    if (headings !== 1) this.problem(el, `<hgroup> needs exactly one heading (h1–h6), found ${headings}`);
   }
 
   picture(el, ctx) {
@@ -587,6 +610,8 @@ class Checker {
   condition(el, attr, value, ctx) {
     const key = value.trim();
     const slot = key.match(SLOT_KEY);
+    // The page's content: set when the page produced any. Testing it is not a use of ${content}.
+    if (key === 'content') return;
     if (slot) {
       if (this.declaredSlots && !this.declaredSlots.has(slot[1])) {
         this.problem(el, `${attr}="${key}" names a slot the info block doesn't declare`);

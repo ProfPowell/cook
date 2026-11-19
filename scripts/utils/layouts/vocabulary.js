@@ -30,8 +30,14 @@ export const HEAD_SLOT_ELEMENTS = ['meta', 'link', 'script', 'style'];
 /** Text blocks: static text, fields and inline elements. */
 export const TEXT_ELEMENTS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'small', 'figcaption', 'blockquote'];
 
-/** Inline elements allowed inside text blocks. */
-export const INLINE_ELEMENTS = ['a', 'strong', 'em', 'span', 'time', 'br', 'img', 'abbr', 'code'];
+/**
+ * Inline elements allowed inside text blocks. `small` is also a text block
+ * of its own (see TEXT_ELEMENTS).
+ */
+export const INLINE_ELEMENTS = ['a', 'strong', 'em', 'span', 'time', 'br', 'img', 'abbr', 'code', 'small', 'mark'];
+
+/** Headings: an `<hgroup>` holds exactly one, plus paragraphs. */
+export const HEADING_ELEMENTS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
 /** Sectioning elements: containers without needing `data-layout`. */
 export const SECTIONING = ['article', 'aside', 'nav', 'section'];

@@ -303,6 +303,46 @@ describe('checkLayout', () => {
     assert.ok(hasProblem(unknown, '"imag"'));
   });
 
+  test('data-if="content": a layout can test whether the page has content', () => {
+    const ok = checkLayout(child('<section data-if="content"><h2>About</h2>${content}</section>'));
+    assert.deepEqual(ok.problems, []);
+    const unless = checkLayout(base({ body: '<main>${content}<p data-unless="content">Nothing yet</p></main>' }));
+    assert.deepEqual(unless.problems, []);
+    // Testing content is not a use of it: the layout still needs its one ${content}.
+    const missing = checkLayout(child('<section data-if="content"><h2>About</h2></section>'));
+    assert.ok(hasProblem(missing, 'no ${content}'));
+  });
+
+  test('hgroup: one heading and its paragraphs', () => {
+    const ok = checkLayout(base({
+      body: '<main><article><header><hgroup><h1>${title}</h1><p>${description}</p></hgroup></header>${content}</article></main>',
+    }));
+    assert.deepEqual(ok.problems, []);
+
+    const twoHeadings = checkLayout(base({ body: '<main><hgroup><h1>a</h1><h2>b</h2></hgroup>${content}</main>' }));
+    assert.ok(hasProblem(twoHeadings, 'one heading'));
+
+    const noHeading = checkLayout(base({ body: '<main><hgroup><p>a</p></hgroup>${content}</main>' }));
+    assert.ok(hasProblem(noHeading, 'one heading'));
+
+    const block = checkLayout(base({ body: '<main><hgroup><h1>a</h1><ul><li>b</li></ul></hgroup>${content}</main>' }));
+    assert.ok(hasProblem(block, '<ul> can\'t be inside <hgroup>'));
+
+    // Not text-level: never inside a paragraph or a heading.
+    const inP = checkLayout(base({ body: '<main><p><hgroup><h1>a</h1></hgroup></p>${content}</main>' }));
+    assert.equal(inP.ok, false);
+  });
+
+  test('small and mark are text-level: small inside p, mark inside a heading', () => {
+    const ok = checkLayout(base({
+      body: '<main><h1>${title} <mark>new</mark></h1><p>${description} <small>Sample</small></p>${content}</main>',
+    }));
+    assert.deepEqual(ok.problems, []);
+    // small stays a text block of its own too.
+    const alone = checkLayout(base({ body: '<main><small>Sample</small>${content}</main>' }));
+    assert.deepEqual(alone.problems, []);
+  });
+
   test('inline handler', () => {
     const p = checkLayout(base({ body: '<main>${content}<p onclick="go()">x</p></main>' }));
     assert.equal(p.ok, false);

@@ -57,6 +57,7 @@ A key is **not set** when it is missing, an empty string (or only spaces), an em
 
 - a page field (`image`), or a site field from `config/data.js`;
 - `slot:name`, for a slot the page filled;
+- `content`, set when the page produced any content (testing it doesn't count as the layout's one `content` placeholder);
 - `item.field`, inside a `data-repeat`.
 
 ### Inside a repeat
@@ -103,7 +104,8 @@ Inside `main`, `header`, `nav`, `aside`, `footer`, a child's body, slot template
 |---|---|
 | Content | the `content` placeholder, exactly once, inside `main` (base) or the child body |
 | Slot | a `slot:name` placeholder, alone inside its parent element |
-| Text | `h1` to `h6`, `p`, `small`, `figcaption`, `blockquote`, holding text, fields and `a`, `strong`, `em`, `span`, `time`, `br`, `img`, `abbr`, `code` |
+| Text | `h1` to `h6`, `p`, `small`, `figcaption`, `blockquote`, holding text, fields and `a`, `strong`, `em`, `span`, `time`, `br`, `img`, `abbr`, `code`, `small`, `mark` |
+| Heading group | `hgroup` holding exactly one heading (`h1` to `h6`) and any `p` (it is a block, never inside a `p` or a heading) |
 | Image | `img`, `picture` with `source`, or a `figure` around them, with an optional `figcaption` |
 | Container | a Vanilla Breeze `layout-*` element, or `div`, `section`, `article`, `header`, `footer`, `nav`, `aside` carrying `data-layout` (sectioning elements need no attribute) |
 | List | any block with `data-repeat="source \| limit:N as item"`, such as a container, a `ul` or an `li` in a menu (see below); Cook clones the element it sits on, and its fields are `item.x` |
