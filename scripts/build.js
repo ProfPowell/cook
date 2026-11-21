@@ -54,8 +54,8 @@ import { collectSitePages } from './utils/site-pages/site-pages.js';
 
 // CONFIG
 // Combined user overrides on top of internal defaults
-import config, { access, plugins, distPath, siteRoot } from './utils/config/config.js';
-import { buildLevel, levelsOf } from './utils/access/access.js';
+import config, { access, plugins, distPath, siteRoot, srcPath } from './utils/config/config.js';
+import { buildLevel, distPageLevel, levelsOf, pageAccessData } from './utils/access/access.js';
 import { siteRootDir } from './utils/site-root/site-root.js';
 
 const cwd = process.cwd();
@@ -170,6 +170,15 @@ class Build {
       // Strips front matter from source, stores on file.frontMatter
       await processHtmlFrontmatter({file, allowType: ['.html']});
 
+      // ACCESS: `${access.level}` stays the build's level on every page;
+      // `${access.page}` is the page's own level. A front matter `access`
+      // key is the page's level, so it is replaced here before any plugin
+      // merges front matter over site data.
+      const pageAccess = file.ext === 'html'
+        ? pageAccessData(data.access, distPageLevel(file.path, { srcPath, distPath, frontMatter: file.frontMatter, access }))
+        : null;
+      if (pageAccess && file.frontMatter) file.frontMatter.access = pageAccess;
+
       // PLUGIN: HTML-escape <code-block data-escape> content for display
       // Must run BEFORE any JSDOM-based plugin (applyTemplate, replaceInclude, etc.)
       // because JSDOM would parse raw HTML/JS inside code-blocks as real DOM nodes
@@ -202,7 +211,8 @@ class Build {
       // PLUGIN: Render all ES6 template strings
       // Runs last: resolves ${var} across the fully assembled page (includes + components + repeats)
       // Merge front matter data so page-level variables resolve alongside global data
-      const templateData = file.frontMatter ? { ...data, ...file.frontMatter } : data;
+      const templateData = file.frontMatter ? { ...data, ...file.frontMatter }
+        : pageAccess ? { ...data, access: pageAccess } : data;
       replaceTemplateStrings({file, data: templateData, allowType: ['.html', '.json', '.webmanifest']});
 
       // PLUGIN: Fill empty <social-links> elements with the site's profile links

@@ -96,6 +96,7 @@ describe('build at an access level', () => {
   before(async () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'cook-access-build-'));
     await write(tmp, 'config/main.js', `export default {
+  buildOnlyPaths: ['layouts'],
   collections: { html: true },
   sitemap: { url: 'https://example.com' },
   formats: { feed: { collection: 'posts' }, json: false, markdown: false, llmsTxt: false },
@@ -110,13 +111,25 @@ describe('build at an access level', () => {
 <body><p id="level">\${access.level}</p><ul><li data-repeat="collections.posts as post" class="slug" data-access="\${post.access}">\${post.slug}</li></ul></body></html>
 `);
     await write(tmp, 'src/posts/pub.html', post('Pub'));
-    await write(tmp, 'src/posts/fr.html', post('Fr', 'access: friends\n'));
+    await write(tmp, 'src/layouts/post.html', `<!doctype html>
+<html lang="en"><head><title>\${title}</title></head>
+<body><article>\${content}</article><footer id="acc">\${access.level}|\${access.page}</footer></body></html>
+`);
+    await write(tmp, 'src/posts/fr.html', `---
+title: Fr
+date: 2026-01-10
+access: friends
+layout: post
+---
+<p>Fr body</p>
+`);
     await write(tmp, 'src/posts/pv.html', post('Pv', 'access: private\n'));
     await write(tmp, 'src/posts/typo.html', post('Typo', 'access: Friends\n'));
     await write(tmp, 'src/posts/mdfr.md', `---
 title: Md Fr
 date: 2026-01-09
 access: friends
+layout: post
 ---
 markdown friends body
 `);
@@ -165,6 +178,15 @@ markdown friends body
     assert.match(await read(tmp, 'dist/index.html'), /<p id="level">friends<\/p>/);
   });
 
+  test('friends: a restricted page keeps the build level in access.level, its own in access.page', async () => {
+    const html = await read(tmp, 'dist/posts/fr/index.html');
+    assert.match(html, /<footer id="acc">friends\|friends<\/footer>/);
+    assert.match(html, /Fr body/);
+    const md = await read(tmp, 'dist/posts/mdfr/index.html');
+    assert.match(md, /<footer id="acc">friends\|friends<\/footer>/);
+    assert.match(md, /markdown friends body/);
+  });
+
   test('private: everything present; the typo page is private', async () => {
     build(tmp, { COOK_ACCESS_LEVEL: 'private' });
     for (const rel of ['dist/posts/pub/index.html', 'dist/posts/fr/index.html', 'dist/posts/pv/index.html', 'dist/posts/typo/index.html', 'dist/posts/mdfr/index.html', 'dist/media/fr.jpg']) {
@@ -173,6 +195,9 @@ markdown friends body
     const items = await slugs();
     assert.deepEqual(items.map(s => s.slug).sort(), ['fr', 'mdfr', 'pub', 'pv', 'typo']);
     assert.equal(items.find(s => s.slug === 'typo').access, 'private');
+    // The build level is private; the pages are friends
+    assert.match(await read(tmp, 'dist/posts/fr/index.html'), /<footer id="acc">private\|friends<\/footer>/);
+    assert.match(await read(tmp, 'dist/posts/mdfr/index.html'), /<footer id="acc">private\|friends<\/footer>/);
   });
 
   test('dev single-page change to a restricted page does not build it', async () => {

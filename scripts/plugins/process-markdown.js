@@ -19,7 +19,7 @@ import { layoutConditionals } from '../utils/layouts/conditionals.js';
 // Config
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
 import { isProgramFile } from './programs.js';
-import { buildLevel, isVisible, levelsOf, resolveLevel } from '../utils/access/access.js';
+import { buildLevel, isVisible, levelsOf, pageAccessData, resolveLevel } from '../utils/access/access.js';
 import { access, distPath, srcPath, markdown as markdownConfig } from '../utils/config/config.js';
 
 
@@ -148,6 +148,8 @@ class ProcessMarkdown {
 
       // Build page data
       const pageData = this.buildPageData(filePath, frontMatter, htmlContent);
+      // The resolved level, not the raw front matter value
+      pageData.access = pageLevel;
 
       // Get layout if specified
       const layout = frontMatter.layout || this.config.layout;
@@ -173,9 +175,6 @@ class ProcessMarkdown {
       // Track for collections
       this.processedFiles.push({
         ...pageData,
-        // Resolved level on the collection item (not in layout data, where
-        // it would hide the site's `access`)
-        access: pageLevel,
         outputPath,
       });
 
@@ -251,6 +250,9 @@ class ProcessMarkdown {
     const finalHtml = await renderLayout(layoutName, {
       ...this.data,
       ...pageData,
+      // `${access.level}` stays the build's level; `${access.page}` is this
+      // page's (front matter `access` must not replace the site's)
+      access: pageAccessData(this.data.access, pageData.access),
       content: pageData.content ?? '',
     }, {
       loadLayout: (name) => this.getLayout(name),

@@ -20,7 +20,7 @@
 
 // IMPORTS
 // -----------------------------
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import chalk from 'chalk';
 import matter from 'gray-matter';
@@ -184,4 +184,45 @@ export function srcFileLevel(file, srcPath, accessConfig, warn = warnAccess) {
 export function isSrcFileVisible(file, srcPath, accessConfig) {
   const levels = levelsOf(accessConfig);
   return isVisible(srcFileLevel(file, srcPath, accessConfig), buildLevel(accessConfig), levels);
+}
+
+/**
+ * Level of a built page in dist, from its source file: `a/index.html` may
+ * come from `a/index.html`, `a.html` (convertPageToDirectory) or a markdown
+ * file. A page with no source file (a dynamic page) is resolved from its
+ * own path and front matter.
+ * @param {string} distFile - Path to the page in distPath
+ * @param {Object} opts
+ * @param {string} opts.srcPath
+ * @param {string} opts.distPath
+ * @param {Object|null} [opts.frontMatter]
+ * @param {Object} opts.access - Access config
+ * @returns {string}
+ */
+export function distPageLevel(distFile, { srcPath, distPath, frontMatter = null, access }) {
+  const rel = path.relative(distPath, distFile).split(path.sep).join('/');
+  const candidates = [rel];
+  if (/(^|\/)index\.html$/.test(rel)) {
+    const base = rel.replace(/\/?index\.html$/, '');
+    if (base) candidates.push(`${base}.html`, `${base}.md`);
+    candidates.push(rel.replace(/\.html$/, '.md'));
+  } else if (rel.endsWith('.html')) {
+    candidates.push(rel.replace(/\.html$/, '.md'));
+  }
+  for (const candidate of candidates) {
+    const src = path.join(srcPath, candidate);
+    if (existsSync(src)) return srcFileLevel(src, srcPath, access);
+  }
+  return resolveLevel({ relPath: rel, frontMatter: frontMatter ?? {} }, access);
+}
+
+/**
+ * Site `access` data for one page's templates: the build's `level` and
+ * `levels`, plus `page`, the page's own level.
+ * @param {Object} siteAccess - `data.access`
+ * @param {string} pageLevel
+ * @returns {Object}
+ */
+export function pageAccessData(siteAccess, pageLevel) {
+  return { ...siteAccess, page: pageLevel };
 }

@@ -71,7 +71,13 @@ A build level that is not in `levels` builds at the first level (`public`), with
 
 ## In templates
 
-`access` in site data holds the build's level and the level names, for example `${access.level}`. In a page whose front matter sets `access`, `${access}` is that page's own level instead.
+`access` in site data describes the build. On every page, including restricted ones:
+
+- `${access.level}` is the level this build runs at;
+- `${access.levels}` is the list of level names;
+- `${access.page}` is the page's own resolved level (on markdown pages and HTML pages).
+
+A front matter `access` key sets the page's level; it does not replace the site's `access`. A friends page in a private build has `${access.level}` = `private` and `${access.page}` = `friends`.
 
 Each collection item has `access` set to its resolved level, so a list can mark restricted posts:
 
