@@ -11,9 +11,10 @@ import fs from 'fs-extra';
 import Logger from '../utils/logger/logger.js';
 import Util from '../utils/util/util.js';
 import { isProgramFile } from './programs.js';
+import { isSrcFileVisible } from '../utils/access/access.js';
 
 // Config
-import { buildOnlyPaths, distPath, srcPath } from '../utils/config/config.js';
+import { access, buildOnlyPaths, distPath, srcPath } from '../utils/config/config.js';
 
 // DEFINE
 // -----------------------------
@@ -32,6 +33,12 @@ class CopySrc {
       const changedPath = process.env.DEV_CHANGED_PAGE;
       const changedSrcPath = changedPath;
       const changedDistPath = changedPath.replace(srcPath, distPath);
+      // A page above the build's access level is never copied
+      if (!isSrcFileVisible(changedSrcPath, srcPath, access)) {
+        Logger.persist.header(`\nSkipped Updated Page`);
+        Logger.persist.success(`/${changedSrcPath} is above this build's access level (not copied)`);
+        return;
+      }
       // Show terminal message: Start
       Logger.persist.header(`\nCopied Updated Page`);
       // Copy changed page to `/dist` only
@@ -64,10 +71,13 @@ class CopySrc {
         if (pattern.test(src)) return false;
       }
     }
+    const isDirectory = fs.lstatSync(src).isDirectory();
+    // Files above the build's access level are left out (program files too)
+    if (!isDirectory && !isSrcFileVisible(src, srcPath, access)) return false;
     // Program folders ship untouched: every file, markdown included
     if (isProgramFile(src, srcPath)) return true;
     // Skip directories (allow them to be traversed, filtering happens on files/subdirs)
-    if (fs.lstatSync(src).isDirectory()) return true;
+    if (isDirectory) return true;
     // ---
     // MARKDOWN
     // Don't copy markdown files

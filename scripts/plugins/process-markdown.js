@@ -19,7 +19,8 @@ import { layoutConditionals } from '../utils/layouts/conditionals.js';
 // Config
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
 import { isProgramFile } from './programs.js';
-import { distPath, srcPath, markdown as markdownConfig } from '../utils/config/config.js';
+import { buildLevel, isVisible, levelsOf, resolveLevel } from '../utils/access/access.js';
+import { access, distPath, srcPath, markdown as markdownConfig } from '../utils/config/config.js';
 
 
 // DEFINE
@@ -137,6 +138,11 @@ class ProcessMarkdown {
       // Parse front matter
       const { data: frontMatter, content: markdownContent } = matter(content);
 
+      // Above the build's access level: not written, not collected
+      const relPath = path.relative(srcPath, filePath).split(path.sep).join('/');
+      const pageLevel = resolveLevel({ relPath, frontMatter }, access);
+      if (!isVisible(pageLevel, buildLevel(access), levelsOf(access))) return;
+
       // Convert markdown to HTML
       const htmlContent = marked(markdownContent);
 
@@ -167,6 +173,9 @@ class ProcessMarkdown {
       // Track for collections
       this.processedFiles.push({
         ...pageData,
+        // Resolved level on the collection item (not in layout data, where
+        // it would hide the site's `access`)
+        access: pageLevel,
         outputPath,
       });
 

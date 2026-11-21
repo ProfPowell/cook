@@ -10,9 +10,10 @@ import Logger from '../logger/logger.js';
 import Util from '../util/util.js';
 import { isProgramFile } from '../../plugins/programs.js';
 import { SourceFile } from '../source-file/source-file.js';
+import { isSrcFileVisible } from '../access/access.js';
 
 // CONFIG
-import { includePaths, excludePaths, distPath, srcPath } from '../config/config.js';
+import { access, includePaths, excludePaths, distPath, srcPath } from '../config/config.js';
 
 // DATA STORE
 // Shared singleton — the SAME instance build.js passes to plugins, so
@@ -118,7 +119,10 @@ async function getSrcFiles() {
   if (isValidPageChange) {
     const getDistVersionOfChangedPage = process.env.DEV_CHANGED_PAGE.replace(srcPath, distPath);
     // A file inside a program folder is only copied (copySrc), never built
-    files = isProgramFile(getDistVersionOfChangedPage, distPath) ? [] : [getDistVersionOfChangedPage];
+    // A page above the build's access level was not copied (copySrc), so it is not built
+    files = isProgramFile(getDistVersionOfChangedPage, distPath)
+      || !isSrcFileVisible(process.env.DEV_CHANGED_PAGE, srcPath, access)
+      ? [] : [getDistVersionOfChangedPage];
   }
   // FULL BUILD
   // Otherwise, find all allowed files, loop through them, and run the build plugins on them

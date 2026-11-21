@@ -54,7 +54,8 @@ import { collectSitePages } from './utils/site-pages/site-pages.js';
 
 // CONFIG
 // Combined user overrides on top of internal defaults
-import config, { plugins, distPath, siteRoot } from './utils/config/config.js';
+import config, { access, plugins, distPath, siteRoot } from './utils/config/config.js';
+import { buildLevel, levelsOf } from './utils/access/access.js';
 import { siteRootDir } from './utils/site-root/site-root.js';
 
 const cwd = process.cwd();
@@ -93,6 +94,10 @@ class Build {
 
     // Program areas must be known before any pass runs (copySrc is first)
     loadProgramAreas();
+
+    // ACCESS: the level this build is at, for templates and plugins
+    // (files above it are left out by copySrc and the collections)
+    data.access = { level: buildLevel(access), levels: levelsOf(access) };
 
     // PLUGIN: Create `/dist` if not already made
     await createDist();

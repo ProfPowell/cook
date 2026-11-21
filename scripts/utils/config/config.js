@@ -124,6 +124,18 @@ const defaultConfig = {
   },
 
 
+  // Access levels, lowest first. A build at `level` leaves out every
+  // source file above it: not copied to dist, not collected, so the feed,
+  // sitemap and data-repeat lists follow. `levelOf` gets each file's path
+  // (relative to srcPath) and its front matter (null for files that are
+  // not .html/.md). A level not in `levels` counts as the last one.
+  access: {
+    levels: ['public', 'friends', 'private'],
+    level: process.env.COOK_ACCESS_LEVEL || 'public',
+    levelOf: ({ frontMatter }) => frontMatter?.access ?? 'public',
+  },
+
+
   // REQUIRED (SITE-SPECIFIC CONFIG)
   // ---------------------------------
   // Add config items here for your own custom build plugins
@@ -380,6 +392,7 @@ export default config;
 // Named exports for destructuring imports
 export { getTheme, getPrograms, getSocial };
 export const {
+  access,
   activeLink,
   autoComponents,
   basePath,

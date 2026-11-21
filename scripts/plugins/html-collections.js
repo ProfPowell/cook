@@ -19,6 +19,8 @@
  *   srcPath/<siteRoot>); files at the root or outside it join none
  * - only files that start with `---` front matter; `draft: true` is skipped
  * - buildOnlyPaths folders and excludePaths (tested on the dist path) skipped
+ * - pages above the build's access level are skipped; each item gets
+ *   `access`, its resolved level
  * - URL follows convertPageToDirectory (posts/a.html → /posts/a/)
  * - newest date first, undated last; merged with markdown collections
  */
@@ -35,9 +37,11 @@ import Util from '../utils/util/util.js';
 import { addToCollection, sortCollections, toCollectionItem } from '../utils/collections/collections.js';
 import { normalizeSiteRoot } from '../utils/site-root/site-root.js';
 import { isInProgram } from './programs.js';
+import { buildLevel, isVisible, levelsOf, resolveLevel } from '../utils/access/access.js';
 
 // Config
 import {
+  access as accessConfig,
   buildOnlyPaths as buildOnlyPathsConfig,
   collections as collectionsConfig,
   convertPageToDirectory,
@@ -152,6 +156,7 @@ function templateDate(rawDate) {
  * @param {boolean} [opts.enabled] - Defaults to config `collections.html`
  * @param {string[]} [opts.buildOnlyPaths]
  * @param {Array<RegExp|string>} [opts.excludePaths]
+ * @param {Object} [opts.access] - `{ levels, level, levelOf }`
  */
 export default async function htmlCollections({
   store,
@@ -162,12 +167,15 @@ export default async function htmlCollections({
   enabled = collectionsConfig && collectionsConfig.html,
   buildOnlyPaths = buildOnlyPathsConfig || [],
   excludePaths = excludePathsConfig || [],
+  access = accessConfig,
 }) {
   if (!enabled || !existsSync(srcPath)) return;
 
   const excludes = excludePaths.map(p => (p instanceof RegExp ? p : new RegExp(p)));
   const convertExcludes = (convertPageToDirectory && convertPageToDirectory.excludePaths) || [];
   const convertDisabled = !!(convertPageToDirectory && convertPageToDirectory.disabled);
+  const levels = levelsOf(access);
+  const level = buildLevel(access);
 
   const files = (Util.getPaths(srcPath, srcPath, []) || []).filter(f => f.endsWith('.html'));
   if (!store.collections) store.collections = {};
@@ -197,8 +205,12 @@ export default async function htmlCollections({
     }
     if (!frontMatter || !Object.keys(frontMatter).length || frontMatter.draft === true) continue;
 
+    // Above the build's access level: not copied (copySrc), not collected
+    const pageLevel = resolveLevel({ relPath, frontMatter }, access);
+    if (!isVisible(pageLevel, level, levels)) continue;
+
     const convertExcluded = convertExcludes.some(str => distFile.includes(str));
-    const page = htmlPageData(relPath, frontMatter, { siteRoot, convertDisabled, convertExcluded });
+    const page = { ...htmlPageData(relPath, frontMatter, { siteRoot, convertDisabled, convertExcluded }), access: pageLevel };
     addToCollection(store.collections, collection, toCollectionItem(page));
     collected += 1;
   }
