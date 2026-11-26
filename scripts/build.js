@@ -55,7 +55,7 @@ import { collectSitePages } from './utils/site-pages/site-pages.js';
 // CONFIG
 // Combined user overrides on top of internal defaults
 import config, { access, plugins, distPath, siteRoot, srcPath } from './utils/config/config.js';
-import { buildLevel, distPageLevel, levelsOf, pageAccessData } from './utils/access/access.js';
+import { buildLevel, distPageLevel, isVisible, levelsOf, pageAccessData, resolveLevel } from './utils/access/access.js';
 import { siteRootDir } from './utils/site-root/site-root.js';
 
 const cwd = process.cwd();
@@ -169,6 +169,17 @@ class Build {
       // PLUGIN: Parse YAML front matter from HTML files
       // Strips front matter from source, stores on file.frontMatter
       await processHtmlFrontmatter({file, allowType: ['.html']});
+
+      // ACCESS: a dynamic page (added by a plugin) above the build level is
+      // not built. Its level comes from its path and front matter, like a file.
+      if (file.isDynamic) {
+        const relPath = path.relative(distPath, file.path).split(path.sep).join('/');
+        const level = resolveLevel({ relPath, frontMatter: file.frontMatter ?? {} }, access);
+        if (!isVisible(level, buildLevel(access), levelsOf(access))) {
+          console.log(chalk.dim(`\n[access] skipped dynamic page /${relPath.replace(/\/?index\.html$/, '')} (${level})`));
+          return;
+        }
+      }
 
       // ACCESS: `${access.level}` stays the build's level on every page;
       // `${access.page}` is the page's own level. A front matter `access`

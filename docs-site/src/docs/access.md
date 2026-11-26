@@ -86,5 +86,5 @@ Each collection item has `access` set to its resolved level, so a list can mark 
 ## Notes
 
 - `cook dev` builds at the level in `COOK_ACCESS_LEVEL` too. Saving a page above that level does not copy or build it.
-- Pages added by plugins through `dynamicPages` are not checked. A plugin that adds pages decides which to add, using `data.access.level`.
+- Pages added by plugins through `addDynamicPage` (see [Build pipeline](/docs/build-pipeline/)) are checked like files. Their level comes from `levelOf`, called with a `relPath` of the page's path without the leading slash plus `/index.html` (`collections/retro-games/index.html`), and the front matter at the top of the page source. A page above the build level is not written, so it is not in the sitemap, feed or collections; the build logs `[access] skipped dynamic page <path> (<level>)`.
 - Access levels decide what a build contains. They do not protect a deployed site: serve each build where only its audience can reach it.

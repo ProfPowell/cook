@@ -91,3 +91,21 @@ Register plugins in `config/main.js` under the `plugins` key. Each array takes p
 - **`after`** -- runs once after the file loop and all post-processing
 
 Plugins within each array execute in order from left to right. If one plugin depends on another, list the dependency first.
+
+### Adding pages from a plugin
+
+A `before` plugin can add pages that have no source file with `addDynamicPage(path, src, store)`, imported from `cook-ssg/pages`. Pass the plugin's `data` as the store. Cook writes the page to `<path>/index.html` and runs it through the same per-file loop as any other page.
+
+<code-block language="javascript" label="plugins/add-about.js">import { addDynamicPage } from 'cook-ssg/pages';
+
+export class AddAbout {
+  constructor({data}) {
+    this.data = data;
+  }
+
+  init() {
+    addDynamicPage('/about-us/', '&lt;main&gt;&lt;h1&gt;About us&lt;/h1&gt;&lt;/main&gt;', this.data);
+  }
+}</code-block>
+
+Dynamic pages honor [access levels](/docs/access/). Front matter at the top of `src` (for example `access: friends`) is read like a file's, and `levelOf` receives a `relPath` of the path without its leading slash plus `/index.html` (here `about-us/index.html`).
